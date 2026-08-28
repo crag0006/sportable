@@ -1,0 +1,33 @@
+# Data — SportAble Melbourne
+
+Owner: Data team (2 members). The Infra/Platform engineer owns the AWS
+resources that package and run this code, not the code itself.
+
+## Layout
+
+| Path | Purpose |
+|---|---|
+| `ingestion/extractors/` | One module per source: `vic_sport_rec`, `public_toilets_nptm`, `ptv_gtfs`, `osm`. Pure fetch → raw bytes. |
+| `ingestion/transformers/` | Raw payload → normalised rows. No I/O. |
+| `ingestion/validators/` | Column contract, null/range/coordinate checks. Rejected rows → quarantine. |
+| `ingestion/loaders/` | Idempotent UPSERT into RDS. Safe to replay. |
+| `derive/` | `status_builder` (nearest amenity, 250/500/1000 m bands, status derivation), `graph_builder` (Iteration 2). |
+| `schemas/` | Column contracts shared by validators and tests. |
+| `sql/` | PostGIS bootstrap, spatial index DDL, reference queries. |
+| `sources/` | Source registry: name, URL, licence, attribution text, refresh cadence, staleness threshold. |
+
+## Contract with infra
+
+The Lambda handler signature and the S3 key convention are the boundary.
+
+- Raw zone key: `s3://<raw-bucket>/<dataset>/dt=YYYY-MM-DD/<filename>`
+- Quarantine key: `s3://<quarantine-bucket>/<dataset>/dt=YYYY-MM-DD/rejected.jsonl`
+- Handler entrypoint: `data.ingestion.<stage>.handler(event, context)`
+
+Change the convention and the Terraform in `infra/modules/ingestion` changes with it.
+
+## Non-negotiable rule
+
+**Unknown is never a no.** A facility with no published record is loaded as
+`no_published_information`, never as `false`. This is enforced in the loader,
+tested in `data/tests`, and is the reason the API can never render a false absence.
