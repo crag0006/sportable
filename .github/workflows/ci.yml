@@ -110,6 +110,71 @@ jobs:
       - name: Unit tests
         run: uv run pytest tests/unit -q
 
+  # ---------------------------------------------------------------------- data
+  # Owner: Data engineers. Mirrors the backend job, against data/ instead of
+  # backend/ — the ingestion and derivation code is a separate uv project with
+  # its own dependencies and its own lock file (see data/pyproject.toml for why).
+  #
+  # Style rules come from the repository-root ruff.toml, so a line that fails
+  # here fails identically in backend/. mypy is intentionally NOT strict here:
+  # ingestion code handles loosely-typed third-party payloads, and strict mode
+  # before the column contracts settle produces noise rather than signal.
+  data:
+    name: Data — lint, type-check, test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: data
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: data/uv.lock
+
+      # data/ holds only .gitkeep placeholders until the Data team writes the
+      # first extractor. Same reasoning as the Terraform and Frontend guards:
+      # a pipeline that is red before anyone has written code is one the team
+      # learns to ignore. It activates on its own when the first module lands.
+      #
+      # notebooks/ is excluded on purpose — exploratory work is not held to the
+      # same bar, and is converted to a module in ingestion/ before it ships.
+      - name: Any Python yet?
+        id: guard
+        run: |
+          if [ -z "$(find . -name '*.py' -not -path './notebooks/*' -not -path './.venv/*' -print -quit)" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No Python in data/ yet — these checks activate with the first module."
+          else
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        if: steps.guard.outputs.found == 'true'
+        run: uv sync --frozen
+
+      - name: Lint
+        if: steps.guard.outputs.found == 'true'
+        run: uv run ruff check .
+
+      - name: Format check
+        if: steps.guard.outputs.found == 'true'
+        run: uv run ruff format --check .
+
+      - name: Type check
+        if: steps.guard.outputs.found == 'true'
+        run: uv run mypy ingestion derive
+
+      # Unit tests only. Loader tests that need a real PostGIS container are
+      # marked `integration` and excluded here — they get their own job once the
+      # first loader exists.
+      - name: Unit tests
+        if: steps.guard.outputs.found == 'true'
+        run: uv run pytest -q -m "not integration"
+
   # ---------------------------------------------------------------- terraform
   # Owner: Infra/Platform engineer. Four checks, increasing in depth:
   #   fmt      — is it formatted canonically?
