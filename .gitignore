@@ -55,3 +55,7 @@ data/**/output/
 # Personal planning notes — kept outside the repo
 iteration-*-tasks.md
 iteration-1-infra-backend-tasks.md
+
+# Lambda deployment packages built by archive_file at plan time
+infra/modules/*/.build/
+*.zip

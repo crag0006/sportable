@@ -154,6 +154,63 @@ resource "aws_cloudfront_distribution" "site" {
     origin_access_control_id = aws_cloudfront_origin_access_control.site.id
   }
 
+  # The API origin, added only when an API exists. A custom origin (not S3), so
+  # it needs explicit protocol settings.
+  dynamic "origin" {
+    for_each = var.api_origin_domain == null ? [] : [var.api_origin_domain]
+
+    content {
+      origin_id   = "apigw"
+      domain_name = origin.value
+
+      custom_origin_config {
+        origin_protocol_policy = "https-only"
+        http_port              = 80
+        https_port             = 443
+        origin_ssl_protocols   = ["TLSv1.2"]
+      }
+    }
+  }
+
+  # /api/* is evaluated BEFORE the default behaviour. Ordered behaviours are
+  # matched most-specific-first regardless of declaration order, but keeping the
+  # intent visible here matters more than relying on that.
+  dynamic "ordered_cache_behavior" {
+    for_each = var.api_origin_domain == null ? [] : [1]
+
+    content {
+      path_pattern           = var.api_path_pattern
+      target_origin_id       = "apigw"
+      viewer_protocol_policy = "redirect-to-https"
+
+      # Every method: the API will accept POST and PATCH once it does more than
+      # read. OPTIONS is included for completeness even though same-origin
+      # requests never trigger a preflight.
+      allowed_methods = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods  = ["GET", "HEAD"]
+      compress        = true
+
+      # Managed-CachingDisabled. Verified by name against the API.
+      #
+      # THIS IS THE ONE THAT WILL BITE IF IT IS WRONG. With the default policy,
+      # CloudFront would serve a venue search result for 24 hours and the request
+      # would never reach Lambda — invisible in the API's own logs, because there
+      # is no request to log.
+      cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+
+      # Managed-AllViewerExceptHostHeader.
+      #
+      # Forwards query strings, cookies and headers to the origin, but NOT the
+      # viewer's Host header. API Gateway rejects a request whose Host does not
+      # match its own domain, producing a 403 that looks like an authorisation
+      # failure and is not. Using plain AllViewer here is a classic mistake.
+      origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+
+      # Security headers on API responses too.
+      response_headers_policy_id = "67f7725c-6f97-4210-82d7-5512b31e9d03"
+    }
+  }
+
   default_cache_behavior {
     target_origin_id       = "s3-spa"
     viewer_protocol_policy = "redirect-to-https"
