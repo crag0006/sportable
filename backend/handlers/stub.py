@@ -52,3 +52,6 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         "headers": {"content-type": "application/json"},
         "body": '{"status":"ok","service":"sportable-api"}',
     }
+
+
+x   =    1
