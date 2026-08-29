@@ -55,3 +55,10 @@ module "bastion" {
   security_group_id = module.network.bastion_security_group_id
   ssh_public_key    = var.ssh_public_key
 }
+
+module "static_site" {
+  source = "../../modules/static_site"
+
+  name_prefix = local.name_prefix
+  account_id  = var.expected_account_id
+}
