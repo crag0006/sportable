@@ -112,4 +112,21 @@ resource "aws_instance" "bastion" {
   user_data_replace_on_change = true
 
   tags = { Name = "${var.name_prefix}-bastion" }
+
+  lifecycle {
+    # A STOPPED instance releases its auto-assigned public IP, and AWS then
+    # reports associate_public_ip_address as false. Terraform sees drift from
+    # the configured `true`, and because that attribute can only change by
+    # replacement, every plan taken while the bastion is stopped proposes
+    # DESTROYING AND RECREATING IT.
+    #
+    # Since we stop this host every evening to save ~USD $8/month, that would be
+    # a destroy in almost every plan — which is exactly how people learn to stop
+    # reading plans.
+    #
+    # The attribute matters at launch and not afterwards, so ignore it. If the
+    # instance ever needs to stop being public, change it here and taint the
+    # instance deliberately.
+    ignore_changes = [associate_public_ip_address]
+  }
 }

@@ -65,3 +65,20 @@ output "db_tunnel_command" {
     module.bastion.public_ip,
   )
 }
+
+# The demo URL. This is what the Definition of Done means by "demonstrated from
+# that URL rather than from a laptop".
+output "site_url" {
+  description = "Public HTTPS address of the application."
+  value       = module.static_site.site_url
+}
+
+output "site_bucket" {
+  description = "Deploy target: aws s3 sync frontend/dist s3://<this>/"
+  value       = module.static_site.bucket_name
+}
+
+output "cloudfront_distribution_id" {
+  description = "For cache invalidation after each deploy."
+  value       = module.static_site.distribution_id
+}
