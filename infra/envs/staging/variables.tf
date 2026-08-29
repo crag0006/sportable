@@ -19,3 +19,17 @@ variable "allowed_ssh_cidrs" {
   EOT
   type        = list(string)
 }
+
+variable "ssh_public_key" {
+  description = <<-EOT
+    SSH public key authorised on the bastion.
+
+    Generate one if you have not:
+        ssh-keygen -t ed25519 -f ~/.ssh/sportable -C "sportable-bastion"
+        cat ~/.ssh/sportable.pub
+
+    Public keys are not secrets. This one is committed in terraform.tfvars on
+    purpose — the private half never leaves your machine.
+  EOT
+  type        = string
+}
