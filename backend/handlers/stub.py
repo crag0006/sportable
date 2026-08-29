@@ -1,54 +1,92 @@
 """Placeholder Lambda handler for the SportAble API.
 
 WHY THIS FILE EXISTS
-    T2 wires API Gateway to a Lambda function. That Terraform needs *some*
-    deployable handler to point at, and the real FastAPI application is being
-    written by the backend engineer in parallel. Without this file the
-    infrastructure work would sit blocked behind application work — which is
-    exactly the dependency this project is structured to avoid.
+    Two reasons, and the second matters more than the first.
 
-    It also gives CI something real to execute: pytest exits with code 5 when it
-    collects no tests, so the pipeline cannot go green against an empty
-    ``tests/`` directory.
+    1. T2 wires API Gateway to a Lambda. That Terraform needs something
+       deployable to point at, and the real FastAPI application is being written
+       in parallel. Without this, infrastructure work would block behind
+       application work.
+
+    2. It serves DRAFT FIXTURES for the endpoints the Frontend team needs, at
+       the real URL, through the real CloudFront and API Gateway path. Both
+       frontend engineers can build the search page and the venue card before a
+       single endpoint exists.
+
+    API Gateway HTTP APIs cannot do this with a mock integration — that is a
+    REST API feature. Confirmed against the API:
+
+        BadRequestException: an API with a protocol type of HTTP may only be
+        associated with proxy integrations (AWS_PROXY, HTTP_PROXY)
+
+    So the routing lives here instead, which is better anyway: one place, and it
+    is deleted wholesale when the real handler lands.
 
 HOW IT GETS REPLACED
-    One line of Terraform. The Lambda's ``handler`` argument changes from
-    ``handlers.stub.handler`` to the Mangum adapter wrapping the FastAPI app
-    (``handlers.api.handler``). Nothing else about the function, its role, its
-    VPC attachment or its alias changes.
+    One line of Terraform. The Lambda's `handler` changes from `stub.handler`
+    to the Mangum adapter wrapping the FastAPI app. Nothing about the function,
+    its role, its VPC attachment or its alias changes.
 
-THE RESPONSE SHAPE
-    API Gateway *HTTP APIs* (payload format 2.0) accept either a plain object,
-    which is serialised as the whole response body, or the explicit structure
-    returned here. The explicit form is used deliberately: it is the same shape
-    the real handler will return, so the API Gateway integration, the CORS
-    configuration and the deploy smoke test are all exercised against a
-    realistic response rather than one that happens to work by default.
+EVERY FIXTURE RESPONSE CARRIES "_fixture": true
+    So no one mistakes fabricated data for a working backend, and so the
+    frontend can assert on its ABSENCE once the real API is live.
 """
 
 from __future__ import annotations
 
+import json
 from typing import Any
+
+import fixtures
+
+_JSON_HEADERS = {"content-type": "application/json"}
+
+
+def _response(status: int, body: dict[str, Any]) -> dict[str, Any]:
+    """Build an API Gateway HTTP API v2 response.
+
+    `body` must already be a string — API Gateway does not serialise it for you.
+    Returning a dict produces a 502 at runtime while looking correct in tests
+    that only inspect the parsed value.
+    """
+    return {
+        "statusCode": status,
+        "headers": _JSON_HEADERS,
+        "body": json.dumps(body),
+    }
 
 
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
-    """Return a static health payload.
+    """Route on the request path.
 
     Args:
-        event: The API Gateway HTTP API v2 request. Ignored — this handler
-            responds identically to every request, including the deploy
-            pipeline's smoke test against ``/api/v1/health``.
-        context: The Lambda context object (request id, remaining time, memory
-            limit). Ignored here; the real handler passes it to AWS Lambda
-            Powertools for structured logging and tracing.
+        event: API Gateway HTTP API v2 request. `rawPath` carries the full path
+            as the client sent it — CloudFront forwards `/api/v1/...` unchanged.
+        context: Lambda context. Unused here; the real handler passes it to AWS
+            Lambda Powertools for structured logging.
 
     Returns:
-        An API Gateway HTTP API v2 response: status code, headers, and a body
-        that must already be a string — API Gateway does not serialise it for
-        you.
+        An API Gateway HTTP API v2 response.
     """
-    return {
-        "statusCode": 200,
-        "headers": {"content-type": "application/json"},
-        "body": '{"status":"ok","service":"sportable-api"}',
-    }
+    path = event.get("rawPath", "/").rstrip("/") or "/"
+
+    if path in ("/api/v1/health", "/health", "/"):
+        return _response(200, {"status": "ok", "service": "sportable-api"})
+
+    if path == "/api/v1/sports":
+        return _response(200, fixtures.SPORTS)
+
+    if path == "/api/v1/venues/search":
+        return _response(200, fixtures.search_response())
+
+    if path.startswith("/api/v1/venues/"):
+        venue_id = path.removeprefix("/api/v1/venues/")
+        venue = fixtures.venue_response(venue_id)
+        if venue is None:
+            # A genuine 404 from the API must stay a 404. CloudFront's SPA
+            # fallback deliberately does not apply to /api/*, or the frontend
+            # would receive HTML where it expected JSON.
+            return _response(404, {"error": "venue_not_found", "venue_id": venue_id})
+        return _response(200, venue)
+
+    return _response(404, {"error": "route_not_found", "path": path})

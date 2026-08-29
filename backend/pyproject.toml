@@ -39,7 +39,10 @@ plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# backend/ on sys.path so tests import `handlers` and `app` without an installed package
-pythonpath = ["."]
+# backend/ so tests can import `handlers.stub` and `app`; backend/handlers/ so
+# that `import fixtures` resolves exactly as it does inside the Lambda, where
+# archive_file flattens the directory and every module sits at the zip root.
+# Without the second entry, code that works when deployed fails under pytest.
+pythonpath = [".", "handlers"]
 addopts = "--cov=app --cov=handlers --cov-report=term-missing"
 markers = ["integration: requires a live PostGIS container"]
