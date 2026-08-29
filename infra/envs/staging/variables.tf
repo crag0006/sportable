@@ -33,3 +33,18 @@ variable "ssh_public_key" {
   EOT
   type        = string
 }
+
+variable "lambda_execution_role_arn" {
+  description = <<-EOT
+    Pre-built Lambda execution role. Hardcoded as an ARN rather than resolved
+    with a data source: this account's principals cannot create IAM roles, and
+    iam:ListAttachedRolePolicies is denied, so we can neither build nor inspect
+    it.
+
+    If a Lambda fails to create with a CreateNetworkInterface error, this role
+    is missing AWSLambdaVPCAccessExecutionRole and only the account holder can
+    attach it.
+  EOT
+  type        = string
+  default     = "arn:aws:iam::725699850301:role/sportable-lambda-api"
+}

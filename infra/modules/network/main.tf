@@ -13,8 +13,9 @@
 #     - In-VPC Lambdas still have to reach S3      → S3 Gateway Endpoint
 #
 #   The endpoint is the important cost decision. It is a route-table entry, not
-#   a server: USD $0/month, versus roughly $45 for the NAT Gateway that would
-#   otherwise be required. NEVER add a NAT Gateway to this project.
+#   a server: USD $0/month, versus roughly $40/month in ap-southeast-2 for the
+#   NAT Gateway that would otherwise be required — before any data crosses it.
+#   NEVER add a NAT Gateway to this project.
 # ==============================================================================
 
 # ------------------------------------------------------------------------ VPC

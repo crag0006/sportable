@@ -82,3 +82,22 @@ output "cloudfront_distribution_id" {
   description = "For cache invalidation after each deploy."
   value       = module.static_site.distribution_id
 }
+
+output "api_function_name" {
+  value = module.api.function_name
+}
+
+output "api_alias_arn" {
+  description = "API Gateway integrates with this, not the function itself."
+  value       = module.api.alias_arn
+}
+
+output "api_invoke_test_command" {
+  description = "Run this to prove the Lambda works before API Gateway exists."
+  value       = module.api.invoke_test_command
+}
+
+output "api_endpoint" {
+  description = "Direct API Gateway URL — for debugging. The app uses the CloudFront path."
+  value       = module.api.api_endpoint
+}

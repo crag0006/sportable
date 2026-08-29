@@ -61,4 +61,28 @@ module "static_site" {
 
   name_prefix = local.name_prefix
   account_id  = var.expected_account_id
+
+  # Routing the API through the same distribution is what removes CORS from the
+  # problem entirely: the SPA and the API share one origin, so the browser never
+  # makes a cross-origin request.
+  api_origin_domain = module.api.api_domain
+}
+
+module "api" {
+  source = "../../modules/api"
+
+  name_prefix = local.name_prefix
+
+  # Pre-built by the account holder. We hold iam:PassRole on it but cannot read
+  # or change its policies — see the module's variable documentation.
+  execution_role_arn = var.lambda_execution_role_arn
+
+  # path.root is infra/envs/staging, so three levels up is the repository root.
+  source_dir = "${path.root}/../../../backend/handlers"
+
+  # az-a only: the RDS instance is there, and a second ENI would buy nothing.
+  subnet_ids        = [module.network.private_subnet_ids[0]]
+  security_group_id = module.network.lambda_security_group_id
+
+  db_url_ssm_parameter = module.database.ssm_url_parameter
 }
