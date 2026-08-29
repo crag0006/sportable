@@ -1,45 +1,127 @@
-"""Tests for the placeholder Lambda handler.
+"""Tests for the placeholder handler and its draft fixtures.
 
-These tests carry more weight than their subject deserves, for two reasons.
+These carry more weight than their subject deserves, for two reasons.
 
-First, pytest exits with code 5 — a failure — when it collects no tests at all.
-Until real application tests exist, these are what allow the CI pipeline to go
-green, and a pipeline that has never been green is a pipeline nobody trusts.
+First, pytest exits with code 5 — a failure — when it collects no tests. Until
+real application tests exist, these are what let CI go green.
 
-Second, they pin the *response contract* rather than the implementation. The
-stub will be deleted, but API Gateway's expectations do not change: an HTTP API
-integration needs ``statusCode`` as an integer and ``body`` as an already
-serialised string. Asserting that here means the deploy pipeline's smoke test
-is checking something that was verified locally first.
+Second, they pin the RESPONSE CONTRACT rather than the implementation. The stub
+will be deleted; API Gateway's expectations will not change, and neither will
+the product rules the fixtures encode.
 """
 
 import json
 
+import fixtures
 from handlers.stub import handler
 
 
-def test_handler_returns_200():
+def _call(path: str) -> dict:
+    return handler({"rawPath": path}, None)
+
+
+def _body(path: str) -> dict:
+    return json.loads(_call(path)["body"])
+
+
+# ---------------------------------------------------------------- API Gateway
+def test_health_returns_200():
     """API Gateway treats a missing or non-integer statusCode as a 502."""
-    assert handler({}, None)["statusCode"] == 200
+    assert _call("/api/v1/health")["statusCode"] == 200
 
 
-def test_handler_returns_json_content_type():
-    """The SPA parses the response as JSON; the header has to say so."""
-    assert handler({}, None)["headers"]["content-type"] == "application/json"
+def test_body_is_a_serialised_string():
+    """API Gateway does not serialise the body for you.
 
-
-def test_handler_body_is_a_serialised_string():
-    """API Gateway does not serialise the body for you — it must be a string.
-
-    Returning a dict here would produce a 502 at runtime while passing any test
-    that only inspected the parsed value, so assert the type explicitly.
+    Returning a dict produces a 502 at runtime while passing any test that only
+    inspects the parsed value, so assert the type explicitly.
     """
-    assert isinstance(handler({}, None)["body"], str)
+    assert isinstance(_call("/api/v1/health")["body"], str)
 
 
-def test_handler_body_reports_ok():
-    """The payload the deploy smoke test asserts against."""
-    assert json.loads(handler({}, None)["body"]) == {
-        "status": "ok",
-        "service": "sportable-api",
-    }
+def test_unknown_route_is_404():
+    """A genuine 404 from the API must stay a 404.
+
+    CloudFront's SPA fallback maps 403/404 to index.html with status 200, but
+    deliberately NOT for /api/*, or the frontend would receive HTML where it
+    expected JSON.
+    """
+    assert _call("/api/v1/nope")["statusCode"] == 404
+
+
+def test_trailing_slash_is_tolerated():
+    assert _call("/api/v1/sports/")["statusCode"] == 200
+
+
+# ------------------------------------------------------------- product rules
+def test_no_facility_uses_a_boolean():
+    """ "Unknown is never a no."
+
+    Status is a three-state string, never a boolean. A boolean would make
+    `if facility["confirmed"]` render an undocumented facility as absent, which
+    is the single failure mode the product is designed to avoid (AC1.3.3).
+    """
+    for venue in _body("/api/v1/venues/search")["results"]:
+        for facility in venue["facilities"]:
+            assert isinstance(facility["status"], str)
+            assert facility["status"] in {
+                fixtures.STATUS_CONFIRMED,
+                fixtures.STATUS_NOT_AVAILABLE,
+                fixtures.STATUS_NO_PUBLISHED_INFORMATION,
+            }
+
+
+def test_confirmed_facilities_always_carry_provenance():
+    """AC1.3.2 — distance, source name and the date the source was updated."""
+    for venue in _body("/api/v1/venues/search")["results"]:
+        for facility in venue["facilities"]:
+            if facility["status"] == fixtures.STATUS_CONFIRMED:
+                assert isinstance(facility["distance_m"], int)
+                assert facility["source"]["name"]
+                assert facility["source"]["last_updated"]
+
+
+def test_undocumented_venues_are_grouped_not_removed():
+    """AC1.2.3 — grouped and counted, never silently dropped."""
+    body = _body("/api/v1/venues/search")
+    group = body["undocumented_group"]
+    assert group["count"] == len(group["results"])
+    assert group["count"] > 0
+    assert group["label"]
+
+
+def test_reference_point_is_named():
+    """AC1.1.3 — a suburb is an area, not a point, so the origin must be stated."""
+    assert _body("/api/v1/venues/search")["reference_point"]["label"]
+
+
+def test_no_combined_accessibility_score_anywhere():
+    """AC2.1.2 — no score, rating, percentage or star value, on any endpoint.
+
+    A single number hides the one failed facility that decides whether a person
+    can attend.
+    """
+    forbidden = ("score", "rating", "percentage", "stars", "overall")
+    for path in ("/api/v1/venues/search", "/api/v1/venues/vsr-10432"):
+        raw = json.dumps(_body(path)).lower()
+        for word in forbidden:
+            assert word not in raw, f"{word!r} appears in {path}"
+
+
+# --------------------------------------------------------------- venue card
+def test_venue_card_states_what_it_cannot_tell_you():
+    """AC2.1.5 — a headed section naming the gaps, with a plain-English reason."""
+    limits = _body("/api/v1/venues/vsr-10432")["limits"]
+    assert limits["heading"]
+    assert len(limits["items"]) >= 1
+    assert all(item["reason"] for item in limits["items"])
+
+
+def test_missing_venue_returns_404():
+    assert _call("/api/v1/venues/does-not-exist")["statusCode"] == 404
+
+
+def test_every_response_is_marked_as_a_fixture():
+    """So nobody mistakes fabricated data for a working backend."""
+    for path in ("/api/v1/venues/search", "/api/v1/venues/vsr-10432"):
+        assert _body(path)["_fixture"] is True

@@ -109,6 +109,15 @@ resource "aws_cloudfront_origin_access_control" "site" {
   signing_protocol                  = "sigv4"
 }
 
+# ------------------------------------------------------------ SPA rewrite fn
+resource "aws_cloudfront_function" "spa_rewrite" {
+  name    = "${var.name_prefix}-spa-rewrite"
+  runtime = "cloudfront-js-2.0"
+  comment = "Rewrites extensionless paths to /index.html for the SPA router"
+  publish = true
+  code    = file("${path.module}/functions/spa-rewrite.js")
+}
+
 # --------------------------------------------------------------- distribution
 resource "aws_cloudfront_distribution" "site" {
   # checkov:skip=CKV_AWS_174:The viewer certificate is CloudFront's default
@@ -224,6 +233,13 @@ resource "aws_cloudfront_distribution" "site" {
     # index.html is the exception, and the deploy pipeline invalidates it.
     cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
 
+    # Attached to THIS behaviour only, which is the whole point: /api/* has no
+    # function association and its responses pass through untouched.
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.spa_rewrite.arn
+    }
+
     # AWS-managed SecurityHeadersPolicy. Adds Strict-Transport-Security,
     # X-Content-Type-Options, X-Frame-Options, Referrer-Policy and a
     # Content-Security-Policy to every response. Free, and it closes a whole
@@ -231,27 +247,15 @@ resource "aws_cloudfront_distribution" "site" {
     response_headers_policy_id = "67f7725c-6f97-4210-82d7-5512b31e9d03"
   }
 
-  # ---- the SPA fallback ----
-  # A route like /venues/melbourne-park exists only in JavaScript; there is no
-  # such object in S3. Because Origin Access Control does not grant
-  # s3:ListBucket, a missing key returns 403 rather than 404 — so both must be
-  # mapped back to the app.
+  # NO custom_error_response BLOCKS, DELIBERATELY.
   #
-  # response_code = 200 matters. Serving the app with a 403 status makes the
-  # browser treat a working page as an error, and search engines drop it.
-  custom_error_response {
-    error_code            = 403
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 10
-  }
-
-  custom_error_response {
-    error_code            = 404
-    response_code         = 200
-    response_page_path    = "/index.html"
-    error_caching_min_ttl = 10
-  }
+  # They are DISTRIBUTION-WIDE in CloudFront — there is no per-behaviour
+  # override. Mapping 404 to /index.html with status 200 would therefore rewrite
+  # the API's genuine 404s as well, and the frontend would receive HTML where it
+  # expected JSON. Verified the hard way: /api/v1/venues/nope returned 200.
+  #
+  # The SPA fallback is done by a CloudFront Function attached to the default
+  # behaviour only. See functions/spa-rewrite.js.
 
   restrictions {
     geo_restriction {
