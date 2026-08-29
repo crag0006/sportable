@@ -30,3 +30,28 @@ module "network" {
 
   allowed_ssh_cidrs = var.allowed_ssh_cidrs
 }
+
+module "database" {
+  source = "../../modules/database"
+
+  name_prefix = local.name_prefix
+  ssm_prefix  = "/sportable/staging"
+
+  # Both private subnets: RDS needs a subnet group spanning two AZs even for a
+  # single-AZ instance. The az-b subnet exists for exactly this.
+  subnet_ids        = module.network.private_subnet_ids
+  security_group_id = module.network.rds_security_group_id
+
+  # Verified on this account 29 Aug 2026 — see the module variable comments.
+  engine_version = "16.10"
+  instance_class = "db.t4g.micro"
+}
+
+module "bastion" {
+  source = "../../modules/bastion"
+
+  name_prefix       = local.name_prefix
+  subnet_id         = module.network.public_subnet_id
+  security_group_id = module.network.bastion_security_group_id
+  ssh_public_key    = var.ssh_public_key
+}

@@ -17,13 +17,20 @@ Terraform 1.9+ (OpenTofu-compatible). Owner: Infra/Platform engineer.
 | `envs/staging/` | The only environment for Iteration 1. |
 | `envs/prod/` | Scaffolded, not applied until Iteration 2 (build URL freeze). |
 
-## Cost guard
+## The one rule that matters most
 
-Every resource is checked against AWS Free Tier before adoption.
-The single deliberate exception is Amazon Bedrock (Iteration 3, Assistant epic).
+**Never provision a NAT Gateway.** Roughly USD $40/month in `ap-southeast-2`
+before a byte of data crosses it — more than every other resource in this
+project combined. The S3 Gateway Endpoint in `modules/network` exists precisely
+so that no in-VPC Lambda ever needs one. It is a route-table entry, not a
+server, and costs nothing.
 
-**Never provision a NAT Gateway.** ~USD $32/month, not Free Tier, and the
-S3 Gateway Endpoint in `modules/network` exists precisely to avoid it.
+Every resource is checked for cost before adoption. The single planned
+exception is Amazon Bedrock in Iteration 3.
+
+See [Cost control](#cost-control-while-there-is-no-budget-alarm) below for what
+to stop, and [the Free plan](#the-aws-free-plan-restricts-capabilities-not-just-spend)
+for the restrictions this account carries.
 
 ## State locking — why there is no DynamoDB table
 
@@ -76,6 +83,81 @@ checkov -d infra --framework terraform  # security policy scan
 CI runs all three on every pull request, plus `terraform validate`. The
 Terraform job currently skips itself because `infra/` holds only placeholders;
 it activates automatically when the first `.tf` file is committed.
+
+## The AWS Free plan restricts capabilities, not just spend
+
+The staging account is on the AWS Free plan (the credit-based model). That plan
+**blocks certain features and resource types outright**, regardless of whether
+you are willing to pay for them.
+
+None of these are visible to `terraform validate`, `tflint` or `checkov` — they
+only surface when the AWS API rejects the apply. Three were hit while building
+T1:
+
+| Attempted | Error | Resolution |
+|---|---|---|
+| RDS `backup_retention_period = 7` | `FreeTierRestrictionError: The specified backup retention period exceeds the maximum available to free tier customers` | Reduced to `1` |
+| Bastion on `t4g.nano` | `InvalidParameterCombination: The specified instance type is not eligible for Free Tier` | Changed to `t4g.micro` |
+| RDS `engine_version = "16.4"` | `Cannot find version 16.4 for postgres` | Only 16.9–16.15 are offered; pinned `16.10` |
+
+**How to recognise one:** the message says `FreeTierRestrictionError`, or
+mentions Free Tier eligibility. That is the plan refusing — not a mistake in
+your Terraform. Do not debug the configuration.
+
+**Check before you write the resource, not after:**
+
+```bash
+# EC2 instance types this account may launch at all
+aws ec2 describe-instance-types --filters Name=free-tier-eligible,Values=true \
+  --query 'InstanceTypes[].[InstanceType,ProcessorInfo.SupportedArchitectures[0]]' --output table
+
+# RDS engine versions actually available
+aws rds describe-db-engine-versions --engine postgres \
+  --query 'DBEngineVersions[?starts_with(EngineVersion, `16.`)].EngineVersion' --output table
+
+# RDS instance classes orderable for a given version, and their storage types
+aws rds describe-orderable-db-instance-options --engine postgres \
+  --engine-version 16.10 --db-instance-class db.t4g.micro \
+  --query 'OrderableDBInstanceOptions[].StorageType' --output text
+```
+
+Eligible EC2 types on this account, 29 Aug 2026: `t4g.micro`, `t4g.small`,
+`t3.micro`, `t3.small`, `c7i-flex.large`, `m7i-flex.large`. The list changes;
+re-run the command rather than trusting this line.
+
+**Expect more of these in T2 and T4.** Lambda, CloudFront and API Gateway all
+have plan-level limits of their own.
+
+## Cost control while there is no budget alarm
+
+`budgets:ModifyBudget` is explicitly denied on the deploy user, so the usual
+guard does not exist. Two habits replace it.
+
+**Stop what you are not using.** Nothing in the network layer costs anything —
+VPCs, subnets, route tables, security groups and Gateway endpoints are all free.
+The database and the bastion are the only billable resources:
+
+```bash
+aws rds stop-db-instance --db-instance-identifier sportable-staging-db
+aws ec2 stop-instances --instance-ids $(terraform output -raw bastion_instance_id)
+```
+
+Roughly USD $25/month running, ~$3 stopped. A stopped RDS instance restarts
+itself after 7 days; stop it again when it does.
+
+**Check spend directly.** `ce:GetCostAndUsage` is permitted:
+
+```bash
+aws ce get-cost-and-usage --time-period Start=2026-08-01,End=2026-09-01 \
+  --granularity MONTHLY --metrics UnblendedCost \
+  --query 'ResultsByTime[0].Total.UnblendedCost.[Amount,Unit]' --output text
+```
+
+Each call costs USD $0.01, so check every couple of days rather than in a loop.
+
+> The bastion's public IP **changes on every stop/start**. After starting it,
+> run `terraform refresh` then `terraform output bastion_public_ip` — Terraform's
+> stored value is stale until you do.
 
 ## Documents
 
