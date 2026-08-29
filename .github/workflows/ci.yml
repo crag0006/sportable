@@ -69,8 +69,11 @@ jobs:
       # uv is the package manager and virtualenv tool for this project. The
       # cache is keyed on backend/uv.lock, so it is reused until dependencies
       # actually change — turning a ~40 s install into a few seconds.
+      # Pinned to an exact version, not a major alias: astral-sh stopped
+      # publishing moving `vN` tags after v7, so `@v10` does not resolve.
+      # Bump this deliberately — check the tag exists before you do.
       - name: Set up uv
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
