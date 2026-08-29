@@ -21,6 +21,9 @@ dist/
 *.tfstate
 *.tfstate.*
 *.tfplan
+# ...and the bare name, which `terraform plan -out=tfplan` produces. The glob
+# above does not match a file with no extension.
+tfplan
 crash.log
 .terraform.lock.hcl.bak
 override.tf
