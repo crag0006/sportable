@@ -27,12 +27,10 @@ dev = [
     "mypy>=1.13",
 ]
 
-[tool.ruff]
-line-length = 100
-target-version = "py312"
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+# Ruff configuration lives in the repository root (../ruff.toml) so that
+# backend/ and data/ are linted identically. Do not add [tool.ruff] here — the
+# nearest config wins, and a section here would silently override the shared one
+# for this package only.
 
 [tool.mypy]
 python_version = "3.12"

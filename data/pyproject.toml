@@ -1,0 +1,56 @@
+# ==============================================================================
+# sportable-data — ingestion and derivation code
+# ==============================================================================
+#
+# WHY THIS IS SEPARATE FROM backend/pyproject.toml
+#   The two run in different Lambda functions with different jobs. The API
+#   Lambda is latency-sensitive and lives inside a 250 MB unzipped package
+#   limit; the ingestion Lambdas are batch jobs that will want heavier libraries
+#   (pandas, shapely, geopandas). Sharing one dependency set would drag every
+#   one of those into the API's package, inflating its cold start for no reason.
+#
+#   Separate projects, separate lock files, separate blast radius.
+#
+# ADDING A DEPENDENCY — Data team
+#   cd data && uv add pandas          updates pyproject.toml AND uv.lock
+#   Commit BOTH files. CI runs `uv sync --frozen`, which fails if they disagree.
+#   Never `pip install` — it changes your machine and nothing else.
+#
+# STYLE
+#   Ruff configuration is deliberately absent here. It lives in ../ruff.toml so
+#   that data/ and backend/ are linted identically. mypy and pytest stay local,
+#   because they need this package's installed dependencies.
+# ==============================================================================
+
+[project]
+name = "sportable-data"
+version = "0.1.0"
+description = "SportAble Melbourne — open-data ingestion, validation and derivation"
+requires-python = ">=3.12"
+
+# Runtime dependencies are the Data team's call. Add them with `uv add` as the
+# extractors, transformers and loaders are written.
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=5.0",
+    "mypy>=1.13",
+]
+
+[tool.mypy]
+python_version = "3.12"
+# Deliberately not `strict` yet: ingestion code deals in loosely-typed payloads
+# from third-party portals, and strict mode on day one produces noise rather
+# than signal. Tighten it once the column contracts in schemas/ are settled.
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# data/ on sys.path so tests import `ingestion.*` and `derive.*` directly.
+pythonpath = ["."]
+addopts = "--cov=ingestion --cov=derive --cov-report=term-missing"
+markers = ["integration: requires a live PostGIS container"]
