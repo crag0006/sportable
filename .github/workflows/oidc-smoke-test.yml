@@ -1,0 +1,91 @@
+# ==============================================================================
+# OIDC smoke test — throwaway, delete once the deploy workflow works
+# ==============================================================================
+#
+# PURPOSE
+#   Prove three things before any real deployment is wired up:
+#     1. GitHub mints an OIDC token this repository can use
+#     2. AWS accepts it and the trust policy matches
+#     3. The assumed role is the one we expect
+#
+#   Nothing here creates, changes or deletes a single AWS resource. If the trust
+#   policy is wrong, this fails in ~10 seconds instead of halfway through a
+#   `terraform apply`.
+#
+# IT ALSO PRINTS THE REAL `sub` CLAIM
+#   The trust policy has to match a string GitHub generates. Rather than assume
+#   its format, this job decodes the token and prints the `sub` — so the policy
+#   can then be pinned to exactly that value instead of a wildcard.
+#
+#   Only the `sub` claim is printed, never the token. The token is a bearer
+#   credential: anyone holding it can assume the role for its lifetime.
+# ==============================================================================
+
+name: OIDC smoke test
+
+on:
+  workflow_dispatch:
+  # Also runs when this file itself changes on dev, so merging the PR that adds
+  # it is the test. `paths` keeps it off every unrelated push to dev.
+  push:
+    branches: [dev]
+    paths: ['.github/workflows/oidc-smoke-test.yml']
+
+# id-token: write is what allows the job to request an OIDC token at all.
+# Omitting it is the single most common cause of a failed OIDC setup — the
+# error is a confusing 403 from GitHub, not from AWS.
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  verify:
+    name: Assume the deploy role and report who we are
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: What subject does GitHub actually mint?
+        run: |
+          TOKEN=$(curl -sSL \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['value'])")
+
+          # Decode only the payload segment, and print only `sub` and `aud`.
+          python3 - "$TOKEN" <<'PY'
+          import base64, json, sys
+          payload = sys.argv[1].split(".")[1]
+          payload += "=" * (-len(payload) % 4)          # restore base64url padding
+          claims = json.loads(base64.urlsafe_b64decode(payload))
+          print("sub:", claims["sub"])
+          print("aud:", claims["aud"])
+          print("ref:", claims.get("ref"))
+          PY
+
+      - name: Assume the deploy role
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::725699850301:role/sportable-github-deploy
+          aws-region: ap-southeast-2
+
+      - name: Who are we?
+        run: aws sts get-caller-identity
+
+      - name: Confirm read-only reachability (creates nothing)
+        run: |
+          aws ec2 describe-vpcs --query 'Vpcs[].[VpcId,CidrBlock]' --output table
+          aws s3 ls || true
+
+      # Does the DEPLOY ROLE have iam:GetRole, or only the human user?
+      # Terraform uses a data source to resolve the Lambda execution roles. If
+      # this fails here but works on a laptop, `terraform plan` succeeds locally
+      # and fails in the pipeline — so settle it before writing the module.
+      - name: Can the deploy role read the Lambda execution roles?
+        continue-on-error: true
+        run: |
+          echo "--- sportable-lambda-api ---"
+          aws iam get-role --role-name sportable-lambda-api --query 'Role.Arn' \
+            || echo "DENIED — use a variable for the ARN, not a data source"
+          echo "--- sportable-lambda-pipeline ---"
+          aws iam get-role --role-name sportable-lambda-pipeline --query 'Role.Arn' \
+            || echo "DENIED — use a variable for the ARN, not a data source"
