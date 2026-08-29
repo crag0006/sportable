@@ -41,5 +41,7 @@ plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=app --cov-report=term-missing"
+# backend/ on sys.path so tests import `handlers` and `app` without an installed package
+pythonpath = ["."]
+addopts = "--cov=app --cov=handlers --cov-report=term-missing"
 markers = ["integration: requires a live PostGIS container"]
