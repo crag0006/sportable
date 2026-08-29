@@ -32,13 +32,226 @@ React 18 · TypeScript · Python 3.12 · FastAPI · PostgreSQL 16 + PostGIS ·
 AWS Lambda · API Gateway · S3 · CloudFront · RDS · EventBridge ·
 Terraform · GitHub Actions (OIDC)
 
+---
+
+# Getting started
+
+Roughly fifteen minutes. **Step 2 applies to everyone**, whatever your role —
+including the Data and Frontend engineers.
+
+## 1. Install what your role needs
+
+| Tool | Who needs it | Install |
+|---|---|---|
+| **git**, **pre-commit** | everyone | `brew install git pre-commit` |
+| **uv** (Python) | backend, data | `brew install uv` |
+| **Docker Desktop** | backend, data | [docker.com](https://www.docker.com/products/docker-desktop/) |
+| **psql** | backend, data | `brew install libpq && brew link --force libpq` |
+| **Node 22+** | frontend | `brew install node` |
+| **terraform**, **tflint**, **checkov** | infra | see [`infra/README.md`](infra/README.md) |
+
+Python itself is not in the list: `uv` downloads and manages the correct
+interpreter (3.12) for you.
+
+## 2. Clone and install the commit hook — everyone
+
+```bash
+git clone https://github.com/crag0006/sportable.git
+cd sportable
+pre-commit install
+```
+
+`pre-commit install` writes a git hook that runs the same checks CI runs, every
+time you commit. **It is per-clone, not per-repository** — cloning again on
+another machine means installing it again.
+
+Sanity check it works:
+
+```bash
+pre-commit run --all-files
+```
+
+Everything should report `Passed` or `Skipped`. If a hook says
+`files were modified by this hook`, that is normal: it fixed something, so
+`git add` the change and commit again.
+
+What the hooks do and why is documented inline in
+[`.pre-commit-config.yaml`](.pre-commit-config.yaml).
+
+## 3. Python — backend and data engineers
+
+```bash
+cd backend
+uv sync              # creates .venv and installs everything from uv.lock
+uv run pytest -q     # should pass
+```
+
+Use `uv run <command>` rather than activating the virtualenv. It guarantees you
+are running the locked dependency set, which is exactly what CI runs.
+
+**If you add a dependency**, use `uv add <package>` — never `pip install`.
+`uv add` updates both `pyproject.toml` and `uv.lock`, and **`uv.lock` must be
+committed**, or CI's `uv sync --frozen` will fail for everyone.
+
+## 4. The local database — backend and data engineers
+
+You do **not** need an AWS account to work on the schema or on queries. A local
+PostGIS container matches what RDS will run.
+
+```bash
+docker run --name sportable-pg \
+  -e POSTGRES_PASSWORD=devpass -e POSTGRES_DB=sportable \
+  -p 5433:5432 -d imresamu/postgis:16-3.4
+
+psql "postgresql://postgres:devpass@localhost:5433/sportable" \
+  -c "CREATE EXTENSION IF NOT EXISTS postgis; SELECT postgis_version();"
+```
+
+Then apply the migrations:
+
+```bash
+cd backend
+export DATABASE_URL="postgresql://postgres:devpass@localhost:5433/sportable"
+uv run alembic upgrade head
+```
+
+Two details that will otherwise cost you an hour:
+
+- **Port 5433, not 5432.** macOS installs of PostgreSQL commonly occupy 5432.
+  Using 5433 avoids the clash entirely; change it if 5433 is busy for you.
+- **`imresamu/postgis`, not `postgis/postgis`.** The official image publishes no
+  arm64 build, so on an Apple Silicon Mac it runs emulated and slowly. This
+  mirror is the same upstream build with native arm64. On an Intel machine or in
+  CI, either works.
+
+Everyday container commands:
+
+```bash
+docker stop sportable-pg     # frees the port; data is kept
+docker start sportable-pg    # back where you left it
+docker rm -f sportable-pg    # delete the container AND its data
+```
+
+### Writing a migration
+
+Migrations live in `backend/migrations/versions/` and are owned by the backend
+and data engineers. `alembic.ini` and `migrations/env.py` are infrastructure
+plumbing — talk to the infra engineer before changing those.
+
+```bash
+cd backend
+uv run alembic revision -m "add venue table"    # creates an empty revision
+# ... edit the generated file in migrations/versions/ ...
+uv run alembic upgrade head                     # apply it
+uv run alembic downgrade -1                     # undo it — always test this
+```
+
+Test the downgrade. The deploy pipeline runs migrations *before* it shifts
+traffic to the new code, so a migration that cannot be reversed is a migration
+that cannot be rolled back.
+
+## 5. Frontend engineers
+
+`frontend/` is scaffolding only so far. Once `package.json` exists:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+The `frontend` job in CI skips itself until `frontend/package.json` appears,
+then starts building on every pull request with no change to the workflow.
+
+**You do not need the backend running to start.** T2 provisions API Gateway mock
+responses serving the OpenAPI contract's examples, so you get a real URL with
+real CORS returning fixture data. Ask the infra engineer for it.
+
+## 6. Infra engineer
+
+See [`infra/README.md`](infra/README.md) and
+[`infra/T3-cicd-runbook.md`](infra/T3-cicd-runbook.md).
+
+---
+
+# How we work
+
 ## Branches
 
-`main` ← `release-iteration-{1,2,3}` ← `dev` ← `feature/*`
+```
+main ← release-iteration-{1,2,3} ← dev ← feature/*
+```
 
-A push to `dev` deploys itself to release iteration. Nothing is deployed by hand.
+Branch from `dev`, open a pull request back into `dev`. A push to `dev` deploys
+itself to the shared environment. **Nothing is deployed by hand**, and nothing
+is committed straight to `dev` or `main`.
+
+```bash
+git checkout dev && git pull
+git checkout -b feat/short-description
+# ... work ...
+git add -p && git commit -m "feat: what changed"
+git push -u origin feat/short-description
+gh pr create --base dev --fill
+```
+
+## Before you push
+
+Run what CI runs. Every command below has an exact counterpart in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml):
+
+```bash
+# backend / data
+cd backend
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy handlers
+uv run pytest tests/unit -q
+
+# everyone
+pre-commit run --all-files
+```
+
+If these pass locally and CI still fails, the cause is almost always an
+uncommitted file or a stale `uv.lock`.
+
+## What CI checks
+
+Three jobs run in parallel on every pull request. They are commented in detail
+in the workflow file itself.
+
+| Job | Checks |
+|---|---|
+| **Backend** | ruff lint · ruff format · mypy (strict) · pytest |
+| **Terraform** | `fmt -check` · `validate` · tflint (AWS ruleset) · checkov (security policy) |
+| **Frontend** | `npm ci && npm run build` |
+
+Two things worth knowing:
+
+- **CI holds no AWS credentials.** It cannot reach the cloud account at all.
+  Deployment is a separate workflow that obtains temporary credentials through
+  GitHub OIDC. This separation is deliberate: CI runs pull-request code, so CI
+  must not be able to touch AWS.
+- **The Terraform and Frontend jobs skip themselves** while those directories
+  hold only placeholders, and activate on their own when real files appear.
+  A permanently red pipeline is one everybody learns to ignore.
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---|---|
+| `pre-commit: command not found` | `brew install pre-commit`, then `pre-commit install` |
+| Commit aborted, "files were modified by this hook" | Working as intended — a hook fixed something. `git add` and commit again |
+| CI fails on `ruff format --check` | You never ran `pre-commit install` in this clone |
+| CI fails on `uv sync --frozen` | `uv.lock` is stale or uncommitted. Run `uv sync`, commit `uv.lock` |
+| `ModuleNotFoundError: psycopg2` | Use `uv run`, and let `migrations/env.py` build the URL — it pins psycopg 3 |
+| `port 5432 already in use` | A local PostgreSQL is running. The container maps to **5433** for this reason |
+| `alembic: No database URL available` | `export DATABASE_URL=...` — see step 4 |
+| `docker: Cannot connect to the Docker daemon` | Start Docker Desktop |
+| Container starts but `psql` refuses the connection | Give it a few seconds: `docker exec sportable-pg pg_isready` |
 
 ## Documents
 
 - [Infrastructure](infra/README.md)
+- [CI/CD runbook](infra/T3-cicd-runbook.md)
 - [Data pipeline](data/README.md)

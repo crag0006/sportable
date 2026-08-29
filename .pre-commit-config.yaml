@@ -1,0 +1,101 @@
+# ==============================================================================
+# pre-commit — SportAble Melbourne
+# ==============================================================================
+#
+# WHAT IT IS
+#   A git hook that runs checks against your staged files every time you commit.
+#   If a hook fails, the commit is aborted. If a hook *fixes* something, the
+#   commit is also aborted — with the fix applied to your working tree, so you
+#   `git add` the change and commit again. That second attempt is normal, not an
+#   error.
+#
+# WHY WE USE IT
+#   These are the same checks CI runs. Catching them here means CI never fails
+#   on formatting, so a red check on a pull request always signals a real
+#   problem rather than a stray blank line. That is what keeps the team trusting
+#   the pipeline.
+#
+# SETUP — once per clone, by every team member
+#   brew install pre-commit          (or: uv tool install pre-commit)
+#   pre-commit install               writes .git/hooks/pre-commit
+#   pre-commit run --all-files       check everything right now
+#
+# NOTE: `--all-files` only sees files git already tracks. Brand-new untracked
+# files are skipped until you `git add` them.
+#
+# ESCAPE HATCH
+#   git commit --no-verify           skips every hook
+#   Legitimate when committing work-in-progress on your own branch. Never use it
+#   on a commit you are about to open a pull request from — CI runs the same
+#   checks and will simply fail there instead.
+#
+# UPGRADING
+#   pre-commit autoupdate            bumps every `rev:` to the latest release
+#   Do this deliberately, in its own commit, so an unrelated pull request never
+#   fails because a linter changed its mind overnight.
+# ==============================================================================
+
+repos:
+  # ------------------------------------------------------------------ hygiene
+  # Small, language-agnostic checks. Every one of these exists because it has
+  # caused a real problem on a real project.
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # Trailing whitespace produces diffs full of invisible changes, which
+      # makes code review harder than it needs to be.
+      - id: trailing-whitespace
+
+      # A file with no final newline shows as modified in some tools and not
+      # others, causing phantom diffs between team members.
+      - id: end-of-file-fixer
+
+      # Parses every .yml/.yaml file. Catches a broken GitHub workflow before
+      # you push it and wait for GitHub to tell you the same thing.
+      - id: check-yaml
+
+      # Blocks a commit containing `<<<<<<<` conflict markers — the classic
+      # "resolved the merge in a hurry" mistake.
+      - id: check-merge-conflict
+
+      # A repository is not a file share. 1 MB is generous for source; datasets
+      # belong in S3, and diagrams/exports belong outside the repo.
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+
+      # The most important hook here. Stops an .pem, an SSH key or an AWS
+      # secret key reaching a public GitHub repository. This project is designed
+      # to hold neither — deploys use OIDC, and the database password lives in
+      # SSM Parameter Store — so this hook should never fire. If it ever does,
+      # do not just delete the file: assume the credential is compromised and
+      # rotate it.
+      - id: detect-private-key
+
+  # ------------------------------------------------------------------- Python
+  # ruff replaces flake8 + black + isort with one very fast binary. Rules are
+  # configured in backend/pyproject.toml under [tool.ruff], not here, so the
+  # editor, the terminal and CI all read the same configuration.
+  #
+  # Keep this `rev` in step with the ruff version in backend/pyproject.toml.
+  # If they drift, the hook and CI can disagree about the same file.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.5
+    hooks:
+      # The linter. --fix applies safe automatic fixes (import sorting, unused
+      # imports, unused `# noqa` comments) rather than only reporting them.
+      # `ruff-check` is the current hook id; the older `ruff` alias is deprecated.
+      - id: ruff-check
+        args: [--fix]
+
+      # The formatter. Runs after the linter so it has the final say on layout.
+      - id: ruff-format
+
+  # ---------------------------------------------------------------- Terraform
+  # `terraform fmt` only — the deeper Terraform checks (validate, tflint,
+  # checkov) need provider downloads and are too slow for a commit hook, so they
+  # run in CI instead. This hook currently reports "no files to check" because
+  # infra/ holds only placeholders; it starts working when T1 lands.
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.109.0
+    hooks:
+      - id: terraform_fmt
