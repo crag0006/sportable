@@ -111,6 +111,12 @@ resource "aws_lambda_function" "api" {
       DATABASE_URL = data.aws_ssm_parameter.db_url.value
       ENVIRONMENT  = "staging"
       LOG_LEVEL    = "INFO"
+
+      # Where the handler looks for search configuration at cold start. The
+      # PREFIX travels as an environment variable; the VALUES do not. That is
+      # the point — putting the bands themselves here would make changing them
+      # a deploy again, which is exactly what modules/app_config avoids.
+      SSM_PREFIX = var.ssm_prefix
     }
   }
 

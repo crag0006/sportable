@@ -2,6 +2,12 @@ output "function_name" {
   value = aws_lambda_function.api.function_name
 }
 
+# The observability module sets its duration alarm at 80% of this. Reading it
+# from here rather than repeating the number means the two can never drift.
+output "function_timeout_seconds" {
+  value = aws_lambda_function.api.timeout
+}
+
 output "function_arn" {
   value = aws_lambda_function.api.arn
 }

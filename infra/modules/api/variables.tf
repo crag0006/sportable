@@ -154,3 +154,14 @@ variable "throttle_burst_limit" {
   type        = number
   default     = 100
 }
+
+variable "ssm_prefix" {
+  description = <<-EOT
+    Parameter Store prefix the handler reads configuration from at cold start,
+    e.g. "/sportable/staging".
+
+    Only the prefix is passed. The values stay in Parameter Store so that
+    changing a distance band is a parameter write, not a release.
+  EOT
+  type        = string
+}

@@ -14,3 +14,8 @@ allowed_ssh_cidrs = [
 # Add a teammate by appending their key to a second bastion key pair, or by
 # adding their public key to ~/.ssh/authorized_keys on the host itself.
 ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPZ5OcQLeUyiYDt7LQW7rGMpHsJFQpqBYAM4CuGSgHFc sportable-bastion"
+
+# Alarm mail. Add teammates only if they have agreed to receive it — unwanted
+# alarm mail gets filtered, and a filtered alarm is the same as no alarm.
+# Each new address must click the confirmation link before it receives anything.
+alert_emails = ["crag0006@student.monash.edu"]
