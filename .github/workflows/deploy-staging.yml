@@ -304,7 +304,7 @@ jobs:
 
           # --- the API answers, through CloudFront ---
           for attempt in 1 2 3 4 5; do
-            CODE=$(curl -s -o /tmp/health.json -w '%{http_code}' "$URL/api/v1/health" || echo 000)
+            CODE=$(curl -s -o /tmp/health.json -w '%{http_code}' "$URL/api/v1/health-ROLLBACK-DRILL" || echo 000)
             [ "$CODE" = "200" ] && break
             echo "attempt $attempt: HTTP $CODE — retrying in 5s"
             sleep 5
