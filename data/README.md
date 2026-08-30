@@ -22,9 +22,41 @@ The Lambda handler signature and the S3 key convention are the boundary.
 
 - Raw zone key: `s3://<raw-bucket>/<dataset>/dt=YYYY-MM-DD/<filename>`
 - Quarantine key: `s3://<quarantine-bucket>/<dataset>/dt=YYYY-MM-DD/rejected.jsonl`
-- Handler entrypoint: `data.ingestion.<stage>.handler(event, context)`
+- Handler entrypoint: `ingestion.<stage>.handler(event, context)`
 
-Change the convention and the Terraform in `infra/modules/ingestion` changes with it.
+`data/` is the zip ROOT, which is why the handler path has no leading `data.`
+The buckets are `sportable-staging-raw-<account>` and
+`sportable-staging-quarantine-<account>`; read them from
+`terraform output raw_bucket` rather than typing them.
+
+Change the convention and the Terraform in `infra/modules/ingestion` changes
+with it — the load function derives the dataset name by splitting the key on
+its first slash, and the S3 notification filters on the same prefix.
+
+### What already runs
+
+| | |
+|---|---|
+| `ingestion/fetch.py` | Fetches one source, writes it **unmodified** to the raw zone. Runs OUTSIDE the VPC — the only function here with internet access. |
+| `ingestion/load.py` | Triggered by the object landing. Reads it, records a manifest under `_manifests/`, and **does not write to the database yet**. Runs INSIDE the VPC. |
+
+The manifest carries `"rows_loaded": 0, "load_status": "pending_loader"` until
+a real loader exists. That marker is deliberate: a green invocation must not
+imply data reached Postgres.
+
+### What the Data team owns
+
+The transforms, validators and loaders. Two things are worth knowing before you
+start:
+
+- **The schedules exist but are DISABLED**, because no source has a URL yet.
+  Supply real endpoints in `infra/envs/staging/main.tf` under
+  `module.ingestion.sources` and they arm themselves on the next deploy.
+- **The load function cannot write to Postgres yet** — not because of
+  permissions, but because `psycopg` is not in the deployment package and this
+  project has no build step that installs dependencies into a Lambda zip.
+  `archive_file` zips a directory; it cannot run pip. The same gap blocks the
+  Alembic migration Lambda, and one build step solves both.
 
 ## Non-negotiable rule
 

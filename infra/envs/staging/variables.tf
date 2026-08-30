@@ -60,3 +60,13 @@ variable "alert_emails" {
   EOT
   type        = list(string)
 }
+
+variable "lambda_pipeline_role_arn" {
+  description = <<-EOT
+    Execution role for the two ingestion functions. Pre-built by the account
+    holder, like the API's role — this account's principals cannot create IAM
+    roles and cannot read the policies attached to them.
+  EOT
+  type        = string
+  default     = "arn:aws:iam::725699850301:role/sportable-lambda-pipeline"
+}

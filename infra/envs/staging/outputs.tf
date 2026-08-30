@@ -134,3 +134,24 @@ output "lambda_ssm_permission_needed" {
   description = "Paste this to the account holder if /api/v1/config returns defaults."
   value       = module.app_config.read_policy_arn_hint
 }
+
+# T4 --------------------------------------------------------------------------
+
+output "raw_bucket" {
+  description = "Drop a file here and the load function processes it — the manual fallback."
+  value       = module.ingestion.raw_bucket
+}
+
+output "quarantine_bucket" {
+  value = module.ingestion.quarantine_bucket
+}
+
+output "ingestion_schedules" {
+  description = "Each rule and whether it is armed. Sources with no URL are DISABLED."
+  value       = module.ingestion.schedules
+}
+
+output "ingestion_smoke_test" {
+  description = "Proves fetch -> S3 -> notification -> load without needing a publisher."
+  value       = module.ingestion.smoke_test_command
+}

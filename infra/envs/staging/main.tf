@@ -133,3 +133,72 @@ module "observability" {
   api_id                   = module.api.api_id
   db_instance_identifier   = module.database.instance_identifier
 }
+
+# ------------------------------------------------------------------------------
+# T4 — scheduled ingestion
+# ------------------------------------------------------------------------------
+#
+# The shell only. Handlers under data/ingestion/ fetch and record; the
+# transforms, validators and loaders belong to the Data team. The contract
+# between us is the S3 key convention and the handler signature, both written
+# down in data/README.md.
+
+# Read on the runner, which has ordinary internet access. The load function
+# cannot reach Parameter Store from inside the VPC — the same constraint that
+# broke /api/v1/config before it was moved to an apply-time read.
+data "aws_ssm_parameter" "db_url_for_loader" {
+  name = module.database.ssm_url_parameter
+}
+
+module "ingestion" {
+  source = "../../modules/ingestion"
+
+  name_prefix = local.name_prefix
+  account_id  = var.expected_account_id
+  environment = "staging"
+
+  # path.root is infra/envs/staging, so three levels up is the repository root.
+  source_dir = "${path.root}/../../../data"
+
+  # Same pre-built role as the API function — this account cannot create IAM
+  # roles. If either function fails with AccessDenied, the error names the
+  # action and only the account holder can add it.
+  execution_role_arn = var.lambda_pipeline_role_arn
+
+  # The LOAD function only. The fetch function is deliberately outside the VPC,
+  # because it is the one that needs the internet.
+  subnet_ids        = [module.network.private_subnet_ids[0]]
+  security_group_id = module.network.lambda_security_group_id
+
+  database_url     = data.aws_ssm_parameter.db_url_for_loader.value
+  alerts_topic_arn = module.observability.topic_arn
+
+  # URLs are empty until the Data team supplies them. Each schedule is created
+  # but left DISABLED, so the shell is visible in the console while being unable
+  # to fire against a source nobody has configured.
+  #
+  # Times are UTC and staggered by an hour: this account's total Lambda
+  # concurrency is 10, and four simultaneous multi-megabyte fetches would
+  # throttle themselves. 16:00–19:00 UTC Sunday is early Monday in Melbourne,
+  # which is when these publishers have finished their own weekly updates.
+  sources = {
+    vic_sport_rec = {
+      schedule_expression = "cron(0 16 ? * SUN *)"
+      url                 = ""
+    }
+    public_toilets_nptm = {
+      schedule_expression = "cron(0 17 ? * SUN *)"
+      url                 = ""
+    }
+    ptv_gtfs = {
+      schedule_expression = "cron(0 18 ? * SUN *)"
+      url                 = ""
+    }
+    # Monthly, not weekly — OSM extracts are republished on a slower cadence and
+    # a weekly pull would download the same file four times.
+    osm = {
+      schedule_expression = "cron(0 19 1 * ? *)"
+      url                 = ""
+    }
+  }
+}
