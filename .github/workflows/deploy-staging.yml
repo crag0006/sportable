@@ -1,0 +1,370 @@
+# ==============================================================================
+# Deploy — staging
+# ==============================================================================
+#
+# WHAT THIS IS
+#   The Definition of Done for Iteration 1 says: "a push to `dev` reaches the
+#   CloudFront URL with no manual step." This file is that sentence, executed.
+#
+# THE ORDER OF THE STEPS IS THE WHOLE DESIGN
+#   Terraform publishes a new Lambda VERSION but does not point traffic at it.
+#   The `live` alias — what API Gateway actually invokes — is moved separately,
+#   further down. That gap is deliberate and it is where migrations run:
+#
+#     1. apply        new code exists as version N. Nobody is served by it yet.
+#     2. migrate      the schema moves forward.
+#     3. shift alias  version N starts serving traffic.
+#
+#   Run those in any other order and you get the classic outage: a migration
+#   fails halfway, and the new handler is already live against a schema that
+#   never finished moving. Here, a failed migration stops the deploy while the
+#   OLD version is still serving — the site stays up on the previous release.
+#
+# ROLLBACK
+#   The alias's version is captured BEFORE anything changes. If any step after
+#   the shift fails — including the smoke test — the last step puts the alias
+#   back. Rollback is one API call because a Lambda version is immutable: the
+#   old code was never overwritten, only stopped being pointed at.
+#
+#   The frontend and the infrastructure are NOT rolled back. Both are far more
+#   forgiving (S3 objects are versioned; Terraform is re-runnable), and an
+#   automatic `terraform destroy`-adjacent action on failure is far more
+#   dangerous than the thing it would be fixing.
+#
+# NO SECRETS
+#   There is no AWS access key here, in repository secrets, or on anyone's
+#   laptop. GitHub mints a short-lived OIDC token, AWS trades it for temporary
+#   credentials, and they expire when the job ends. See oidc-smoke-test.yml.
+# ==============================================================================
+
+name: Deploy — staging
+
+on:
+  # Every push to dev. Branch protection means a push to dev is always a merged
+  # PR that passed CI, so there is no need to re-run the tests here.
+  push:
+    branches: [dev]
+
+  # Manual trigger, for re-deploying without an empty commit — e.g. after
+  # someone changes an SSM parameter, or to verify a rollback by hand.
+  workflow_dispatch:
+
+# Deploys must not overlap: two `terraform apply` runs against one state file
+# fight over the lock, and two alias shifts race.
+#
+# cancel-in-progress is FALSE, unlike ci.yml. Cancelling a lint run costs
+# nothing. Cancelling a deploy can leave a half-applied Terraform state, or a
+# published version with the alias never moved. A queued deploy is correct; a
+# killed deploy is a mess.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+permissions:
+  # Required to request the OIDC token. Without it the job fails with a
+  # confusing 403 from GitHub, before AWS is ever contacted.
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-southeast-2
+  ROLE_ARN: arn:aws:iam::725699850301:role/sportable-github-deploy
+  TF_DIR: infra/envs/staging
+  TF_VERSION: 1.16.0
+
+jobs:
+  deploy:
+    name: Deploy to staging
+    runs-on: ubuntu-latest
+
+    # A deploy that has not finished in 30 minutes is stuck, not slow. Without
+    # this the default is six hours of a held Terraform lock nobody can clear.
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # ------------------------------------------------------------------
+      # Credentials
+      # ------------------------------------------------------------------
+      - name: Assume the deploy role
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          # Names the CloudTrail session so an audit shows which run did what.
+          role-session-name: deploy-${{ github.run_id }}
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          # The wrapper rewrites stdout and breaks `terraform output -raw`,
+          # which several steps below depend on.
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init -input=false
+
+      # ------------------------------------------------------------------
+      # Capture the rollback target BEFORE anything changes
+      # ------------------------------------------------------------------
+      # Read from the state that already exists, not from the apply below. If
+      # this deploy fails, this is the version the alias goes back to.
+      #
+      # `|| true` and the empty-string guard: on the very first run against a
+      # fresh state there may be no alias yet. That is not an error, it just
+      # means there is nothing to roll back to.
+      - name: Note the currently live version
+        id: previous
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          set -uo pipefail
+          FN=$(terraform output -raw api_function_name 2>/dev/null || true)
+          if [ -z "$FN" ]; then
+            echo "No function in state yet — first deploy."
+            echo "version=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          PREV=$(aws lambda get-alias \
+                   --function-name "$FN" --name live \
+                   --query FunctionVersion --output text 2>/dev/null || true)
+          echo "Currently live: ${PREV:-<none>}"
+          echo "version=${PREV}" >> "$GITHUB_OUTPUT"
+
+      # ------------------------------------------------------------------
+      # 1. Apply — new code exists, nobody is served by it yet
+      # ------------------------------------------------------------------
+      # plan then apply the saved plan, rather than `apply -auto-approve`.
+      # Applying a plan file guarantees the changes made are exactly the ones
+      # printed in the log above them. `-auto-approve` re-plans silently, so
+      # what you read and what ran can differ.
+      #
+      # -detailed-exitcode: 0 = no changes, 2 = changes, 1 = error. Without it
+      # a genuine failure and a clean no-op are both exit 0.
+      - name: Terraform plan
+        id: plan
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          set -eo pipefail
+          terraform plan -input=false -lock-timeout=5m -out=tfplan -detailed-exitcode && code=0 || code=$?
+          if [ "$code" -eq 1 ]; then
+            echo "::error::terraform plan failed"
+            exit 1
+          fi
+          echo "changes=$([ "$code" -eq 2 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Terraform apply
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform apply -input=false -lock-timeout=5m tfplan
+
+      - name: Read the outputs this deploy needs
+        id: tf
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          set -euo pipefail
+          {
+            echo "function_name=$(terraform output -raw api_function_name)"
+            echo "new_version=$(terraform output -raw api_function_version)"
+            echo "site_bucket=$(terraform output -raw site_bucket)"
+            echo "distribution_id=$(terraform output -raw cloudfront_distribution_id)"
+            echo "site_url=$(terraform output -raw site_url)"
+          } >> "$GITHUB_OUTPUT"
+          echo "Published version: $(terraform output -raw api_function_version)"
+
+      # ------------------------------------------------------------------
+      # 2. Migrations — the schema moves before traffic does
+      # ------------------------------------------------------------------
+      # FAIL-CLOSED, AND DELIBERATELY SO.
+      #
+      # RDS has no public IP and this account has no NAT Gateway, so a GitHub
+      # runner cannot reach the database — by design, not by oversight. See
+      # ADR-002. Running Alembic from here is therefore impossible today.
+      #
+      # While `backend/migrations/versions/` is empty there is nothing to run
+      # and the deploy proceeds. The day Backend commits the first revision,
+      # this step STOPS the deploy rather than shipping a handler against a
+      # schema that was never migrated. Failing loudly on a known gap beats
+      # silently skipping it.
+      #
+      # The fix, when that day comes, is a migration Lambda inside the VPC that
+      # this step invokes — see the runbook. Not a NAT Gateway, and not an SSH
+      # key in repository secrets.
+      - name: Database migrations
+        run: |
+          set -euo pipefail
+          COUNT=$(find backend/migrations/versions -name '*.py' ! -name '__*' 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No Alembic revisions exist yet — nothing to migrate."
+            exit 0
+          fi
+          echo "::error::${COUNT} Alembic revision(s) found, but this pipeline cannot reach RDS (private subnet, no NAT). Deploy stopped BEFORE the alias moved, so staging is still serving the previous version. Build the migration Lambda — see infra/T3-part2-deploy-runbook.md."
+          exit 1
+
+      # ------------------------------------------------------------------
+      # 3. Shift the alias — the new version starts serving
+      # ------------------------------------------------------------------
+      # This single call is the actual release. Everything before it was
+      # preparation; everything after it is verification.
+      - name: Promote the new version
+        id: promote
+        run: |
+          set -euo pipefail
+          aws lambda update-alias \
+            --function-name "${{ steps.tf.outputs.function_name }}" \
+            --name live \
+            --function-version "${{ steps.tf.outputs.new_version }}" \
+            --query 'FunctionVersion' --output text
+          echo "shifted=true" >> "$GITHUB_OUTPUT"
+
+      # ------------------------------------------------------------------
+      # 4. Frontend
+      # ------------------------------------------------------------------
+      # Guarded exactly like ci.yml: the frontend is scaffolding until the
+      # Frontend engineers commit a real app. A missing package.json is the
+      # expected state today, not a failure.
+      - name: Is there a frontend to build?
+        id: fe
+        run: |
+          if [ -f frontend/package.json ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No frontend/package.json — skipping build and upload."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v7
+        if: steps.fe.outputs.found == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build the frontend
+        if: steps.fe.outputs.found == 'true'
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      # Two syncs, not one, because the right cache policy differs by file.
+      #
+      # Hashed assets (app.4f9c2b.js) are immutable — the name changes when the
+      # content does — so they are cached for a year. index.html is NOT hashed:
+      # it is the file that names the new assets, so it must never be cached,
+      # or a browser keeps loading last week's app forever.
+      #
+      # --delete removes objects no longer in the build. It runs on the first
+      # sync only; the second would otherwise delete everything it did not just
+      # upload.
+      - name: Upload to S3
+        if: steps.fe.outputs.found == 'true'
+        run: |
+          set -euo pipefail
+          aws s3 sync frontend/dist "s3://${{ steps.tf.outputs.site_bucket }}/" \
+            --delete \
+            --exclude "index.html" \
+            --cache-control "public,max-age=31536000,immutable"
+          aws s3 cp frontend/dist/index.html "s3://${{ steps.tf.outputs.site_bucket }}/index.html" \
+            --cache-control "no-cache,must-revalidate"
+
+      # CloudFront holds objects at ~450 edge locations. Without this, the old
+      # index.html is served until it expires naturally.
+      #
+      # `wait` matters: without it the smoke test below can hit a stale edge and
+      # report a failure that is really just a cache that has not caught up.
+      - name: Invalidate the CloudFront cache
+        if: steps.fe.outputs.found == 'true'
+        run: |
+          set -euo pipefail
+          ID=$(aws cloudfront create-invalidation \
+                 --distribution-id "${{ steps.tf.outputs.distribution_id }}" \
+                 --paths "/*" --query 'Invalidation.Id' --output text)
+          echo "Invalidation $ID — waiting for it to complete."
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "${{ steps.tf.outputs.distribution_id }}" --id "$ID"
+
+      # ------------------------------------------------------------------
+      # 5. Smoke test — prove it from outside
+      # ------------------------------------------------------------------
+      # Tested through the CloudFront URL, not the API Gateway URL. That is the
+      # address a user types, and it is the only one that exercises the whole
+      # chain: DNS, TLS, CloudFront behaviours, the origin, the alias, Lambda.
+      #
+      # A `terraform apply` that succeeds proves the resources exist. It proves
+      # nothing about whether they work together. This step is what caught the
+      # SPA fallback rewriting API 404s into HTML.
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          URL="${{ steps.tf.outputs.site_url }}"
+          echo "Testing $URL"
+
+          fail() { echo "::error::$1"; exit 1; }
+
+          # --- the API answers, through CloudFront ---
+          for attempt in 1 2 3 4 5; do
+            CODE=$(curl -s -o /tmp/health.json -w '%{http_code}' "$URL/api/v1/health" || echo 000)
+            [ "$CODE" = "200" ] && break
+            echo "attempt $attempt: HTTP $CODE — retrying in 5s"
+            sleep 5
+          done
+          [ "$CODE" = "200" ] || fail "health check returned HTTP $CODE"
+          grep -q '"status": *"ok"' /tmp/health.json \
+            || fail "health check body was not ok: $(cat /tmp/health.json)"
+
+          # --- an API 404 is still JSON, not the SPA's index.html ---
+          # This is the regression guard for the CloudFront custom_error_response
+          # bug: a distribution-wide error page turned every API 404 into a
+          # 200 of HTML, which the frontend cannot parse.
+          CT=$(curl -s -o /tmp/404.json -w '%{content_type}' "$URL/api/v1/venues/definitely-not-a-venue")
+          case "$CT" in
+            application/json*) ;;
+            *) fail "API 404 returned content-type '$CT' — the SPA fallback is leaking into /api/*" ;;
+          esac
+
+          # --- the SPA itself is served ---
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' "$URL/")
+          [ "$CODE" = "200" ] || fail "site root returned HTTP $CODE"
+
+          echo "Smoke test passed."
+
+      - name: Summary
+        run: |
+          {
+            echo "### Deployed to staging"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| URL | ${{ steps.tf.outputs.site_url }} |"
+            echo "| Lambda version | ${{ steps.tf.outputs.new_version }} |"
+            echo "| Previous version | ${{ steps.previous.outputs.version || 'none' }} |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ------------------------------------------------------------------
+      # Rollback
+      # ------------------------------------------------------------------
+      # Runs only when something failed AFTER the alias moved. A failure before
+      # that point never changed what traffic sees, so there is nothing to undo.
+      #
+      # This is why Lambda versions are worth the trouble: the previous code was
+      # never overwritten, so recovery is one API call and a few seconds, with
+      # no rebuild and no Terraform run.
+      - name: Roll back to the previous version
+        if: failure() && steps.promote.outputs.shifted == 'true' && steps.previous.outputs.version != ''
+        run: |
+          set -euo pipefail
+          echo "::warning::Deploy failed after the alias moved. Rolling back to version ${{ steps.previous.outputs.version }}."
+          aws lambda update-alias \
+            --function-name "${{ steps.tf.outputs.function_name }}" \
+            --name live \
+            --function-version "${{ steps.previous.outputs.version }}" \
+            --query 'FunctionVersion' --output text
+          {
+            echo "### Rolled back"
+            echo ""
+            echo "The deploy failed after the alias moved. \`live\` was returned to version ${{ steps.previous.outputs.version }}."
+            echo ""
+            echo "Staging is serving the previous release. Nothing is down."
+          } >> "$GITHUB_STEP_SUMMARY"

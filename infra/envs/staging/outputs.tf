@@ -87,6 +87,13 @@ output "api_function_name" {
   value = module.api.function_name
 }
 
+# The version the pipeline promotes onto the `live` alias. Terraform publishes
+# it; Terraform does not point traffic at it. That separation is what lets
+# migrations run between the two.
+output "api_function_version" {
+  value = module.api.function_version
+}
+
 output "api_alias_arn" {
   description = "API Gateway integrates with this, not the function itself."
   value       = module.api.alias_arn
