@@ -37,18 +37,6 @@ python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
 
-# boto3 ships no type information and no py.typed marker, so strict mode refuses
-# to import it. The alternative is the boto3-stubs package, which is generated,
-# very large, and has to be pinned in step with boto3 itself.
-#
-# We use exactly one boto3 call — get_parameters_by_path in handlers/stub.py —
-# and its result is validated at runtime by the fallback path around it. Paying
-# for stubs across the whole SDK to type one call is not a good trade here.
-# Revisit if boto3 usage spreads beyond a couple of call sites.
-[[tool.mypy.overrides]]
-module = ["boto3", "boto3.*", "botocore", "botocore.*"]
-ignore_missing_imports = true
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # backend/ so tests can import `handlers.stub` and `app`; backend/handlers/ so

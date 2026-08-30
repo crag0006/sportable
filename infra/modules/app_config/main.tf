@@ -53,6 +53,20 @@ resource "aws_ssm_parameter" "distance_bands" {
 
   description = "Corridor and proximity radii offered in the UI, in metres. AC1.2.4."
 
+
+  # Terraform sets this once, then stops managing the value. Without this, an
+  # operator changing the band with `aws ssm put-parameter` would have it
+  # silently reverted by the next pipeline apply — and the whole point of T5 is
+  # that tuning these does not require editing a file and opening a PR.
+  #
+  # The trade: the precondition below validates the VARIABLES, not whatever an
+  # operator later writes. Setting a default outside the offered bands by hand
+  # is possible, and would show a result set no click reproduces. If that
+  # becomes a real risk, validate it in the handler instead.
+  lifecycle {
+    ignore_changes = [value]
+  }
+
   tags = { Name = "${var.name_prefix}-distance-bands" }
 }
 
@@ -73,6 +87,9 @@ resource "aws_ssm_parameter" "default_band" {
   # set they cannot reproduce by clicking anything. Caught at plan time, which
   # is the cheapest place to catch it.
   lifecycle {
+    # Set once, then left to operators — see the note on distance_bands.
+    ignore_changes = [value]
+
     precondition {
       condition     = contains(var.distance_bands_m, var.default_distance_m)
       error_message = "default_distance_m (${var.default_distance_m}) must be one of distance_bands_m (${join(", ", [for b in var.distance_bands_m : tostring(b)])})."
@@ -93,6 +110,20 @@ resource "aws_ssm_parameter" "max_results" {
   type        = "String"
   value       = tostring(var.max_results)
   description = "Upper bound on venues returned by one search, to cap query cost."
+
+
+  # Terraform sets this once, then stops managing the value. Without this, an
+  # operator changing the band with `aws ssm put-parameter` would have it
+  # silently reverted by the next pipeline apply — and the whole point of T5 is
+  # that tuning these does not require editing a file and opening a PR.
+  #
+  # The trade: the precondition below validates the VARIABLES, not whatever an
+  # operator later writes. Setting a default outside the offered bands by hand
+  # is possible, and would show a result set no click reproduces. If that
+  # becomes a real risk, validate it in the handler instead.
+  lifecycle {
+    ignore_changes = [value]
+  }
 
   tags = { Name = "${var.name_prefix}-max-results" }
 }

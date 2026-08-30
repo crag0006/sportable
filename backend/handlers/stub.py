@@ -38,42 +38,44 @@ import json
 import os
 from typing import Any
 
-import boto3
 import fixtures
 
 _JSON_HEADERS = {"content-type": "application/json"}
 
-# Parameter Store prefix for this environment. Set by Terraform; the fallback
-# only matters when running the handler locally.
-_SSM_PREFIX = os.environ.get("SSM_PREFIX", "/sportable/staging")
+# Search configuration, resolved by Terraform at apply time and passed in as one
+# JSON blob. See the data source in infra/modules/api/main.tf for why it is not
+# read from Parameter Store at runtime.
+#
+# THE SHORT VERSION: this function runs in a private subnet with no route to the
+# internet. An SDK call to Parameter Store does not fail there, it HANGS, until
+# the 10 s function timeout turns the whole request into a 500. Reaching SSM
+# from inside the VPC needs an interface endpoint at roughly USD $7.30/month,
+# which is more than this project's entire budget target.
+#
+# So the handler makes no network call of its own. Parsing an environment
+# variable cannot time out.
+_CONFIG_ENV = "SEARCH_CONFIG"
 
-# Values used when Parameter Store cannot be read. They match the committed
-# tfvars, so a permission failure degrades to the right answer rather than to
-# an error page — but `"source": "fallback"` in the response makes it visible
-# instead of silently pretending everything is fine.
+# Used when the environment variable is absent or unparseable — running the
+# handler locally, or a deploy that predates this variable. These match the
+# committed tfvars, so the degraded answer is still the right answer.
 _CONFIG_FALLBACK: dict[str, Any] = {
     "distance_bands_m": [250, 500, 1000],
     "default_distance_m": 500,
     "max_results": 100,
 }
 
-# Module-level cache. A Lambda execution environment is reused across many
-# invocations, so this is read once per COLD START rather than once per request.
-# That is the whole reason config in Parameter Store is affordable: a handful of
-# API calls per day, not one per user action.
+# Parsed once per cold start rather than per request. Cheap either way now, but
+# it keeps the response object from being rebuilt on every invocation.
 _config_cache: dict[str, Any] | None = None
 
 
 def _load_config() -> dict[str, Any]:
-    """Read search configuration from Parameter Store, once per cold start.
+    """Return search configuration, with a "source" of "terraform" or "fallback".
 
-    Returns:
-        The configuration, plus a "source" key of "ssm" or "fallback" so the
-        caller can tell whether the live values were actually reached.
-
-    Never raises. A configuration read that fails should degrade the answer,
-    not take the endpoint down — and the Lambda execution role is managed by
-    the account holder, so we cannot guarantee the permission exists.
+    Never raises. A configuration problem should degrade the answer, not take
+    the endpoint down — and "source" makes the degradation visible rather than
+    letting the handler quietly pretend the values are live.
     """
     global _config_cache
     if _config_cache is not None:
@@ -82,30 +84,24 @@ def _load_config() -> dict[str, Any]:
     config: dict[str, Any] = dict(_CONFIG_FALLBACK)
     config["source"] = "fallback"
 
-    try:
-        ssm = boto3.client("ssm")
-        # One call for the whole subtree. Fetching each parameter individually
-        # would multiply the cold-start cost by the number of parameters.
-        paginator = ssm.get_paginator("get_parameters_by_path")
-        found: dict[str, str] = {}
-        for page in paginator.paginate(Path=f"{_SSM_PREFIX}/search", Recursive=True):
-            for param in page["Parameters"]:
-                found[param["Name"].rsplit("/", 1)[-1]] = param["Value"]
-
-        if found:
-            if "distance_bands_m" in found:
+    raw = os.environ.get(_CONFIG_ENV)
+    if raw:
+        try:
+            # Parameter Store returns every value as a string, including the
+            # StringList, so each one is converted explicitly here rather than
+            # trusted to arrive as the right type.
+            parsed = json.loads(raw)
+            if "distance_bands_m" in parsed:
                 config["distance_bands_m"] = [
-                    int(v) for v in found["distance_bands_m"].split(",") if v
+                    int(v) for v in str(parsed["distance_bands_m"]).split(",") if v
                 ]
-            if "default_distance_m" in found:
-                config["default_distance_m"] = int(found["default_distance_m"])
-            if "max_results" in found:
-                config["max_results"] = int(found["max_results"])
-            config["source"] = "ssm"
-    except Exception as exc:  # Deliberately broad: see the docstring.
-        # Logged, not raised. This line is what tells you the execution role is
-        # missing ssm:GetParametersByPath.
-        print(f"config: falling back to defaults, could not read {_SSM_PREFIX}: {exc}")
+            if "default_distance_m" in parsed:
+                config["default_distance_m"] = int(parsed["default_distance_m"])
+            if "max_results" in parsed:
+                config["max_results"] = int(parsed["max_results"])
+            config["source"] = "terraform"
+        except (ValueError, TypeError) as exc:
+            print(f"config: {_CONFIG_ENV} present but unusable, using defaults: {exc}")
 
     _config_cache = config
     return config

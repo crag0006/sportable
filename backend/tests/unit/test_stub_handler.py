@@ -150,17 +150,55 @@ def test_config_default_is_one_of_the_offered_bands():
     assert body["default_distance_m"] in body["distance_bands_m"]
 
 
-def test_config_degrades_to_defaults_without_aws():
-    """No credentials in CI, so this exercises the fallback path.
+def test_config_degrades_to_defaults_without_the_env_var():
+    """SEARCH_CONFIG is unset under pytest, so this exercises the fallback.
 
-    The endpoint must answer rather than raise: the Lambda execution role is
-    managed by the account holder and we cannot guarantee it can read SSM. A
-    config read that fails should degrade the answer, not take the API down.
-
-    `source` is what makes the degradation visible instead of silent — if this
-    ever reads "ssm" in CI, something is reaching AWS that should not be.
+    The endpoint must answer rather than raise. `source` makes the degradation
+    visible instead of letting the handler pretend the values are live.
     """
     assert _body("/api/v1/config")["source"] == "fallback"
+
+
+def test_config_parses_the_terraform_supplied_values(monkeypatch):
+    """Terraform passes Parameter Store values as JSON, all of them strings.
+
+    Parameter Store has no numeric type — even the StringList arrives as
+    "250,500,1000" — so the handler must coerce rather than trust the types.
+    """
+    import handlers.stub as stub
+
+    monkeypatch.setattr(stub, "_config_cache", None)
+    monkeypatch.setenv(
+        "SEARCH_CONFIG",
+        json.dumps(
+            {
+                "distance_bands_m": "250,500,750,1000",
+                "default_distance_m": "750",
+                "max_results": "50",
+            }
+        ),
+    )
+    body = json.loads(stub.handler({"rawPath": "/api/v1/config"}, None)["body"])
+    stub._config_cache = None  # do not leak the cache into other tests
+
+    assert body["distance_bands_m"] == [250, 500, 750, 1000]
+    assert body["default_distance_m"] == 750
+    assert body["max_results"] == 50
+    assert body["source"] == "terraform"
+
+
+def test_config_survives_an_unparseable_env_var(monkeypatch):
+    """A malformed variable must degrade, not 500. This endpoint sits on the
+    critical path for the search page — it has to answer something."""
+    import handlers.stub as stub
+
+    monkeypatch.setattr(stub, "_config_cache", None)
+    monkeypatch.setenv("SEARCH_CONFIG", "{not json")
+    body = json.loads(stub.handler({"rawPath": "/api/v1/config"}, None)["body"])
+    stub._config_cache = None
+
+    assert body["source"] == "fallback"
+    assert body["distance_bands_m"] == [250, 500, 1000]
 
 
 def test_config_is_not_marked_as_a_fixture():
