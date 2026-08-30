@@ -125,3 +125,45 @@ def test_every_response_is_marked_as_a_fixture():
     """So nobody mistakes fabricated data for a working backend."""
     for path in ("/api/v1/venues/search", "/api/v1/venues/vsr-10432"):
         assert _body(path)["_fixture"] is True
+
+
+# -------------------------------------------------------------------- config
+# /api/v1/config is not a fixture. It carries the live values the interface
+# renders for AC1.2.4, so these tests pin the shape the Frontend depends on.
+def test_config_returns_200():
+    assert _call("/api/v1/config")["statusCode"] == 200
+
+
+def test_config_carries_the_three_bands_ac124():
+    """AC1.2.4 — the user chooses 250 m, 500 m or 1 km."""
+    assert _body("/api/v1/config")["distance_bands_m"] == [250, 500, 1000]
+
+
+def test_config_default_is_one_of_the_offered_bands():
+    """A default outside the bands shows a result set no click can reproduce.
+
+    Terraform enforces this too, as a precondition on the SSM parameter. Both
+    guards are cheap and they fail at different times — this one at test time,
+    that one at plan time.
+    """
+    body = _body("/api/v1/config")
+    assert body["default_distance_m"] in body["distance_bands_m"]
+
+
+def test_config_degrades_to_defaults_without_aws():
+    """No credentials in CI, so this exercises the fallback path.
+
+    The endpoint must answer rather than raise: the Lambda execution role is
+    managed by the account holder and we cannot guarantee it can read SSM. A
+    config read that fails should degrade the answer, not take the API down.
+
+    `source` is what makes the degradation visible instead of silent — if this
+    ever reads "ssm" in CI, something is reaching AWS that should not be.
+    """
+    assert _body("/api/v1/config")["source"] == "fallback"
+
+
+def test_config_is_not_marked_as_a_fixture():
+    """Fixtures carry _fixture: true. Real config must not, or the Frontend's
+    check for fabricated data would flag it once the real API lands."""
+    assert "_fixture" not in _body("/api/v1/config")
