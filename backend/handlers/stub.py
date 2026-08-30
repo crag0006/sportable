@@ -90,6 +90,3 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         return _response(200, venue)
 
     return _response(404, {"error": "route_not_found", "path": path})
-
-
-# ROLLBACK DRILL 30 Aug 2026 — forces a new Lambda version. Revert after.
