@@ -86,8 +86,12 @@ module "api" {
 
   db_url_ssm_parameter = module.database.ssm_url_parameter
 
-  # Same tree the app_config module writes to.
+  # Same tree the app_config module writes to. The api module reads the search
+  # parameters from it at APPLY time, so they must exist first — Terraform
+  # cannot infer that from a path string.
   ssm_prefix = "/sportable/staging"
+
+  depends_on = [module.app_config]
 }
 
 # ------------------------------------------------------------------------------
