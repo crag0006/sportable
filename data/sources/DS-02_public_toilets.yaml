@@ -1,0 +1,107 @@
+source_id: DS-02
+name: National Public Toilet Map
+publisher: Department of Health, Disability and Ageing
+description: >-
+  National register of public toilet facilities with accessibility attributes, operated for public benefit and published through data.gov.au. 
+  Supplies the accessible toilet link of the access chain, together with the MLAK key requirement and recorded opening hours.
+
+tier: reference
+cadence: weekly
+
+licence:
+  name: Creative Commons Attribution
+  version: 3.0 Australia
+  url: https://creativecommons.org/licenses/by/3.0/au/
+  attribution_text: >-
+    National Public Toilet Map, Department of Health, Disability and Ageing, Australian Government, via data.gov.au.
+  share_alike: false
+  restricts_caching: false
+  restricts_redistribution: false
+  restricts_derived_works: false
+  notes: >-
+    CC BY 3.0 Australia, not the 4.0 International licence carried by DS-01 and DS-03. It is a different licence instrument with its own attribution and
+    notice requirements, and must not be lumped in with the others in the Sources and licences view. The attribution string above is generated because
+    the dataset page states no required wording.
+
+retrieval:
+  landing_page: https://data.gov.au/data/dataset/553b3049-2b8b-46a2-95e6-640d7986a8c1
+  download_url: https://data.gov.au/data/dataset/553b3049-2b8b-46a2-95e6-640d7986a8c1/resource/34076296-6692-4e30-b627-67b7c4eb1027/download/toiletmapexport_260801_074429.csv
+  format: csv
+  raw_prefix: public_toilets
+  requires_auth: false
+  notes: >-
+    The resource filename embeds the export timestamp, 260801_074429, meaning 1 August 2026 07:44:29. A new export is published under a new filename, so
+    the URL above is version-specific and will need re-reading from the landing page on each fetch rather than being treated as stable. Record this in the
+    Fetch Lambda as a resource-lookup step, not a fixed URL.
+
+coverage:
+  publisher_scope: national
+  records_total: 25449
+  records_in_target_area: null
+  basis: >-
+    25449 rows nationally in the 1 August 2026 export, of which 6059 are in Victoria. A provisional bounding-box filter over the City of Melbourne
+    returns 247 facilities, but the definitive figure must be counted against the DS-07 boundary polygon, not a rectangle, so records_in_target_area stays
+    null until DS-07 is loaded.
+  notes: >-
+    Facility types in the provisional City of Melbourne set are led by park or reserve (77), other (68), shopping centre (26), community building (19) and
+    train station (17), so a meaningful share sit at or near sport venues.
+
+verification:
+  verified: false
+  verified_by: null
+  verified_at: null
+  method: >-
+    Title, licence, landing page, contact point and reference period read from the Additional Info table on the data.gov.au dataset page. Field profiling
+    performed on the export, SHA-256 8aaef33e53f0e8ed918d2782f9a4bedb9fc963b90e36139a8892ea55c4056fea.
+
+publisher_last_updated: 2022-01-12
+
+supplies_venues: false
+supplies_facility_types:
+  - accessible_toilet
+supplies_boundaries: false
+
+iteration_1: true
+government_published: true
+depends_on:
+  - DS-07
+
+known_limitations:
+  - >-
+    An accessible toilet flag records that a facility is designated accessible. It records nothing about door width, circulation space or whether the
+    approach to the facility is step free.
+  - >-
+    Every accessibility field in this export is a two-valued boolean with no null state. There are no missing values anywhere in Accessible, MLAK24 or
+    AdultChange. A false therefore cannot be distinguished from an unticked box on the data alone. See the blocking open question below; this decides
+    whether 67 City of Melbourne facilities are displayed as a recorded absence or as no published information.
+  - >-
+    KeyRequired and MLAK24 are internally inconsistent. In the provisional City of Melbourne set, 31 facilities are marked MLAK24 true while KeyRequired is
+    false, and nationally the figure is 632 against only 4 marked both. A MLAK facility is by definition locked, so MLAK24 must drive mlak_required and
+    KeyRequired cannot be relied on. A toilet requiring MLAK is unusable to somebody without a key, so this field must never default to false.
+  - >-
+    OpeningHours is fully populated in the provisional City of Melbourne set, with values such as 24 hours, daylight hours, variable hours, venue hours
+    and currently closed. Variable hours and venue hours are not machine readable and must be rendered as recorded text with hours_recorded true,
+    never parsed into an open or closed state.
+  - >-
+    The publisher states a reference period ending 12 January 2022. Under the 21-day stale rule for a weekly feed, every row from this source is stale on
+    arrival and carries the freshness note. An old record of a toilet is still a record; it is the confidence that ages, not the fact.
+  - >-
+    The export carries AdultChange, ChangingPlaces, ACShower and BYOSling, which in the provisional City of Melbourne set are true for 30, 20, and fewer
+    facilities respectively. These are the only published source of Changing Places data available to the project. accessible_change was removed from
+    Iteration 1 scope, so these fields are read but not loaded. This is a scope decision, not a data gap, and it is recorded here so it can be reversed
+    cheaply in a later iteration.
+  - >-
+    Facilities in this source are nearby public amenities, not venue amenities. is_inside_venue is set true only where a source explicitly records the
+    facility as being at the venue, and this source does not, so rows from here resolve to unknown unless corroborated by the DS-01 Facility Features field.
+
+open_questions:
+  - >-
+    BLOCKING. Establish whether a false in Accessible is a recorded absence or an unticked field. The National Public Toilet Map is maintained by facility
+    operators through a submission form, and a boolean with no null state cannot express the difference. If false is a recorded absence, 67 City of Melbourne
+    facilities become not_available, which populates the middle state of the tri-state from real data. If it is an unticked box, they become no published
+    information. Resolve by reading the publisher's data dictionary or by contacting helpline@toiletmap.gov.au, and record the answer here. Do not
+    decide it by inspection of the data, because both readings fit the distribution.
+  - >-
+    Confirm whether data.gov.au publishes a metadata last-updated date distinct from the reference period. publisher_last_updated is currently set to the
+    reference period end of 12 January 2022, which is the conservative reading and the one that appears on screen beside every confirmed status. The export
+    timestamp of 1 August 2026 describes when the file was generated, not the currency of its contents, and must not be substituted for it.
