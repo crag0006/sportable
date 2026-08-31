@@ -1,4 +1,4 @@
-source_id: DS-08
+source_id: DS-07
 name: ASGS Suburbs and Localities
 publisher: Australian Bureau of Statistics
 description: >-
@@ -59,7 +59,7 @@ supplies_boundaries: true
 iteration_1: true
 government_published: true
 depends_on:
-  - DS-07
+  - DS-06
 
 known_limitations:
   - >-

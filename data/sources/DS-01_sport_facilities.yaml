@@ -66,7 +66,7 @@ supplies_boundaries: false
 iteration_1: true
 government_published: true
 depends_on:
-  - DS-07 # City of Melbourne boundary
+  - DS-06 
 
 known_limitations:
   - >-

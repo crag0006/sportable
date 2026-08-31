@@ -41,6 +41,12 @@ USER_AGENT = "SportAbleMelbourne-Fetch/1.0"
 
 FETCHABLE_TIERS = {"reference", "transit", "static"}
 
+# Status codes that must never be retried. A 429 from the Opendatasoft portals
+# is a monthly quota exhaustion, not a rate limit that clears in seconds, so
+# retrying with backoff burns the remaining quota and delays the alarm. It fails
+# immediately and lets the previous snapshot stand.
+NO_RETRY_STATUS = {429}
+
 
 class FetchError(RuntimeError):
     pass
@@ -71,12 +77,29 @@ def load_source_card(source_id: str) -> dict[str, Any]:
         raise ValueError(f"{source_id} has no publisher")
 
     licence = card.get("licence", {})
+
+    # DMP section 3.3: the load is abandoned if any registered source is missing
+    # a licence. A card carrying UNVERIFIED is a card that has not passed the
+    # section 4.1 gate, and it must fail here rather than land and be sorted out
+    # afterwards.
     if not licence.get("name") or not licence.get("url"):
         raise ValueError(f"{source_id} has an incomplete licence")
+
+    if str(licence.get("name")).strip().upper() == "UNVERIFIED":
+        raise ValueError(
+            f"{source_id} licence is recorded as UNVERIFIED and has not passed "
+            f"the section 4.1 verification gate"
+        )
 
     retrieval = card.get("retrieval", {})
     if not retrieval.get("download_url"):
         raise ValueError(f"{source_id} has no download URL")
+
+    if not retrieval.get("format"):
+        raise ValueError(f"{source_id} has no retrieval format")
+
+    if not retrieval.get("raw_prefix"):
+        raise ValueError(f"{source_id} has no raw_prefix")
 
     return card
 
@@ -235,6 +258,12 @@ def _http_get(
             "content_length": response.headers.get(
                 "Content-Length"
             ),
+            # filename_for() reads this to honour a publisher-supplied filename.
+            # Without it that branch never runs and every object falls back to
+            # the raw_prefix name.
+            "content_disposition": response.headers.get(
+                "Content-Disposition"
+            ),
             "final_url": response.url,
         }
 
@@ -298,10 +327,13 @@ def fetch_with_retry(
                     "final_url": url,
                 }, attempts
 
-            if (
-                400 <= error.code < 500
-                and error.code != 429
-            ):
+            if error.code in NO_RETRY_STATUS:
+                raise FetchError(
+                    f"{error.code} {error.reason} for {url} - quota or rate "
+                    f"limit exhausted, not retried, previous snapshot stands"
+                ) from error
+
+            if 400 <= error.code < 500:
                 raise FetchError(
                     f"{error.code} {error.reason} for {url}"
                 ) from error
@@ -332,6 +364,55 @@ def fetch_with_retry(
     raise FetchError(
         f"All {MAX_ATTEMPTS} attempts failed for {url}"
     )
+
+
+def check_payload_shape(
+    source_id: str,
+    body: bytes,
+    fmt: str,
+    response_meta: dict[str, Any],
+) -> None:
+    """Reject a 200 response whose body is not the declared format.
+
+    A publisher that has moved, withdrawn or restricted a resource often answers
+    with 200 and an HTML page rather than an error status. Nothing downstream
+    notices: the body hashes cleanly, lands in the raw zone and writes a success
+    manifest. The failure then surfaces days later as an unexplained parse error
+    in a notebook. Catching it here keeps a bad publish out of the archive.
+    """
+
+    fmt = (fmt or "").lower()
+    head = body[:512].lstrip()
+
+    if not body:
+        raise FetchError(f"{source_id} returned an empty body")
+
+    if head[:14].lower().startswith(b"<!doctype html") or head[:5].lower() == b"<html":
+        if fmt not in {"html", "htm"}:
+            raise FetchError(
+                f"{source_id} returned an HTML page, not {fmt}. The resource may "
+                f"have been withdrawn, moved or made private."
+            )
+
+    if fmt in {"kml", "xml", "gpx"} and not head.startswith(b"<"):
+        raise FetchError(
+            f"{source_id} declares {fmt} but the body does not begin with an XML tag"
+        )
+
+    if fmt in {"zip", "kmz", "xlsx", "shp"} and not body.startswith(b"PK"):
+        raise FetchError(
+            f"{source_id} declares {fmt} but the body carries no zip signature"
+        )
+
+    if fmt == "json" and head[:1] not in (b"{", b"["):
+        raise FetchError(
+            f"{source_id} declares json but the body does not begin with an object or array"
+        )
+
+    if fmt == "csv" and head.startswith(b"PK"):
+        raise FetchError(
+            f"{source_id} declares csv but the body is a zip archive"
+        )
 
 
 def object_key(
@@ -551,6 +632,13 @@ def handler(
         "last_modified": response_meta.get(
             "last_modified"
         ),
+        # Recorded so the transform and the profiling notebooks can tell a
+        # source with no publisher-side change detection from one that simply
+        # had not changed. A source offering neither header is hash-only.
+        "conditional_get_available": bool(
+            response_meta.get("etag")
+            or response_meta.get("last_modified")
+        ),
         "publisher_last_updated": card.get(
             "publisher_last_updated"
         ),
@@ -589,10 +677,31 @@ def handler(
             "manifest_key": written,
         }
 
+    # Verify the body is what the card says it is before anything is hashed,
+    # compared or written. A bad publish must not enter the immutable zone.
+    check_payload_shape(
+        source_id,
+        body,
+        retrieval["format"],
+        response_meta,
+    )
+
     digest = hashlib.sha256(body).hexdigest()
 
     manifest["sha256"] = digest
     manifest["bytes"] = len(body)
+
+    expected = retrieval.get("expected_sha256")
+    if expected:
+        manifest["expected_sha256"] = expected
+        manifest["sha256_matches_pin"] = (expected == digest)
+        if expected != digest:
+            LOG.warning(
+                "%s payload hash %s does not match the pinned %s",
+                source_id,
+                digest,
+                expected,
+            )
 
     if (
         not force
@@ -618,6 +727,7 @@ def handler(
         return {
             "outcome": "no_change",
             "source_id": source_id,
+            "sha256": digest,
             "manifest_key": written,
         }
 
