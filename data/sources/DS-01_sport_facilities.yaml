@@ -7,7 +7,8 @@ description: >-
   It also supplies on-site accessible toilet and on-site accessible parking, from the Facility Features field.
 
 tier: reference
-cadence: as_needed
+cadence: weekly
+publication_cadence: as_needed
 
 licence:
   name: Creative Commons Attribution
