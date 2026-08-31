@@ -294,6 +294,10 @@ svg {
   background: linear-gradient(180deg, #ffffff 0%, #fbfdfe 100%);
 }
 
+.panel-field {
+  position: relative;
+}
+
 .field-label,
 .side-label,
 .eyebrow {
@@ -313,6 +317,55 @@ svg {
   line-height: 1.45;
 }
 
+.panel-input-wrap {
+  position: relative;
+}
+
+.panel-input {
+  padding: 0 14px;
+}
+
+.required {
+  color: #96231f;
+}
+
+.suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  width: 100%;
+  max-height: 180px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #c4cbd2;
+  border-radius: 6px;
+  box-shadow: 0 10px 24px rgba(12, 28, 45, 0.08);
+}
+
+.suggestions button {
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: #fff;
+  color: #1b2d39;
+  text-align: left;
+  cursor: pointer;
+}
+
+.suggestions button:hover {
+  background: #eef4f9;
+}
+
+.no-match {
+  margin: 6px 0 0;
+  color: #96231f;
+  font-size: 12px;
+}
+
 .amenity-checks {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -323,6 +376,23 @@ svg {
   color: #526570;
   font-size: 14px;
   line-height: 1.45;
+}
+
+.amenity-checks--interactive {
+  gap: 10px;
+}
+
+.amenity-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.amenity-check input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: var(--primary);
 }
 
 .selector {
@@ -350,6 +420,44 @@ svg {
   color: var(--primary);
   border-color: #d2e3ed;
   box-shadow: 0 2px 6px rgba(20, 80, 122, 0.08);
+}
+
+.distance-options {
+  display: flex;
+  gap: 8px;
+}
+
+.distance-option {
+  flex: 1;
+  padding: 9px 5px;
+  border-radius: 10px;
+  border: 1px solid #d0d7dd;
+  background: #f4f6f8;
+  color: #607380;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.distance-option input {
+  display: none;
+}
+
+.selected-distance {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.form-error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #e3b5b3;
+  border-radius: 8px;
+  background: #fdf3f2;
+  color: #96231f;
+  font-size: 13px;
 }
 
 .drawer-actions {
@@ -760,6 +868,13 @@ svg {
   border: 1px solid #dde5e3;
 }
 
+.map-scene {
+  position: absolute;
+  inset: 0;
+  transform-origin: center center;
+  transition: transform 240ms ease;
+}
+
 .map-grid {
   background:
     linear-gradient(90deg, rgba(20, 80, 122, 0.06) 1px, transparent 1px) 0 0 / 64px 64px,
@@ -785,6 +900,12 @@ svg {
   border-color: #d9e5ea;
   color: var(--primary);
   box-shadow: 0 8px 18px rgba(12, 28, 45, 0.08);
+}
+
+.map-control-btn.is-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
 }
 
 .road {
@@ -872,6 +993,31 @@ svg {
   background: #4b7f40;
 }
 
+.marker.is-located {
+  box-shadow:
+    0 0 0 5px rgba(20, 80, 122, 0.12),
+    0 0 0 12px rgba(20, 80, 122, 0.08);
+}
+
+.user-pulse {
+  position: absolute;
+  left: calc(13% - 10px);
+  top: calc(28% - 10px);
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: 2px solid rgba(20, 80, 122, 0.3);
+  background: rgba(20, 80, 122, 0.08);
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.user-pulse.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
 .map-callout {
   position: absolute;
   z-index: 2;
@@ -883,6 +1029,34 @@ svg {
   font-size: 13px;
   font-weight: 700;
   box-shadow: 0 10px 20px rgba(12, 28, 45, 0.06);
+}
+
+.map-zoom-indicator {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  z-index: 3;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #dde5e3;
+  box-shadow: 0 8px 18px rgba(12, 28, 45, 0.08);
+}
+
+.map-zoom-indicator span {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6c7f8b;
+}
+
+.map-zoom-indicator strong {
+  display: block;
+  color: #213945;
+  font-size: 13px;
 }
 
 .map-callout.station {
@@ -1019,6 +1193,10 @@ svg {
   .drawer-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .distance-options {
+    flex-direction: column;
   }
 
   .drawer-btn,

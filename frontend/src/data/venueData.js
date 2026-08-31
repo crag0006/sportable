@@ -3,7 +3,22 @@ export const searchPanelData = {
   subtitle: 'Keep only the two core search locations visible by default.',
   sport: 'Basketball',
   suburbOrPostcode: 'North Melbourne 3051',
-  amenities: [
+  sportOptions: ['Badminton', 'Basketball', 'Netball', 'Swimming', 'Tennis'],
+  suburbOptions: [
+    'Melbourne CBD 3000',
+    'Carlton 3053',
+    'Fitzroy 3065',
+    'North Melbourne 3051',
+    'Preston 3072',
+    'Kensington 3031',
+  ],
+  amenityOptions: [
+    'Accessible toilet',
+    'Accessible parking',
+    'Step-free transport stop',
+    'Access entry',
+  ],
+  defaultSelectedAmenities: [
     'Accessible toilet',
     'Accessible parking',
     'Step-free transport stop',

@@ -1,16 +1,85 @@
 import { useState } from 'react'
 import { ChevronDownIcon } from './Icons'
 
+function findMatches(options, typedText) {
+  if (typedText.trim().length < 3) {
+    return []
+  }
+
+  return options.filter((item) =>
+    item.toLowerCase().includes(typedText.trim().toLowerCase()),
+  )
+}
+
 export default function CollapsibleSearchPanel({ data }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [sport, setSport] = useState(data.sport)
+  const [suburb, setSuburb] = useState(data.suburbOrPostcode)
+  const [selectedAmenities, setSelectedAmenities] = useState(
+    data.defaultSelectedAmenities ?? data.amenityOptions ?? [],
+  )
+  const [activeDistance, setActiveDistance] = useState(data.activeDistance)
+  const [showSports, setShowSports] = useState(false)
+  const [showSuburbs, setShowSuburbs] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [previewStartPoint, setPreviewStartPoint] = useState(data.startPoint)
+
+  const sportMatches = findMatches(data.sportOptions ?? [], sport)
+  const suburbMatches = findMatches(data.suburbOptions ?? [], suburb)
+
+  function toggleAmenity(amenity) {
+    setSelectedAmenities((currentAmenities) =>
+      currentAmenities.includes(amenity)
+        ? currentAmenities.filter((item) => item !== amenity)
+        : [...currentAmenities, amenity],
+    )
+  }
+
+  function handleClear() {
+    setSport(data.sport)
+    setSuburb(data.suburbOrPostcode)
+    setSelectedAmenities(data.defaultSelectedAmenities ?? data.amenityOptions ?? [])
+    setActiveDistance(data.activeDistance)
+    setShowSports(false)
+    setShowSuburbs(false)
+    setFormError('')
+    setPreviewStartPoint(data.startPoint)
+  }
+
+  function handleSearch(event) {
+    event.preventDefault()
+
+    if (sport.trim() === '' && suburb.trim() === '') {
+      setFormError('Choose a sport and a suburb or postcode.')
+      return
+    }
+
+    if (sport.trim() === '') {
+      setFormError('Choose a sport.')
+      return
+    }
+
+    if (suburb.trim() === '') {
+      setFormError('Choose a suburb or postcode.')
+      return
+    }
+
+    setFormError('')
+    setShowSports(false)
+    setShowSuburbs(false)
+    setPreviewStartPoint(`${suburb.trim()} accessible drop-off`)
+    setIsOpen(false)
+  }
 
   return (
-    <details
-      className="drawer-card"
-      open={isOpen}
-      onToggle={(event) => setIsOpen(event.currentTarget.open)}
-    >
-      <summary className="drawer-summary">
+    <details className="drawer-card" open={isOpen}>
+      <summary
+        className="drawer-summary"
+        onClick={(event) => {
+          event.preventDefault()
+          setIsOpen((currentValue) => !currentValue)
+        }}
+      >
         <div className="drawer-head">
           <div>
             <p className="drawer-title">{data.title}</p>
@@ -24,7 +93,7 @@ export default function CollapsibleSearchPanel({ data }) {
         <div className="location-pills" aria-label="Collapsed route setup preview">
           <div className="location-line">
             <span>Start point</span>
-            <strong>{data.startPoint}</strong>
+            <strong>{previewStartPoint}</strong>
           </div>
           <div className="location-line">
             <span>Destination</span>
@@ -34,51 +103,155 @@ export default function CollapsibleSearchPanel({ data }) {
       </summary>
 
       <div className="drawer-content">
-        <div className="drawer-content-inner">
-          <div className="field-stack">
-            <span className="field-label">Sport *</span>
-            <div className="search-input">{data.sport}</div>
+        <form className="drawer-content-inner" onSubmit={handleSearch}>
+          <div className="field-stack panel-field">
+            <label className="field-label panel-label" htmlFor="panel-sport">
+              Sport <span className="required">*</span>
+            </label>
+            <div className="panel-input-wrap">
+              <input
+                id="panel-sport"
+                type="text"
+                className="search-input panel-input"
+                placeholder="eg: Basketball"
+                autoComplete="off"
+                value={sport}
+                onFocus={() => setShowSports(true)}
+                onBlur={() => {
+                  window.setTimeout(() => setShowSports(false), 120)
+                }}
+                onChange={(event) => {
+                  setSport(event.target.value)
+                  setShowSports(true)
+                }}
+              />
+
+              {showSports && sportMatches.length > 0 ? (
+                <ul className="suggestions">
+                  {sportMatches.map((item) => (
+                    <li key={item}>
+                      <button
+                        type="button"
+                        onMouseDown={() => {
+                          setSport(item)
+                          setShowSports(false)
+                        }}
+                      >
+                        {item}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {showSports && sport.trim().length >= 3 && sportMatches.length === 0 ? (
+                <p className="no-match">No sport found with that name.</p>
+              ) : null}
+            </div>
           </div>
 
-          <div className="field-stack">
-            <span className="field-label">Suburb or postcode *</span>
-            <div className="search-input">{data.suburbOrPostcode}</div>
+          <div className="field-stack panel-field">
+            <label className="field-label panel-label" htmlFor="panel-suburb">
+              Suburb or postcode <span className="required">*</span>
+            </label>
+            <div className="panel-input-wrap">
+              <input
+                id="panel-suburb"
+                type="text"
+                className="search-input panel-input"
+                placeholder="eg: North Melbourne or 3051"
+                autoComplete="off"
+                value={suburb}
+                onFocus={() => setShowSuburbs(true)}
+                onBlur={() => {
+                  window.setTimeout(() => setShowSuburbs(false), 120)
+                }}
+                onChange={(event) => {
+                  setSuburb(event.target.value)
+                  setShowSuburbs(true)
+                }}
+              />
+
+              {showSuburbs && suburbMatches.length > 0 ? (
+                <ul className="suggestions">
+                  {suburbMatches.map((item) => (
+                    <li key={item}>
+                      <button
+                        type="button"
+                        onMouseDown={() => {
+                          setSuburb(item)
+                          setShowSuburbs(false)
+                        }}
+                      >
+                        {item}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {showSuburbs && suburb.trim().length >= 3 && suburbMatches.length === 0 ? (
+                <p className="no-match">Try a Greater Melbourne suburb or postcode.</p>
+              ) : null}
+            </div>
           </div>
 
           <div className="field-stack">
             <span className="field-label">Amenities</span>
-            <div className="amenity-checks">
-              {data.amenities.map((item) => (
-                <div key={item} className="amenity-item">
-                  ✓ {item}
-                </div>
+            <div className="amenity-checks amenity-checks--interactive">
+              {(data.amenityOptions ?? []).map((item) => (
+                <label key={item} className="amenity-item amenity-check">
+                  <input
+                    type="checkbox"
+                    checked={selectedAmenities.includes(item)}
+                    onChange={() => toggleAmenity(item)}
+                  />
+                  <span>{item}</span>
+                </label>
               ))}
             </div>
           </div>
 
           <div className="field-stack">
             <span className="field-label">Distance to a facility</span>
-            <div className="selector" aria-label="Corridor distance selector">
+            <div className="distance-options" aria-label="Corridor distance selector">
               {data.distanceOptions.map((option) => (
-                <span
+                <label
                   key={option}
-                  className={option === data.activeDistance ? 'active' : undefined}
+                  className={
+                    option === activeDistance
+                      ? 'distance-option selected-distance'
+                      : 'distance-option'
+                  }
                 >
+                  <input
+                    type="radio"
+                    name="facility-distance"
+                    value={option}
+                    checked={option === activeDistance}
+                    onChange={(event) => setActiveDistance(event.target.value)}
+                  />
                   {option}
-                </span>
+                </label>
               ))}
             </div>
           </div>
 
-          <div className="drawer-actions">
-            <button className="drawer-btn ghost" type="button">
+          {formError ? (
+            <p className="form-error" role="alert">
+              {formError}
+            </p>
+          ) : null}
+
+          <div className="drawer-actions buttons">
+            <button className="clear-button drawer-btn ghost" type="button" onClick={handleClear}>
               Clear
             </button>
-            <button className="drawer-btn solid" type="button">
+            <button className="search-button drawer-btn solid" type="submit">
               Search venues
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </details>
   )
