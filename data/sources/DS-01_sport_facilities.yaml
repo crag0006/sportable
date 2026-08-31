@@ -53,7 +53,7 @@ verification:
   verified_at: null
   method: >-
     Licence, publisher and publisher last-updated read from the Additional Information table on the DataVic dataset page. 
-    Coverage counted from the downloaded workbook, SHA-256d7a3992688ab6f007c736ac0ee89928dc5b0fd7b075d1d9dcda49a854a42dc34.
+    Coverage counted from the downloaded workbook, SHA-256 d7a3992688ab6f007c736ac0ee89928dc5b0fd7b075d1d9dcda49a854a42dc34.
 
 publisher_last_updated: 2024-12-17
 

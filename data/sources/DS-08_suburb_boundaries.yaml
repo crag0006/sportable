@@ -80,3 +80,5 @@ known_limitations:
   - >-
     Updated every five years, last in 2021, next expected October 2026 as part of Edition 4. Under the 90-day stale rule this layer is long stale, but a
     boundary that has not moved is not a stale fact. Boundary layers are static reference data and the stale flag does not apply to them.
+
+open_questions: []

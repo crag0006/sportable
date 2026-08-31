@@ -62,8 +62,6 @@ publisher_last_updated: null
 supplies_venues: false
 supplies_facility_types: []
 supplies_boundaries: false
-supplies_geometry_for: null
-supplies_service: true
 
 iteration_1: true
 government_published: false

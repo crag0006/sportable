@@ -75,3 +75,5 @@ known_limitations:
     Islands state attributes. publisher_last_updated records the file-level correction date, which is the one that describes the artefact being loaded.
   - >-
     LGA boundaries are revised annually, so the 2025 vintage will be superseded. Record which vintage each build consumed; a venue's LGA is not a permanent fact.
+
+open_questions: []
