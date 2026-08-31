@@ -1,0 +1,99 @@
+source_id: DS-05
+name: On-street Parking Bays
+publisher: City of Melbourne
+description: >-
+  Geometry of on-street parking bays in the City of Melbourne. Registered because DS-04 carries restriction attributes keyed by bay identifier and no
+  coordinates. This source supplies the location that turns a designated disabled bay into a facility row.
+
+tier: reference
+cadence: weekly
+
+licence:
+  name: Creative Commons Attribution
+  version: "4.0"
+  url: https://creativecommons.org/licenses/by/4.0/legalcode
+  attribution_text: >-
+    On-street Parking Bays, City of Melbourne Open Data.
+  share_alike: false
+  restricts_caching: false
+  restricts_redistribution: false
+  restricts_derived_works: false
+  notes: >-
+    The dataset page labels the licence only as CC BY under a License - other field. The version is established from the custom licence link, which points
+    at the 4.0 legal code, not from the label. Same position as DS-04.
+
+retrieval:
+  landing_page: https://data.melbourne.vic.gov.au/explore/dataset/on-street-parking-bays/information/
+  download_url: https://data.melbourne.vic.gov.au/api/v2/catalog/datasets/on-street-parking-bays/exports/csv?delimiter=%2C
+  format: csv
+  raw_prefix: parking_bays
+  requires_auth: false
+  notes: >-
+    CSV is the only format the resource list advertises. Opendatasoft returns the polygon inside a Geo Shape column as escaped GeoJSON text, with a Geo
+    Point 2D centroid alongside, so Transform unpacks the geometry before loading. Opendatasoft generates exports on demand, so /exports/geojson on
+    the same path is worth trying once the portal quota resets; if it responds, switch to it and drop the unpack step.
+
+coverage:
+  publisher_scope: local
+  records_total: null
+  records_in_target_area: null
+  basis: >-
+    PENDING RETRIEVAL. The file has not been downloaded, because the portal returned HTTP 429 errorcode 10002 on 31 August 2026 with a domain-wide quota
+    reset at 2026-09-01T00:00:00Z. Count total bays published, and count how many of the 102 DS-04 bay identifiers designated for disabled parking are
+    present here. The second figure, not the first, is what reaches the facility table.
+  notes: >-
+    The bay count is not the accessible parking count. Only bays that join to a DS-04 row carrying a disabled restriction type become facility rows.
+
+verification:
+  verified: false
+  verified_by: null
+  verified_at: null
+  method: >-
+    Organisation, licence, custom licence link, last-updated date and update frequency read from the Additional Information table on the dataset page.
+    No profiling performed; the export has not been retrieved.
+
+publisher_last_updated: 2024-06-13
+
+supplies_venues: false
+supplies_facility_types: []
+supplies_boundaries: false
+supplies_geometry_for: DS-04
+
+iteration_1: true
+government_published: true
+depends_on: []
+
+known_limitations:
+  - >-
+    This source supplies coordinates only. It carries no accessibility attribute of its own, and a bay appearing here is not evidence that the bay is
+    accessible. The designation comes from DS-04 and nowhere else.
+  - >-
+    Bay geometry represents the bay itself, not the kerb ramp, the crossing or the path from the bay to anywhere. Proximity between a bay and a venue is a
+    measured distance, not a step-free route, and the interface must not imply otherwise.
+  - >-
+    Published 7 March 2023 and last updated 13 June 2024, the same last-updated date as DS-04. The two datasets appear to be published together from the
+    same source system, which is weak but useful evidence that their bay identifiers share an identifier space. It is not a substitute for testing the join.
+  - >-
+    Update frequency is stated as Unknown. The weekly cadence above is a polling cadence, not a publication cadence, and every row is stale on arrival under
+    the 21-day rule.
+  - >-
+    Subject to the same domain-wide API quota as DS-04: six million calls a month across all City of Melbourne datasets, returning HTTP 429 with
+    errorcode 10002 when exhausted, resetting at the month boundary. A 429 is not transient and must alarm on the first occurrence rather than being
+    retried with backoff.
+  - >-
+    Not the on-street-parking-bay-sensors dataset, which was considered and rejected. That feed only contains bays with a sensor installed, so taking
+    geometry from it would silently drop every designated disabled bay without one, and would attribute static bay locations to a source whose stated
+    purpose is live occupancy.
+
+open_questions:
+  - >-
+    BLOCKING. Once the quota resets, download the export and count how many of the 102 DS-04 disabled bay identifiers appear in this file. That single
+    number decides whether accessible parking is a working facility type or a footnote. If the identifier spaces do not align the join fails outright; if
+    they align partially, the shortfall is a coverage figure for the quality report and is never filled in.
+  - >-
+    Confirm which column carries the join key and whether it corresponds to bayid or deviceid in DS-04. Confirm the identifier is stable across
+    publications; if bay identifiers are reissued between releases the join will still produce rows, just wrong ones, which is the failure mode that does not
+    announce itself.
+  - >-
+    Confirm scope. Under statewide Victoria this source and DS-04 cover one local government area of 79, and both should move to iteration_1 false. They
+    stand or fall together.
