@@ -1,0 +1,82 @@
+source_id: DS-08
+name: ASGS Suburbs and Localities
+publisher: Australian Bureau of Statistics
+description: >-
+  Suburb and locality boundaries from the Australian Statistical Geography Standard, Edition 3, 2021. Backs the reference-point resolver: a typed suburb
+  name resolves to a boundary polygon and a representative point, which is what lets a measured distance be displayed with a truthful statement of where it
+  was measured from.
+
+tier: static
+cadence: on_release
+
+licence:
+  name: Creative Commons Attribution
+  version: 4.0 International
+  url: https://creativecommons.org/licenses/by/4.0/
+  attribution_text: >-
+    Australian Statistical Geography Standard (ASGS) Edition 3 Suburbs and Localities, Australian Bureau of Statistics. Copyright Commonwealth of
+    Australia administered by the ABS.
+  share_alike: false
+  restricts_caching: false
+  restricts_redistribution: false
+  restricts_derived_works: false
+  notes: null
+
+retrieval:
+  landing_page: https://www.abs.gov.au/statistics/standards/australian-statistical-geography-standard-asgs/edition-3-july-2021-june-2026/access-and-downloads/digital-boundary-files
+  download_url: https://www.abs.gov.au/statistics/standards/australian-statistical-geography-standard-asgs/edition-3-july-2021-june-2026/access-and-downloads/digital-boundary-files/SAL_2021_AUST_GDA2020_SHP.zip
+  format: zip
+  raw_prefix: suburb_boundaries
+  requires_auth: false
+  notes: >-
+    ESRI shapefile in a zip, GDA2020, 99.24 MB. Fields are SAL_CODE21, SAL_NAME21, STE_CODE21, STE_NAME21 and AREASQKM21. Only a 2021 vintage
+    exists; unlike LGA there is no annual revision.
+
+coverage:
+  publisher_scope: national
+  records_total: null
+  records_in_target_area: null
+  basis: >-
+    PENDING PROFILE. The publisher states 15353 Suburbs and Localities covering Australia, including 19 non-spatial special purpose codes. Count from the
+    file rather than taking that figure, then count those with STE_CODE21 equal to 2 for Victoria, or those falling inside the DS-07 City of Melbourne
+    polygon under the narrower scope.
+  notes: >-
+    The 19 special purpose codes, including an Outside Australia code, are not real localities and must be excluded before the gazetteer is built.
+
+verification:
+  verified: false
+  verified_by: null
+  verified_at: null
+  method: >-
+    Licence, custodian, publication date and field definitions read from the Digital boundary files page of ASGS Edition 3.
+
+publisher_last_updated: 2021-10-06
+
+supplies_venues: false
+supplies_facility_types: []
+supplies_boundaries: true
+
+iteration_1: true
+government_published: true
+depends_on:
+  - DS-07
+
+known_limitations:
+  - >-
+    Suburbs and Localities are Mesh Block approximations of officially recognised suburb boundaries as defined by state and territory governments,
+    not the official boundaries. The ABS states approximations do not match official legal boundaries and should be used for statistical purposes only.
+  - >-
+    The representative point for a locality must be the pole of inaccessibility of the polygon, not the mathematical centroid. The centroid of a river-split
+    or crescent-shaped locality can fall outside the locality itself, which would make every distance measured from it wrong while looking correct.
+  - >-
+    A distance measured from a locality centre is not a distance from the user. The resolver returns the display string that says so, and the interface
+    cannot render a distance without it.
+  - >-
+    Suburb names are not unique across Victoria. Where a typed name matches more than one locality, all candidates are returned for the user to choose, never
+    one picked silently.
+  - >-
+    Postcodes are a different geography from suburbs and are not in this file. If postcode search is in scope, ASGS Postal Areas is a separate download and
+    a separate registered source.
+  - >-
+    Updated every five years, last in 2021, next expected October 2026 as part of Edition 4. Under the 90-day stale rule this layer is long stale, but a
+    boundary that has not moved is not a stale fact. Boundary layers are static reference data and the stale flag does not apply to them.
