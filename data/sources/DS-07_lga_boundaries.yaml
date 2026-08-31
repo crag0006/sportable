@@ -27,6 +27,7 @@ retrieval:
   format: zip
   raw_prefix: lga_boundaries
   requires_auth: false
+  expected_sha256: acc3015a0ac78ade978c41a2e4110269b5219b60d6a56cbb70393ae647f31b15
   notes: >-
     ESRI shapefile in a zip, GDA2020, 38.84 MB. Take GDA2020 rather than GDA94: storage is EPSG:7844, so GDA94 would add a transform and a 1.8 metre offset
     for nothing. Fields are LGA_CODE25, LGA_NAME25, STE_CODE21, STE_NAME21 and AREASQKM. The year suffix on the first two tracks the release year, not 2021,

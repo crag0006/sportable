@@ -29,6 +29,8 @@ retrieval:
   format: csv
   raw_prefix: public_toilets
   requires_auth: false
+  expected_sha256: 8aaef33e53f0e8ed918d2782f9a4bedb9fc963b90e36139a8892ea55c4056fea
+  
   notes: >-
     The resource filename embeds the export timestamp, 260801_074429, meaning 1 August 2026 07:44:29. A new export is published under a new filename, so
     the URL above is version-specific and will need re-reading from the landing page on each fetch rather than being treated as stable. Record this in the
