@@ -31,9 +31,11 @@ requires-python = ">=3.12"
 # Runtime dependencies are the Data team's call. Add them with `uv add` as the
 # extractors, transformers and loaders are written.
 dependencies = [
+    "boto3>=1.43.83",
     "geopandas>=1.1.4",
     "pandas>=3.0.5",
     "psycopg2-binary>=2.9.12",
+    "pyyaml>=6.0.3",
     "shapely>=2.1.2",
     "sqlalchemy>=2.0.52",
 ]
