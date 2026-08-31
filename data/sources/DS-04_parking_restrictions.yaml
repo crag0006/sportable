@@ -1,0 +1,107 @@
+source_id: DS-04
+name: On-street Car Park Bay Restrictions
+publisher: City of Melbourne
+description: >-
+  Parking restrictions applying to each on-street bay in the City of Melbourne, keyed by bay identifier and holding up to six parallel restriction slots per
+  bay. Supplies the accessible parking link of the access chain, from bays whose restriction type positively designates them for disabled parking.
+
+tier: reference
+cadence: weekly
+
+licence:
+  name: Creative Commons Attribution
+  version: "4.0"
+  url: https://creativecommons.org/licenses/by/4.0/legalcode
+  attribution_text: >-
+    On-street Car Park Bay Restrictions, City of Melbourne Open Data.
+  share_alike: false
+  restricts_caching: false
+  restricts_redistribution: false
+  restricts_derived_works: false
+  notes: >-
+    The dataset page labels the licence only as CC BY under a License - other field. The version is not stated in the label; it is established from the
+    custom licence link, which points at the 4.0 legal code. Recorded here as 4.0 on that basis rather than on the label, because CC BY and CC BY 4.0 are
+    different obligations and the label alone does not distinguish them.
+
+retrieval:
+  landing_page: https://data.melbourne.vic.gov.au/explore/dataset/on-street-car-park-bay-restrictions/information/
+  download_url: https://data.melbourne.vic.gov.au/api/v2/catalog/datasets/on-street-car-park-bay-restrictions/exports/csv?delimiter=%2C
+  format: csv
+  raw_prefix: parking_restrictions
+  requires_auth: false
+  notes: >-
+    Opendatasoft Explore API v2. The municipal boundary export on the same portal uses the newer /api/explore/v2.1/ path; the two API versions coexist
+    but v2 is the older surface and will be retired first. If any other source on this domain uses v2.1, align them.
+
+coverage:
+  publisher_scope: local
+  records_total: 4263
+  records_in_target_area: 4263
+  basis: >-
+    Counted from the export, SHA-256 5468b39ab8377cdcfced01dcd830af51f79f59ce8a95b0e589f88f42f53823a1. The publisher extent is the City of Melbourne, 
+    so every row is in area by definition. 4263 rows, 4263 distinct bayid and 4263 distinct deviceid, so the file is one row per bay with no duplicates.
+  notes: >-
+    Of the 4263 bays, 102 carry a restriction type that positively designates disabled parking. That is the number that reaches the facility table, not
+    4263, and it is the figure the quality report states.
+
+verification:
+  verified: false
+  verified_by: null
+  verified_at: null
+  method: >-
+    Organisation, licence, custom licence link, last-updated date and update frequency read from the metadata table on the dataset page. Row counts and
+    field semantics profiled from the export.
+
+publisher_last_updated: 2024-06-13
+
+supplies_venues: false
+supplies_facility_types:
+  - accessible_parking
+supplies_boundaries: false
+
+iteration_1: true
+government_published: true
+depends_on:
+  - DS-05
+  - DS-07
+
+known_limitations:
+  - >-
+    Only typedesc1 through typedesc6 identify accessible parking. The six values that qualify are Disabled Only, 1P Disabled Only, 2P Disabled Only, 3P
+    Disabled Only, 4P Disabled Only and 1/2P Disabled. 102 of 4263 bays match on at least one slot, distributed across slots 1 to 4 (99, 56, 17 and 5); slots
+    5 and 6 never carry one.
+  - >-
+    disabilityext1 through disabilityext6 must not be used. The field holds a permitted time extension in minutes for a permit holder in an ordinary bay,
+    not a designation of the bay as accessible. 4044 of 4263 bays carry a non-zero value, with 240 minutes the most common. Mapping it to
+    accessible_parking would mark 95 per cent of City of Melbourne kerbside as accessible parking, which is the exact false confirmed the tri-state exists
+    to prevent.
+  - >-
+    This file carries bayid and deviceid but no coordinates. It cannot produce a facility row on its own; geometry comes from DS-05 on the bay identifier.
+  - >-
+    An on-street bay is not venue parking. Off-street accessible parking at a venue is recorded by DS-01 in Facility Features, not here, and the two must
+    not be merged into one status without preserving which source said what. is_inside_venue is false for every row from this source, because the
+    publisher explicitly records these as public on-street bays.
+  - >-
+    The publisher states an update frequency of Unknown and a last-updated date of 13 June 2024. Under the 21-day stale rule for a weekly poll every row is
+    stale on arrival and carries the freshness note. The weekly cadence above is a polling cadence, not a publication cadence.
+  - >-
+    The portal enforces a domain-wide API quota of six million calls a month across all City of Melbourne datasets, and returns HTTP 429 with errorcode
+    10002 when it is exhausted. This was observed on 31 August 2026 with a reset at 2026-09-01T00:00:00Z. A 429 is not a transient failure and the Fetch
+    Lambda must not retry it with backoff; it should alarm immediately and let the previous snapshot stand. Month-boundary fetches are the most exposed.
+  - >-
+    description6 contains malformed timestamps with year 0001, for example 0001-01-08T02:00:00+00:00. These are day-of-week and time-of-day values
+    carrying a placeholder date, not real datetimes, and must be handled in the column contract rather than parsed as dates.
+
+open_questions:
+  - >-
+    BLOCKING. DS-05 has not been retrieved, because the portal quota was exhausted. Until it is, the 102 designated bays have no coordinates and
+    accessible_parking cannot be populated from this source at all. Confirm the join key between the two datasets and confirm it is stable across
+    publications; if bay identifiers are reissued between releases the join is not safe.
+  - >-
+    Decide how six parallel restriction slots collapse to one facility row. A bay matching on typedesc2 but not typedesc1 is designated for disabled
+    parking only during that slot's days and hours. Record whether the facility row represents the bay unconditionally or carries the qualifying slot's
+    time window, and put the rule in the column contract.
+  - >-
+    Confirm scope. If the project moves to statewide Victoria, this source covers one local government area of 79 and DS-01 Facility Features already
+    records on-site accessible parking at 1037 venues statewide against 4 in the City of Melbourne. Under that scope DS-04 and DS-05 should both move to
+    iteration_1 false rather than being carried as marginal coverage.
