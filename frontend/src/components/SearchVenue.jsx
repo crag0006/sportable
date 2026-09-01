@@ -31,7 +31,12 @@ function VenueCard({ venue, limit }) {
     venue.amenities
   );
 
-  // Check the status of one facility
+  // Works out what to show for one amenity, like the toilet or parking.
+  // The backend sends one of these states for each amenity:
+  //   - "recorded" with a distance = we know how far away it is
+  //   - "confirmed" with no distance = it's at the venue itself
+  //   - "absent" = someone already checked and it isn't there
+  //   - "none" = nothing published, we just don't know
   function getState(item) {
     if (!item || item.state === "none") {
       return "unknown";
@@ -41,24 +46,26 @@ function VenueCard({ venue, limit }) {
       return "absent";
     }
 
-    const facilityDistance = Number(
-      item.distance
-    );
+    if (item.state === "confirmed") {
+      return "at-venue";
+    }
 
+    const facilityDistance = Number(item.distance);
     const selectedLimit = Number(limit);
 
-    if (
-      limit === "" ||
-      facilityDistance <= selectedLimit
-    ) {
+    if (limit === "" || facilityDistance <= selectedLimit) {
       return "within";
     }
 
     return "beyond";
   }
 
-  // Text shown under each facility
+  // The message shown under each amenity, based on the status above.
   function getText(item, state) {
+    if (state === "at-venue") {
+      return "At the venue";
+    }
+
     if (state === "within") {
       return item.distance + " m away";
     }
@@ -77,8 +84,12 @@ function VenueCard({ venue, limit }) {
     return "No published information — check with the venue";
   }
 
-  // Symbol for the facility status
+  // The little tick/cross/question-mark icon shown next to each amenity.
   function getStatusSymbol(state) {
+    if (state === "at-venue") {
+      return "✓";
+    }
+
     if (state === "within") {
       return "✓";
     }
