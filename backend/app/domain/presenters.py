@@ -3,11 +3,13 @@
 from datetime import date, datetime
 
 from app.domain.facilities import FRONTEND_KEYS, rows_by_key, to_view, views_for
-from app.repositories.protocols import ChainRow, FacilityRow, VenueRow
+from app.domain.geo import haversine_m
+from app.repositories.protocols import ChainRow, FacilityRow, ReferencePoint, VenueRow
 from app.schemas.venues import (
     AmenityDetailOut,
     AmenityOut,
     Location,
+    ReferencePointOut,
     SourceOut,
     UnpublishedOut,
     VenueCardOut,
@@ -122,9 +124,22 @@ def _unpublished(chain: tuple[ChainRow, ...]) -> list[UnpublishedOut]:
     return items
 
 
-def venue_card_out(venue: VenueRow) -> VenueCardOut:
+def venue_card_out(venue: VenueRow, reference: ReferencePoint | None = None) -> VenueCardOut:
+    """The card. With a ``reference`` (``?from=``) it also says how far away it is."""
     rows = rows_by_key(venue)
+    distance_km: float | None = None
+    reference_out: ReferencePointOut | None = None
+    if reference is not None:
+        metres = haversine_m(
+            reference.latitude, reference.longitude, venue.latitude, venue.longitude
+        )
+        distance_km = _distance_km(metres)
+        reference_out = ReferencePointOut(
+            label=reference.label, latitude=reference.latitude, longitude=reference.longitude
+        )
     return VenueCardOut(
+        distance=distance_km,
+        reference_point=reference_out,
         id=venue.venue_id,
         name=venue.name,
         address=venue.address,

@@ -11,6 +11,10 @@ shape was still moving when this shipped:
     suburb=Preston 3072 | suburb=Preston&postcode=3072 | postcode=3072
     needs=toilet,stop | amenities=toilet&amenities=stop | toilet=true&stop=true
     limit=500 | within=500 | distance_m=500   (one of config.distance_bands_m)
+
+The venue card takes an optional starting point in the same spirit:
+
+    /venues/{id}?from=Preston 3072 | from=3072 | from=-37.74,145.01
 """
 
 import re
@@ -22,6 +26,7 @@ from app.core.config import SearchConfig
 from app.core.errors import ApiError
 from app.domain.facilities import FRONTEND_KEYS, FrontendKey, parse_needs, partition
 from app.domain.presenters import venue_card_out, venue_out
+from app.repositories.protocols import ReferencePoint, VenueRepository
 from app.schemas.venues import (
     ConfigOut,
     HealthOut,
@@ -36,6 +41,7 @@ from app.schemas.venues import (
 router = APIRouter(prefix="/api/v1")
 
 _TRAILING_POSTCODE = re.compile(r"^(.*?)[\s,]*(\d{4})$")
+_LAT_LON = re.compile(r"^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$")
 _TRUTHY = {"1", "true", "yes", "on"}
 
 
@@ -83,6 +89,27 @@ def _parse_place(suburb: str | None, postcode: str | None) -> tuple[str | None, 
     if postcode and not re.fullmatch(r"\d{4}", postcode):
         raise ApiError(422, "validation_error", f"postcode: expected 4 digits, got {postcode!r}")
     return suburb, postcode
+
+
+def _parse_from(raw: str | None, repo: VenueRepository) -> ReferencePoint | None:
+    """``from=Preston 3072`` | ``from=3072`` | ``from=-37.74,145.01`` -> a reference point.
+
+    None when the parameter is absent. A starting point the user did give is
+    never silently dropped: if it cannot be resolved, the request fails (422).
+    """
+    if raw is None or not raw.strip():
+        return None
+    match = _LAT_LON.match(raw)
+    if match:
+        lat, lon = float(match.group(1)), float(match.group(2))
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            raise ApiError(422, "validation_error", "from: expected latitude,longitude in degrees")
+        return ReferencePoint("your starting point", lat, lon)
+    suburb, postcode = _parse_place(raw, None)
+    reference = repo.resolve_reference(suburb, postcode)
+    if reference is None:
+        raise ApiError(422, "unknown_place", f"No suburb or postcode matching {raw.strip()!r}.")
+    return reference
 
 
 def _parse_limit(raw: str | None, cfg: SearchConfig) -> int:
@@ -152,8 +179,9 @@ def search(request: Request, repo: Repo, settings: SettingsDep) -> SearchOut:
 
 
 @router.get("/venues/{venue_id}", response_model=VenueCardOut, response_model_exclude_none=True)
-def venue(venue_id: str, repo: Repo) -> VenueCardOut:
+def venue(venue_id: str, request: Request, repo: Repo) -> VenueCardOut:
     row = repo.get_venue(venue_id)
     if row is None:
         raise ApiError(404, "venue_not_found", f"No venue with id {venue_id!r}.")
-    return venue_card_out(row)
+    reference = _parse_from(request.query_params.get("from"), repo)
+    return venue_card_out(row, reference)

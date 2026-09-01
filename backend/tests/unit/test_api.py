@@ -158,3 +158,34 @@ def test_missing_venue_is_404(client: TestClient):
     response = client.get("/api/v1/venues/does-not-exist")
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "venue_not_found"
+
+
+# ------------------------------------------------------- venue card ?from=
+def test_venue_card_without_from_has_no_distance(client: TestClient):
+    body = client.get("/api/v1/venues/10432").json()
+    assert "distance" not in body and "reference_point" not in body
+
+
+def test_venue_card_distance_from_a_place(client: TestClient):
+    body = client.get("/api/v1/venues/10432", params={"from": "Preston 3072"}).json()
+    assert body["reference_point"]["label"] == "the centre of Preston 3072"
+    assert body["distance"] == 0.8  # ~775 m from the fake's Preston point
+
+
+def test_venue_card_distance_from_coordinates(client: TestClient):
+    # The venue's own position: a lat,lon pair is used as-is, no lookup.
+    body = client.get("/api/v1/venues/10432", params={"from": "-37.7401,145.0093"}).json()
+    assert body["distance"] == 0.0
+    assert body["reference_point"]["label"] == "your starting point"
+
+
+def test_venue_card_rejects_an_unknown_starting_point(client: TestClient):
+    response = client.get("/api/v1/venues/10432", params={"from": "Hobart 7000"})
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "unknown_place"
+
+
+def test_venue_card_rejects_impossible_coordinates(client: TestClient):
+    response = client.get("/api/v1/venues/10432", params={"from": "-97.0,145.0"})
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"

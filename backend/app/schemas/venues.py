@@ -111,3 +111,6 @@ class VenueCardOut(BaseModel):
     amenities: dict[str, AmenityDetailOut]
     unpublished: list[UnpublishedOut]
     last_updated: str | None
+    # Only when the request carried ?from= — kilometres from that point, one decimal.
+    distance: float | None = None
+    reference_point: ReferencePointOut | None = None
