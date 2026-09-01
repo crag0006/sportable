@@ -2,8 +2,31 @@ output "function_name" {
   value = aws_lambda_function.api.function_name
 }
 
+# The observability module sets its duration alarm at 80% of this. Reading it
+# from here rather than repeating the number means the two can never drift.
+output "function_timeout_seconds" {
+  value = aws_lambda_function.api.timeout
+}
+
 output "function_arn" {
   value = aws_lambda_function.api.arn
+}
+
+output "function_version" {
+  description = <<-EOT
+    The immutable version number `terraform apply` just published, e.g. "7".
+
+    The deploy pipeline needs this. `publish = true` mints a new version
+    whenever the zip's hash changes, but the `live` alias deliberately does NOT
+    follow it — see the lifecycle block in main.tf. Moving the alias is the
+    pipeline's job, so that database migrations can run in the gap between
+    "new code exists" and "new code serves traffic".
+
+    Reading the number from a Terraform output is deterministic. The
+    alternative — asking Lambda for its highest-numbered version — is a guess
+    that goes wrong the moment two deploys overlap.
+  EOT
+  value       = aws_lambda_function.api.version
 }
 
 output "alias_arn" {

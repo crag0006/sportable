@@ -42,3 +42,14 @@ select = [
 [lint.per-file-ignores]
 # Test files legitimately re-import and shadow; assertions are the point.
 "**/tests/**" = ["S101"]
+
+# LocalS3 in this script is a drop-in stand-in for the boto3 S3 client, used to
+# run the fetch handler against a folder instead of AWS. Its method signatures
+# and its nested `exceptions.NoSuchKey` class are dictated by boto3's API, not
+# by us — `Bucket`, `Key` and `Body` are boto3's keyword arguments. Renaming
+# them to satisfy pep8-naming would break the substitution the stub exists for.
+"data/scripts/fetch_run.py" = [
+  "N801", # class name `exceptions` — mirrors boto3's own attribute
+  "N803", # argument names Bucket/Key/Body — boto3's keyword arguments
+  "N818", # NoSuchKey without an Error suffix — boto3's own exception name
+]

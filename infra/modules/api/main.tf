@@ -63,6 +63,37 @@ data "aws_ssm_parameter" "db_url" {
   name = var.db_url_ssm_parameter
 }
 
+# ------------------------------------------------------------------------------
+# Search configuration, read at APPLY time — not at runtime
+# ------------------------------------------------------------------------------
+#
+# The obvious design is for the handler to call Parameter Store itself at cold
+# start. It was built that way first, and it timed out in production.
+#
+# WHY. This function runs in a private subnet whose route table holds exactly
+# two entries: `local`, and the S3 gateway endpoint. There is no route to
+# ssm.ap-southeast-2.amazonaws.com. The SDK call did not fail — it HUNG, until
+# the 10 s function timeout killed the whole invocation and API Gateway returned
+# a 500. A try/except around it caught nothing, because a hang is not an
+# exception.
+#
+# Reaching SSM from inside the VPC needs an INTERFACE endpoint, which is roughly
+# USD $7.30/month per availability zone. That is more than this project's entire
+# monthly budget target, to save one minute on a config change.
+#
+# So the read happens HERE instead, on the CI runner, which has ordinary
+# internet access — exactly how DATABASE_URL above already works. Terraform
+# fetches the live values and bakes them into the function's environment.
+#
+# WHAT THIS COSTS. Changing a band is no longer live; it takes a pipeline run,
+# about a minute. What it is NOT is a code change: the parameters carry
+# ignore_changes on their value, so `aws ssm put-parameter` followed by
+# `gh workflow run deploy-staging.yml` is the whole procedure. No PR, no review,
+# no edit to a Python file. That was the point of T5, and it survives.
+data "aws_ssm_parameters_by_path" "search" {
+  path = "${var.ssm_prefix}/search"
+}
+
 # -------------------------------------------------------------------- function
 resource "aws_lambda_function" "api" {
   # checkov:skip=CKV_AWS_115:Reserved concurrency cannot be set on this account
@@ -111,6 +142,17 @@ resource "aws_lambda_function" "api" {
       DATABASE_URL = data.aws_ssm_parameter.db_url.value
       ENVIRONMENT  = "staging"
       LOG_LEVEL    = "INFO"
+
+      # The live parameter values, resolved at apply time and passed as one JSON
+      # blob. The handler parses it and never makes a network call of its own.
+      # See the data source above for why it is not read at runtime.
+      #
+      # Keys are the bare parameter names — "distance_bands_m", not the full
+      # path — so the handler does not need to know the prefix.
+      SEARCH_CONFIG = jsonencode(zipmap(
+        [for n in data.aws_ssm_parameters_by_path.search.names : basename(n)],
+        data.aws_ssm_parameters_by_path.search.values,
+      ))
     }
   }
 

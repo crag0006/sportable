@@ -85,4 +85,51 @@ module "api" {
   security_group_id = module.network.lambda_security_group_id
 
   db_url_ssm_parameter = module.database.ssm_url_parameter
+
+  # Same tree the app_config module writes to. The api module reads the search
+  # parameters from it at APPLY time, so they must exist first — Terraform
+  # cannot infer that from a path string.
+  ssm_prefix = "/sportable/staging"
+
+  depends_on = [module.app_config]
+}
+
+# ------------------------------------------------------------------------------
+# T5 — configuration and observability
+# ------------------------------------------------------------------------------
+
+module "app_config" {
+  source = "../../modules/app_config"
+
+  name_prefix = local.name_prefix
+  ssm_prefix  = "/sportable/staging"
+
+  # AC1.2.4 names these three. Adding a fourth is a tfvars change and an apply —
+  # no code change, no release.
+  distance_bands_m   = [250, 500, 1000]
+  default_distance_m = 500
+
+  # Each threshold is longer than its publisher's cadence, so one missed refresh
+  # does not make the UI apologise for data that is fine.
+  #   vic_sport_rec, public_toilets_nptm, ptv_gtfs  publish weekly  -> 14 days
+  #   osm                                           publishes monthly -> 45 days
+  # Keys must match the extractor module names in data/ingestion/extractors/.
+  source_staleness_days = {
+    vic_sport_rec       = 14
+    public_toilets_nptm = 14
+    ptv_gtfs            = 14
+    osm                 = 45
+  }
+}
+
+module "observability" {
+  source = "../../modules/observability"
+
+  name_prefix  = local.name_prefix
+  alert_emails = var.alert_emails
+
+  function_name            = module.api.function_name
+  function_timeout_seconds = module.api.function_timeout_seconds
+  api_id                   = module.api.api_id
+  db_instance_identifier   = module.database.instance_identifier
 }
