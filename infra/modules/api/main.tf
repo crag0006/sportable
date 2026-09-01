@@ -78,7 +78,7 @@ data "aws_ssm_parameter" "db_url" {
 # exception.
 #
 # Reaching SSM from inside the VPC needs an INTERFACE endpoint, which is roughly
-# USD $7.30/month per availability zone. That is more than this project's entire
+# USD $9.49/month per availability zone. That is more than this project's entire
 # monthly budget target, to save one minute on a config change.
 #
 # So the read happens HERE instead, on the CI runner, which has ordinary
