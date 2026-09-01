@@ -1,0 +1,44 @@
+# ==============================================================================
+# ruff — repository-wide Python style
+# ==============================================================================
+#
+# WHY THIS FILE IS AT THE ROOT
+#   ruff resolves configuration by walking up from each file it checks. With
+#   configuration only in backend/pyproject.toml, files under data/ found no
+#   config and silently fell back to ruff's built-in defaults — a weaker rule
+#   set with a shorter line length. The same 102-character line was an error in
+#   backend/ and acceptable in data/.
+#
+#   One file at the root means every Python file in this repository — backend,
+#   data, and any script added later — is held to identical rules, whether it is
+#   checked by your editor, by pre-commit, or by CI.
+#
+# WHERE THE OTHER TOOLS LIVE
+#   mypy and pytest stay in each package's own pyproject.toml, because they
+#   depend on that package's installed dependencies. Style does not.
+# ==============================================================================
+
+line-length = 100
+target-version = "py312"
+
+# Directories that are checked in but are not ours to lint.
+extend-exclude = [
+  ".venv",
+  "data/notebooks",   # exploratory notebooks; converted to modules before they ship
+]
+
+[lint]
+select = [
+  "E",    # pycodestyle errors
+  "F",    # pyflakes — undefined names, unused imports
+  "I",    # isort — import ordering
+  "N",    # pep8-naming
+  "UP",   # pyupgrade — modernise syntax for the target Python
+  "B",    # flake8-bugbear — likely bugs, not style
+  "SIM",  # flake8-simplify
+  "RUF",  # ruff's own rules, including unused `# noqa` detection
+]
+
+[lint.per-file-ignores]
+# Test files legitimately re-import and shadow; assertions are the point.
+"**/tests/**" = ["S101"]

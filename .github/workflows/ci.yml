@@ -1,0 +1,297 @@
+# ==============================================================================
+# Continuous Integration — SportAble Melbourne
+# ==============================================================================
+#
+# WHAT THIS DOES
+#   Runs on every pull request into `dev` or `main`, and on every push to `dev`.
+#   Three independent jobs check the three parts of the repository. If any job
+#   fails, the pull request cannot be merged (see Branch protection, below).
+#
+# WHAT THIS DOES NOT DO
+#   It does not deploy anything, and it holds no AWS credentials of any kind.
+#   Deployment lives in a separate workflow (`deploy-staging.yml`, added in T3
+#   Part 2) which obtains temporary credentials through GitHub OIDC. Keeping the
+#   two apart means a pull request from anyone can be tested safely: CI runs
+#   untrusted code, so CI must not be able to touch the cloud account.
+#
+# WHO MAINTAINS IT
+#   The Infra/Platform engineer. If a check here blocks you and you believe it
+#   is wrong, say so rather than working around it — a check people route around
+#   is worse than no check at all.
+#
+# HOW TO REPRODUCE A FAILURE LOCALLY
+#   Every command below has a local equivalent, listed in README.md under
+#   "Before you push". If CI fails but your machine is green, the difference is
+#   usually an uncommitted file or a stale `uv.lock`.
+# ==============================================================================
+
+name: CI
+
+on:
+  # Pull requests are the real gate: this is what branch protection requires.
+  pull_request:
+    branches: [dev, main]
+  # Also run on direct pushes to `dev`, so a merge commit that combines two
+  # individually-green branches into a broken state is still caught.
+  push:
+    branches: [dev]
+
+# If you push twice in quick succession, the first run is cancelled rather than
+# left to finish. Without this, a busy afternoon queues runs behind each other
+# and you wait ten minutes for feedback on a commit you have already replaced.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# The GITHUB_TOKEN handed to a workflow defaults to far more access than CI
+# needs. Reading the repository is the whole requirement here. The deploy
+# workflow will additionally need `id-token: write` to mint an OIDC token —
+# forgetting that line is the single most common cause of a failed OIDC setup,
+# and it is deliberately absent here because CI must never assume a role.
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------- backend
+  # Owner: Backend engineers. Runs the Python checks in dependency order —
+  # cheapest and most likely to fail first, so you get feedback fastest.
+  backend:
+    name: Backend — lint, type-check, test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        # Everything in this job runs from backend/, so no step needs to `cd`.
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # uv is the package manager and virtualenv tool for this project. The
+      # cache is keyed on backend/uv.lock, so it is reused until dependencies
+      # actually change — turning a ~40 s install into a few seconds.
+      # Pinned to an exact version, not a major alias: astral-sh stopped
+      # publishing moving `vN` tags after v7, so `@v10` does not resolve.
+      # Bump this deliberately — check the tag exists before you do.
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      # --frozen refuses to update the lock file: if uv.lock and pyproject.toml
+      # disagree, the job fails instead of silently resolving something else.
+      # That is what makes CI reproduce your machine rather than approximate it.
+      # This is also why backend/uv.lock MUST be committed.
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      # ruff replaces flake8 + black + isort. `check` is the linter.
+      - name: Lint
+        run: uv run ruff check .
+
+      # `format --check` reports formatting differences without rewriting files.
+      # It should never fail if you have pre-commit installed, because the hook
+      # formats on commit. A failure here almost always means `pre-commit
+      # install` was never run in this clone.
+      - name: Format check
+        run: uv run ruff format --check .
+
+      # mypy runs in strict mode (see [tool.mypy] in pyproject.toml).
+      # Only `handlers` is checked today: `app/` holds no .py files yet and mypy
+      # errors on an empty directory rather than skipping it. Add `app` to this
+      # line the day the first module lands there.
+      - name: Type check
+        run: uv run mypy handlers
+
+      # Unit tests only. Integration tests (marked `integration`) spin up a real
+      # PostGIS container via testcontainers and are added in a later task —
+      # they belong in a separate job so a slow database test never delays
+      # feedback on a lint error.
+      - name: Unit tests
+        run: uv run pytest tests/unit -q
+
+  # ---------------------------------------------------------------------- data
+  # Owner: Data engineers. Mirrors the backend job, against data/ instead of
+  # backend/ — the ingestion and derivation code is a separate uv project with
+  # its own dependencies and its own lock file (see data/pyproject.toml for why).
+  #
+  # Style rules come from the repository-root ruff.toml, so a line that fails
+  # here fails identically in backend/. mypy is intentionally NOT strict here:
+  # ingestion code handles loosely-typed third-party payloads, and strict mode
+  # before the column contracts settle produces noise rather than signal.
+  data:
+    name: Data — lint, type-check, test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: data
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: data/uv.lock
+
+      # data/ holds only .gitkeep placeholders until the Data team writes the
+      # first extractor. Same reasoning as the Terraform and Frontend guards:
+      # a pipeline that is red before anyone has written code is one the team
+      # learns to ignore. It activates on its own when the first module lands.
+      #
+      # notebooks/ is excluded on purpose — exploratory work is not held to the
+      # same bar, and is converted to a module in ingestion/ before it ships.
+      - name: Any Python yet?
+        id: guard
+        run: |
+          if [ -z "$(find . -name '*.py' -not -path './notebooks/*' -not -path './.venv/*' -print -quit)" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No Python in data/ yet — these checks activate with the first module."
+          else
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        if: steps.guard.outputs.found == 'true'
+        run: uv sync --frozen
+
+      - name: Lint
+        if: steps.guard.outputs.found == 'true'
+        run: uv run ruff check .
+
+      - name: Format check
+        if: steps.guard.outputs.found == 'true'
+        run: uv run ruff format --check .
+
+      - name: Type check
+        if: steps.guard.outputs.found == 'true'
+        run: uv run mypy ingestion derive
+
+      # Unit tests only. Loader tests that need a real PostGIS container are
+      # marked `integration` and excluded here — they get their own job once the
+      # first loader exists.
+      - name: Unit tests
+        if: steps.guard.outputs.found == 'true'
+        run: uv run pytest -q -m "not integration"
+
+  # ---------------------------------------------------------------- terraform
+  # Owner: Infra/Platform engineer. Four checks, increasing in depth:
+  #   fmt      — is it formatted canonically?
+  #   validate — is the HCL internally consistent and are provider args valid?
+  #   tflint   — provider-aware rules: bad instance types, deprecated arguments
+  #   checkov  — security policy: public buckets, unencrypted storage, open SGs
+  #
+  # checkov is the one that earns its place. It fails the build on a publicly
+  # readable S3 bucket or an unencrypted RDS instance *before* those reach AWS,
+  # which is exactly the class of mistake that is expensive to discover later.
+  terraform:
+    name: Terraform — format, validate, lint, scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned to the same version as local development (tfenv). An unpinned
+      # Terraform means CI can break on a day nobody changed anything.
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.16.0
+
+      - name: Set up tflint
+        uses: terraform-linters/setup-tflint@v6
+        with:
+          tflint_version: v0.64.0
+
+      # infra/ holds only .gitkeep placeholders until T1 lands. Without this
+      # guard every one of the steps below fails, the pipeline is red from day
+      # one, and a permanently red pipeline is one the team learns to ignore.
+      # The guard removes itself: the moment a .tf file is committed, all four
+      # checks start running with no edit to this file.
+      - name: Any Terraform yet?
+        id: guard
+        run: |
+          if [ -z "$(find infra -name '*.tf' -print -quit)" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No .tf files yet — Terraform checks activate when T1 lands."
+          else
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # -recursive covers modules/ and envs/ in one pass.
+      - name: Format check
+        if: steps.guard.outputs.found == 'true'
+        run: terraform fmt -check -recursive infra
+
+      # -backend=false initialises providers and modules WITHOUT touching the
+      # S3 state backend. CI has no AWS credentials, so a normal `init` would
+      # fail here — and validation does not need remote state anyway.
+      - name: Validate
+        if: steps.guard.outputs.found == 'true'
+        working-directory: infra/envs/staging
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      # `tflint --init` downloads the AWS ruleset declared in .tflint.hcl.
+      # It runs on every CI run because the runner is a fresh machine each time.
+      - name: tflint
+        if: steps.guard.outputs.found == 'true'
+        run: |
+          tflint --init
+          tflint --recursive --chdir=infra
+
+      # soft_fail: false means a policy violation fails the build. If a finding
+      # is a genuine false positive, suppress that specific check inline with a
+      # `#checkov:skip=CKV_AWS_xxx:reason` comment in the Terraform — never by
+      # turning soft_fail on, which would silence every finding at once.
+      - name: checkov
+        if: steps.guard.outputs.found == 'true'
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: infra
+          framework: terraform
+          quiet: true
+          soft_fail: false
+
+  # ---------------------------------------------------------------- frontend
+  # Owner: Frontend engineers. Deliberately minimal for Iteration 1: proving the
+  # bundle builds is what protects the deploy step, which does `aws s3 sync
+  # frontend/dist`. A build that fails in CI would otherwise fail mid-deploy,
+  # after Terraform has already applied.
+  frontend:
+    name: Frontend — build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Same reasoning as the Terraform guard: the Frontend team has not
+      # scaffolded the app yet, and a red pipeline teaches people to ignore it.
+      - name: Any frontend yet?
+        id: guard
+        run: |
+          if [ -f frontend/package.json ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No frontend/package.json yet — this job activates when it appears."
+          fi
+
+      - name: Set up Node
+        if: steps.guard.outputs.found == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # `npm ci` (not `npm install`) installs exactly what package-lock.json
+      # pins and fails if the two disagree — the Node equivalent of uv --frozen.
+      - name: Build
+        if: steps.guard.outputs.found == 'true'
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
