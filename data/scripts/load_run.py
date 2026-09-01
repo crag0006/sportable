@@ -45,6 +45,7 @@ from psycopg.rows import dict_row
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from derive import status_builder  # noqa: E402
 from ingestion.loaders import loader  # noqa: E402
 from ingestion.transformers import ds01_sport_facilities as ds01  # noqa: E402
 from ingestion.transformers import ds02_public_toilets as ds02  # noqa: E402
@@ -288,11 +289,39 @@ def run_source(conn: psycopg.Connection, source_id: str, raw_root: Path, scope: 
     )
 
 
+def derive_status(conn: psycopg.Connection) -> None:
+    """Build venue_amenity_status and venue_access_chain from what is loaded.
+
+    This is the step that turns loaded rows into what the product actually
+    serves. Without it every venue reports "state": "none" for every facility —
+    the amenities are in the database but nothing has decided which venue each
+    one belongs to, or how far away it is.
+
+    Like the loaders, `status_builder.build` had no caller.
+    """
+    row = conn.execute("SELECT max(load_run_id) AS id FROM load_run").fetchone()
+    if not row or row["id"] is None:
+        sys.exit("No load runs; nothing to derive from.")
+    outcome = status_builder.build(conn, row["id"])
+    conn.commit()
+    print(
+        f"  derived: {outcome.status_rows} status rows, "
+        f"{outcome.chain_rows} chain rows, across {outcome.venues} venues"
+    )
+    for kind, counts in outcome.by_kind.items():
+        print(f"    {kind:<26} {counts}")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("source_ids", nargs="*", help="DS-06 DS-01 DS-02 DS-04, in that order")
     p.add_argument("--raw", default=str(ROOT / "_raw"))
     p.add_argument("--seed-sources", action="store_true")
+    p.add_argument(
+        "--derive",
+        action="store_true",
+        help="build venue_amenity_status and venue_access_chain after loading",
+    )
     p.add_argument(
         "--scope",
         nargs="*",
@@ -312,6 +341,8 @@ def main() -> None:
                 load_boundaries(conn, raw_root, scope)
             else:
                 run_source(conn, sid, raw_root, scope)
+        if a.derive:
+            derive_status(conn)
 
 
 if __name__ == "__main__":
