@@ -1,0 +1,112 @@
+source_id: DS-05
+name: openrouteservice
+publisher: HeiGIT gGmbH
+description: >-
+  Routing service used to obtain the street-level path between a user-supplied starting point and a venue, using the wheelchair profile. Infrastructure, not
+  evidence: nothing it returns is stored, and no facility status ever traces to it. It is the only third-party call permitted on the request path, because the
+  path depends on a starting point supplied at request time and therefore cannot be materialised into the database in advance.
+
+tier: live
+cadence: request_time
+
+licence:
+  name: Creative Commons Attribution-ShareAlike
+  version: 4.0 International
+  url: https://creativecommons.org/licenses/by-sa/4.0/
+  attribution_text: >-
+    Routing by openrouteservice by HeiGIT, data from OpenStreetMap.
+  share_alike: true
+  restricts_caching: false
+  restricts_redistribution: false
+  restricts_derived_works: true
+  notes: >-
+    The provider requires the exact string "(c) openrouteservice by HeiGIT | Data from OpenStreetMap" displayed in the map image or elsewhere in the
+    implementation. Render that verbatim wording, not the paraphrase above. Results are licensed CC BY-SA 4.0, a third distinct licence instrument in
+    this register alongside CC BY 4.0 and CC BY 3.0 Australia. The share-alike condition attaches to distributed adaptations; Iteration 1 publishes no
+    derived database, so it is not triggered by the site itself. Any later decision to publish route-derived or OSM-derived data goes through the
+    product owner first, on the same footing as the ODbL position. Nothing in the terms prohibits caching or storing returned geometry. The
+    no-persist rule for route geometry is this project's own privacy control, not a licence obligation, and the two should not be conflated when explaining it.
+
+retrieval:
+  landing_page: https://openrouteservice.org/terms-of-service/
+  download_url: https://api.openrouteservice.org/v2/directions/wheelchair/geojson
+  format: api
+  raw_prefix: openrouteservice
+  requires_auth: true
+  notes: >-
+    ORS Core 9.10.0. API key passed in the Authorization header for POST, never in a query parameter, so it does not appear in access logs or referrer
+    headers. The geojson variant returns a LineString directly, which is what the corridor derivation consumes: project to EPSG:7855, buffer by the stated
+    radius, select with a distance-within predicate against a GiST index, order by position along the line. No format conversion step.
+    The bundled Pelias geocoding endpoints are deliberately not used. Reference points come from the DS-08 suburb gazetteer, which is deterministic and
+    internal; a second geocoder would create two sources of truth for the same question.
+
+coverage:
+  publisher_scope: continental
+  records_total: null
+  records_in_target_area: null
+  basis: >-
+    NOT APPLICABLE. A routing service returns computed paths, not records. It contributes no rows to the canonical model and has no coverage figure to
+    report. These fields stay null and the coverage gate check should be waived for live-tier sources rather than satisfied with a fabricated number.
+  notes: null
+
+verification:
+  verified: false
+  verified_by: null
+  verified_at: null
+  method: >-
+    Licence, attribution string, prohibited conduct and usage limit policy read from the HeiGIT terms of service. Endpoint list and profile availability
+    read from the ORS Core 9.10.0 API documentation.
+
+publisher_last_updated: null
+
+supplies_venues: false
+supplies_facility_types: []
+supplies_boundaries: false
+
+iteration_1: true
+government_published: false
+depends_on: []
+
+known_limitations:
+  - >-
+    A route returned by the wheelchair profile is not a verified accessible route. Under no option does any screen describe the route as accessible.
+    AC2.3.4 requires the interface to state what the profile does and does not verify, and that sentence must be built from the profile's actual
+    restriction parameters, not from a plausible-sounding description.
+  - >-
+    Routing is computed over OpenStreetMap. OpenStreetMap therefore enters the product as infrastructure even though no PBF extract is ingested and DS-06
+    remains deferred. The Sources and licences view names OpenStreetMap contributors on that basis. No facility status traces to OSM; government
+    records remain the only thing that can produce a confirmed.
+  - >-
+    The provider disclaims accuracy, completeness and reproducibility of routing results, and states OpenStreetMap should not be relied upon where omissions
+    or errors could result in injury. For a product serving wheelchair users this disclaimer is directly relevant and belongs in the known-limitation
+    register that generates the venue card's limits section.
+  - >-
+    The provider's terms prohibit transmitting personal data. The journey starting point is often a home address, and combined with the selected
+    access filters it can support an inference about a person's disability, which is sensitive information under the Privacy Act 1988 (Cth). This is the
+    one point in the request path where that value leaves our account. See the blocking open question below.
+  - >-
+    Exceeding the request rate returns an error, and repeated excess results in temporary blocking or account removal without notice. One account per person
+    across all HeiGIT services. A rate-limit failure is not a transient error to retry; the directions view degrades to the corridor list with a stated
+    reason, per the existing fallback.
+  - >-
+    Latency sits inside the three-second budget of AC1.1.5 and is not under our control. If the call fails or exceeds budget the view degrades honestly
+    rather than erroring or moving the budget.
+  - >-
+    Terms may change at any time by posting, effective immediately. Re-read before submission and record the date read in verification.method, because
+    there is no published version or revision date to cite.
+
+open_questions:
+  - >-
+    BLOCKING. Decide how the starting point is transmitted, given the provider prohibits sending personal data. Options: send coordinates rather than a
+    typed address, coarsen the origin to the DS-08 locality reference point for the corridor query, or disclose and obtain informed consent through the
+    privacy note on the directions page. Record the decision and its reasoning; this is a term of service question and a Privacy Act question at once, and
+    it is the most defensible thing in the project to have thought about.
+  - >-
+    Record the free-tier daily and per-minute request limits for the Directions endpoint from the ORS dashboard. They are not stated in the terms. The
+    number matters for a live demonstration where a reviewer clicks repeatedly.
+  - >-
+    Record the wheelchair profile's restriction parameters from the POST/v2/directions/{profile} documentation, under options, profile_params,
+    restrictions. The AC2.3.4 wording is generated from this list, so it must be the real parameter set for ORS Core 9.10.0.
+  - >-
+    publisher_last_updated is null because a live service has no publication date. The section 4.1 gate currently requires one. Either add a live-tier
+    exemption to the gate or record the date the terms were last read; do not invent a date to satisfy the check.

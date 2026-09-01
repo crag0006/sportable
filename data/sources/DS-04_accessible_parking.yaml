@@ -1,0 +1,116 @@
+source_id: DS-04
+name: Accessible Parking Locations, City of Melbourne
+publisher: City of Melbourne
+description: >-
+  Point locations of designated on-street accessible parking bays in the City of Melbourne, published by the council as an interactive map layer linked
+  from its own accessible parking page. Supplies the accessible parking link of the access chain directly: each point carries a coordinate and a street
+  segment description, so no join is required.
+
+tier: reference
+cadence: monthly
+
+licence:
+  name: Creative Commons Attribution
+  version: "4.0 International"
+  url: https://creativecommons.org/licenses/by/4.0/legalcode
+  attribution_text: >-
+    Accessible parking locations, City of Melbourne.
+  share_alike: false
+  restricts_caching: false
+  restricts_redistribution: false
+  restricts_derived_works: false
+  notes: >-
+    Established from <the page you found> on <date>. Recorded on that basis rather than assumed from the open data portal's licence, 
+    because this layer is served from the main council website and could carry different terms.
+
+retrieval:
+  landing_page: https://www.melbourne.vic.gov.au/parking-people-disability
+  download_url: https://www.google.com/maps/d/kml?mid=1WCs0hEygXnneUXF34ROfMg3md8Y-ZwM&forcekml=1
+  format: kml
+  raw_prefix: accessible_parking
+  requires_auth: false
+  notes: >-
+    The council publishes this layer as a Google My Maps document and links to it from its accessible parking page as the official map of designated
+    on-street disability parking spaces. The hosting platform is a delivery detail; the publisher is the council. forcekml=1 returns KML rather than the
+    network-linked KMZ wrapper. Geometry arrives as POINT Z with a zero altitude, which is dropped on load. The endpoint is not a versioned open data API
+    and offers no ETag or Last-Modified, so conditional GET is unavailable and change detection relies on the payload hash alone. Land it as reference data
+    with the retrieval date recorded, the same treatment as the boundary layers, rather than polling it aggressively.
+
+coverage:
+  publisher_scope: local
+  records_total: 762
+  records_in_target_area: 762
+  basis: >-
+    Retrieved 31 August 2026. 762 point features, CRS EPSG:4326. The council's own page describes the map as showing over 500 designated on-street
+    disability parking spaces, so the ___UsageType attribute needs tabulating to establish whether all 762 points are accessible bays or whether the layer
+    carries more than one category. Until that is done, records_total is the raw feature count and records_in_target_area is provisional. The publisher
+    extent is the City of Melbourne, so every feature is in area by definition; it is one of the 31 Greater Melbourne local government areas.
+  notes: >-
+    This is a City of Melbourne supplement, not the primary accessible parking source. DS-01 records on-site accessible parking at 430 Greater Melbourne
+    venues across all 31 councils, and a venue's own bay is the more relevant claim for someone driving to a sports facility. DS-04 adds public on-street
+    bays in the central city and nowhere else.
+
+verification:
+  verified: false
+  verified_by: null
+  verified_at: null
+  method: >-
+    Publisher and landing page established from the City of Melbourne accessible parking page, which links to this layer as its official map. Feature
+    count, CRS, attribute inventory and geometry type read from the retrieved KML on 31 August 2026. Licence not established; see the licence block.
+
+publisher_last_updated: null
+
+supplies_venues: false
+supplies_facility_types:
+  - accessible_parking
+supplies_boundaries: false
+
+iteration_1: true
+government_published: true
+depends_on:
+  - DS-06
+
+known_limitations:
+  - >-
+    The publisher states that disability parking locations shown on this map are currently subject to upgrade works under its Parking and Kerbside
+    Management Plan. This is the council's own currency caveat and is carried through to the venue card rather than paraphrased away. A point on this layer
+    is where the council recorded a bay, not a guarantee that the bay is there today.
+  - >-
+    The layer publishes no identifier. The id attribute is null on every feature, so there is no natural key, no stable reference for an individual bay and
+    no publisher-side change detection between fetches. A synthetic key is derived on load by hashing the rounded coordinate together with the Name value.
+    That key is deterministic and rebuildable from raw, but it is derived rather than published, and it changes if the publisher moves a point by more than
+    the rounding tolerance.
+  - >-
+    A point is a bay, not a route to a bay. It records where the council marked a space, not the kerb ramp, the crossing, the gradient or the path from the
+    bay to a venue entrance. Proximity between a bay and a venue is a measured straight-line distance and the interface must not imply a step-free route.
+  - >-
+    An on-street bay is not venue parking. Off-street accessible parking at a venue is recorded by DS-01 in Facility Features. The two must not be merged
+    into a single status without preserving which source said what; is_inside_venue is false for every row from this source.
+  - >-
+    Coverage is one local government area of 31. Accessible on-street parking is reported as no published information for the other 30, and that shortfall
+    is a coverage figure for the quality report, never a gap to be filled from another source.
+  - >-
+    The publisher's own value for the usage attribute is spelled "Disable Parking". It is retained verbatim in the raw zone and normalised downstream. A
+    publisher's value is never silently corrected in place.
+  - >-
+    The description attribute duplicates the parsed fields as a concatenated text blob and carries a byte-order mark. It is ignored on load in favour of the
+    parsed columns, and no attribute is inferred from it.
+  - >-
+    This source replaces the City of Melbourne on-street car park bay restrictions and on-street parking bays datasets, which were registered earlier in
+    Iteration 1 and withdrawn on 31 August 2026. Those two files could not be joined: the restrictions file carries the accessible designation but no
+    location attribute of any kind, and six candidate routes were tested and all failed, including the publisher's own documented bridge via the parking
+    bay sensors. Of the 102 bays the restrictions file designated for disabled parking, 5 resolved to a coordinate. The publisher's dataset pages state
+    that the two files do not currently join. That evidence is retained in the retired source cards.
+
+open_questions:
+  - >-
+    BLOCKING. Establish the licence before any load. See the licence block. If no licence can be established for this surface, DS-04 does not pass the
+    section 4.1 verification gate and accessible parking reverts to DS-01 alone.
+  - >-
+    Tabulate ___UsageType and settle the record count. 762 features were retrieved against a publisher description of over 500 spaces, so the layer may
+    carry categories other than accessible bays, or may include adjacent bays counted individually. Confirm whether closely spaced points are separate bays
+    or duplicates before any count is published in the quality report.
+  - >-
+    Confirm the publisher's own update cadence. The layer carries no last-updated value and the council states only that locations are subject to upgrade
+    works. Without a publisher date the staleness rule has nothing to measure against, so decide whether the retrieval date stands in for it and record that
+    decision explicitly rather than leaving the freshness note blank.
