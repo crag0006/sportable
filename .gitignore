@@ -59,3 +59,9 @@ iteration-1-infra-backend-tasks.md
 # Lambda deployment packages built by archive_file at plan time
 infra/modules/*/.build/
 *.zip
+
+# Fetched raw data. scripts/fetch_run.py --target local writes here; the real
+# raw zone is the versioned S3 bucket. These are tens of megabytes of publisher
+# payloads that are re-fetchable on demand and must never enter git history —
+# once committed, a 40 MB shapefile is in every clone forever.
+data/_raw/
