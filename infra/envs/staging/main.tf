@@ -78,7 +78,12 @@ module "api" {
   execution_role_arn = var.lambda_execution_role_arn
 
   # path.root is infra/envs/staging, so three levels up is the repository root.
-  source_dir = "${path.root}/../../../backend/handlers"
+  #
+  # NOT backend/handlers/ any more. That directory holds source; this one holds
+  # the BUILT package — the application plus its dependencies, installed for
+  # Lambda's platform by backend/scripts/build_lambda.sh. The pipeline runs that
+  # script before terraform; so must you, if you apply by hand.
+  source_dir = "${path.root}/../../../backend/build/package"
 
   # az-a only: the RDS instance is there, and a second ENI would buy nothing.
   subnet_ids        = [module.network.private_subnet_ids[0]]
