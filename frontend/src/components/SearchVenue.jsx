@@ -74,7 +74,7 @@ function VenueCard({ venue, limit }) {
       return "Not available";
     }
 
-    return "No published information";
+    return "No published information — check with the venue";
   }
 
   // Symbol for the facility status
@@ -95,21 +95,16 @@ function VenueCard({ venue, limit }) {
   }
 
   // Find missing and unavailable facilities
-  const missingFacilities = [];
-  const unavailableFacilities = [];
+ const unavailableFacilities = [];
 
-  facilityKeys.forEach((key) => {
-    const item = venue.amenities[key];
-    const state = getState(item);
+facilityKeys.forEach((key) => {
+  const item = venue.amenities[key];
+  const state = getState(item);
 
-    if (state === "unknown") {
-      missingFacilities.push(key);
-    }
-
-    if (state === "absent") {
-      unavailableFacilities.push(key);
-    }
-  });
+  if (state === "absent") {
+    unavailableFacilities.push(key);
+  }
+});
 
   // View venue page
   function viewVenue() {
@@ -213,19 +208,6 @@ function VenueCard({ venue, limit }) {
           );
         })}
       </div>
-
-      {/* Missing information */}
-      {missingFacilities.map((key) => (
-        <p
-          className="facility-message"
-          key={key}
-        >
-          {FACILITY_INFO[key].fullName}{" "}
-          information is not available.
-          Please contact the venue to confirm
-          before visiting.
-        </p>
-      ))}
 
       {/* Facility unavailable */}
       {unavailableFacilities.map((key) => (

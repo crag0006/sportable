@@ -391,7 +391,7 @@ function Home() {
                   setLimit(event.target.value)
                 }
               />
-              250 m
+              250m
             </label>
 
             <label
@@ -410,7 +410,7 @@ function Home() {
                   setLimit(event.target.value)
                 }
               />
-              500 m
+              500m
             </label>
 
             <label
@@ -429,7 +429,7 @@ function Home() {
                   setLimit(event.target.value)
                 }
               />
-              1 km
+              1km
             </label>
           </div>
 
@@ -483,7 +483,7 @@ function Home() {
               {results.searchedLimit !== "" && (
                 <span className="filter-badge">
                   {results.searchedLimit === "1000"
-                    ? "1 km"
+                    ? "1km"
                     : results.searchedLimit + " m"}{" "}
                   facility limit
                 </span>
