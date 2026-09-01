@@ -19,8 +19,13 @@ uv export --no-dev --no-hashes --no-emit-project --format requirements.txt > bui
 # boto3/botocore ship in the Lambda runtime; excluding them keeps the package small.
 grep -viE '^(boto3|botocore|s3transfer)==' build/requirements.txt > build/requirements.lambda.txt
 
+# manylinux_2_28, not manylinux2014. Lambda's python3.12 runtime is Amazon
+# Linux 2023 (glibc 2.34), and some dependencies — greenlet, pulled in by
+# SQLAlchemy — no longer publish a manylinux2014 (glibc 2.17) wheel for cp312.
+# With the older target, resolution fails outright:
+#   "greenlet==3.5.5 has no usable wheels ... requirements are unsatisfiable"
 uv pip install \
-  --python-platform x86_64-manylinux2014 \
+  --python-platform x86_64-manylinux_2_28 \
   --python-version 3.12 \
   --only-binary :all: \
   --target build/package \

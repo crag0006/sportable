@@ -32,10 +32,37 @@
 # Mangum and psycopg, which do not belong in a Terraform-built zip: T3's
 # pipeline will build the package with uv and upload it, and this becomes the
 # fallback for a bare deploy.
+# The deployment package is BUILT, not just zipped.
+#
+# The stub handler needed no dependencies, so zipping backend/handlers/ was
+# enough. The real application imports FastAPI, Pydantic, SQLAlchemy, psycopg
+# and Mangum — none of which are in the Lambda runtime — so something has to
+# install them first, for the RIGHT platform.
+#
+# `archive_file` cannot do that. It zips a directory; it cannot run pip. So
+# backend/scripts/build_lambda.sh installs the locked dependencies for
+# x86_64-manylinux_2_28 (Lambda's python3.12 runs on Amazon Linux 2023) into
+# backend/build/package/, and this data source zips the result.
+#
+#   bash backend/scripts/build_lambda.sh     # ~30 MB zipped, ~81 MB unpacked
+#
+# The pipeline runs that before `terraform plan`. If you are applying by hand,
+# you must run it too — hence the precondition below, which fails with an
+# instruction rather than silently deploying whatever was last built.
 data "archive_file" "package" {
   type        = "zip"
   source_dir  = var.source_dir
   output_path = "${path.module}/.build/${var.name_prefix}-api.zip"
+
+  lifecycle {
+    precondition {
+      # The entrypoint module. Its absence means the build has not been run, and
+      # zipping an empty or stale directory would deploy a function that fails
+      # at import with no useful message.
+      condition     = fileexists("${var.source_dir}/${replace(var.handler, ".handler", "")}.py")
+      error_message = "Deployment package not built. Run:  bash backend/scripts/build_lambda.sh"
+    }
+  }
 }
 
 # --------------------------------------------------------------------- logging
