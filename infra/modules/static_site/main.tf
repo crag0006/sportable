@@ -305,7 +305,7 @@ resource "aws_s3_bucket_policy" "site" {
 
 # ------------------------------------------------------------- placeholder page
 # So the URL serves something the moment this applies, before the Frontend team
-# has built anything. `aws s3 sync` will overwrite it on the first real deploy.
+# has built anything. The deploy pipeline overwrites it on the first real deploy.
 resource "aws_s3_object" "placeholder" {
   bucket       = aws_s3_bucket.site.id
   key          = "index.html"
@@ -330,7 +330,20 @@ resource "aws_s3_object" "placeholder" {
   # The deploy pipeline replaces this file with the real build. Without this,
   # every `terraform plan` after a deploy would want to put the placeholder
   # back, and eventually someone would let it.
+  #
+  # `cache_control` is in this list for a sharper reason than the others, found
+  # on 1 Sep 2026 by reading a plan that should have been empty:
+  #
+  #     ~ cache_control = "no-cache,must-revalidate" -> null
+  #
+  # The pipeline uploads index.html with that header deliberately. It is what
+  # stops a browser serving last week's index.html — the one file that must
+  # never be cached, because it is the file that names the hashed asset bundles.
+  # Terraform does not set it here, so it wanted to REMOVE it, and applying that
+  # would have left every returning visitor on a stale build with no error
+  # anywhere to explain why.
   lifecycle {
-    ignore_changes = [content, etag, content_type, metadata, tags]
+    ignore_changes = [content, etag, content_type, cache_control, metadata, tags]
   }
+
 }
