@@ -84,6 +84,8 @@ class SourceOut(BaseModel):
 class AmenityDetailOut(AmenityOut):
     location: Location | None = None
     name: str | None = None
+    lat: float | None = None  # position of the nearby public facility, for map pins
+    lon: float | None = None
     opening_hours: str | None = None  # None = the source does not record it
     mlak: bool | None = None  # None = the source does not record it
     source: SourceOut | None = None

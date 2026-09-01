@@ -130,13 +130,17 @@ def test_venue_card(client: TestClient):
     assert toilet["mlak"] is True
     assert toilet["source"]["name"] == "National Public Toilet Map"
     assert toilet["source"]["published_at"] == "2026-07-14"
+    assert (toilet["lat"], toilet["lon"]) == (-37.7398, 145.0101)  # pin for the map
     parking = body["amenities"]["parking"]
     assert parking["state"] == "confirmed"
     assert parking["location"] == "at_venue"
     assert "distance" not in parking
     assert "name" not in parking and "opening_hours" not in parking  # the nearby bay's, not ours
+    assert "lat" not in parking and "lon" not in parking  # likewise: not the venue's position
     assert parking["source"]["name"] == "Sport and Recreation Victoria facilities list"
     assert body["amenities"]["stop"] == {"state": "none"}
+    change = body["amenities"]["change"]
+    assert change["state"] == "recorded" and "lat" not in change  # no position recorded
 
 
 def test_venue_card_always_names_what_it_cannot_tell_you(client: TestClient):

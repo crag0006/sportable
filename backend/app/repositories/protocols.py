@@ -50,6 +50,8 @@ class FacilityRow:
     distance_m: float | None
     amenity_name: str | None = None
     amenity_address: str | None = None
+    amenity_lat: float | None = None
+    amenity_lon: float | None = None
     opening_hours: str | None = None
     key_required: bool | None = None
     is_inside_venue: bool | None = None

@@ -69,6 +69,8 @@ VENUES: list[VenueRow] = [
                 "spatial_proximity",
                 45.0,
                 amenity_name="Preston City Oval Toilets",
+                amenity_lat=-37.7398,
+                amenity_lon=145.0101,
                 opening_hours="6:00am - 9:00pm",
                 key_required=True,
                 is_inside_venue=False,
@@ -82,6 +84,8 @@ VENUES: list[VenueRow] = [
                 120.0,
                 FACILITIES,
                 amenity_name="Cramer St bay",
+                amenity_lat=-37.7412,
+                amenity_lon=145.0080,
                 opening_hours="24 hours",
             ),
             _row(

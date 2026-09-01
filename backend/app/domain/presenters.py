@@ -104,6 +104,8 @@ def _detail(row: FacilityRow | None) -> AmenityDetailOut:
         distance=view.distance,
         location=_location(row),
         name=row.amenity_name,
+        lat=row.amenity_lat,
+        lon=row.amenity_lon,
         opening_hours=row.opening_hours,
         mlak=row.key_required,
         source=_source(row),
