@@ -1,27 +1,31 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import VenueCard, { FACILITY_INFO } from "../components/SearchVenue";
 import "./Home.css";
-import { VENUES, PLACE_NAMES } from "../data/Venues";
+import { getSports, getSuburbs, getConfig, searchVenues } from "../api/venues";
 
+// We no longer import fake data from "../data/Venues" — this page now
+// asks the real backend for everything instead. You can delete
+// src/data/Venues.js once you've tested this against the real API.
 
-const SPORTS = [
-  "Badminton",
-  "Basketball",
-  "Netball",
-  "Swimming",
-  "Tennis",
-];
+// Turns 1000 into "1km" and 500 into "500m", so the buttons look nice.
+function formatDistanceLabel(meters) {
+  if (meters >= 1000) {
+    return meters / 1000 + "km";
+  }
 
-const SUBURBS = [
-  "Melbourne CBD 3000",
-  "Carlton 3053",
-  "Fitzroy 3065",
-  "North Melbourne 3051",
-  "Preston 3072",
-  "Kensington 3031",
-];
+  return meters + "m";
+}
 
 function Home() {
+  // Sport & suburb lists for the two dropdowns. These used to be typed
+  // straight into the code. Now we ask the backend for them instead.
+  const [sports, setSports] = useState([]);
+  const [suburbs, setSuburbs] = useState([]);
+
+  // The distance choices (250m / 500m / 1km) also come from the backend
+  // now, instead of being hardcoded here.
+  const [distanceBands, setDistanceBands] = useState([250, 500, 1000]); // fallback until backend is live
+
   // Search form values
   const [sport, setSport] = useState("");
   const [suburb, setSuburb] = useState("");
@@ -42,8 +46,28 @@ function Home() {
   // Search results
   const [results, setResults] = useState(null);
 
-  // Error message
+  // Error message (form validation)
   const [formError, setFormError] = useState("");
+
+  // Loading / network-error state for the search call
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
+
+  // As soon as the page opens, ask the backend for the sport list, the
+  // suburb list, and the distance choices.
+  useEffect(() => {
+    getSports()
+      .then((data) => setSports(data))
+      .catch(() => setSports(["Badminton", "Basketball", "Netball", "Swimming", "Tennis"]));
+
+    getSuburbs()
+      .then((data) => setSuburbs(data))
+      .catch(() => setSuburbs(["Melbourne", "Carlton", "Fitzroy", "North Melbourne", "Preston", "Kensington"]));
+
+    getConfig()
+      .then((data) => setDistanceBands(data.distanceBandsM))
+      .catch(() => setDistanceBands([250, 500, 1000])); // fallback until backend is live
+  }, []);
 
   // Find suggestions after 3 characters
   function findMatches(list, typedText) {
@@ -56,28 +80,11 @@ function Home() {
     );
   }
 
-  // Check the status of one facility
-  function getAmenityState(amenity) {
-    if (!amenity || amenity.state === "none") {
-      return "unknown";
-    }
-
-    if (amenity.state === "absent") {
-      return "absent";
-    }
-
-    const facilityDistance = Number(amenity.distance);
-    const selectedLimit = Number(limit);
-
-    if (limit === "" || facilityDistance <= selectedLimit) {
-      return "within";
-    }
-
-    return "beyond";
-  }
-
-  // Search venues
-  function handleSearch(event) {
+  // Runs when someone clicks "Search venues". It used to search through
+  // a list of fake venues by hand, working out which ones matched.
+  // Now it just asks the backend and shows whatever comes back —
+  // the backend does all that matching work now.
+  async function handleSearch(event) {
     event.preventDefault();
 
     if (sport === "" && suburb === "") {
@@ -99,14 +106,8 @@ function Home() {
     setShowSports(false);
     setShowSuburbs(false);
 
-    const postcode = suburb.slice(-4);
-
-    // Get venues that offer the selected sport
-    const sportVenues = VENUES.filter((venue) =>
-      venue.sports.includes(sport)
-    );
-
-    // Store selected amenities
+    // Make a plain list of which amenities were ticked, so we can send
+    // it to the backend and also show it later on screen.
     const selectedAmenities = [];
 
     if (toilet) {
@@ -125,47 +126,39 @@ function Home() {
       selectedAmenities.push("change");
     }
 
-    const matchedVenues = [];
-    const missingInfoVenues = [];
+    setIsSearching(true);
+    setSearchError("");
 
-    // Check each venue
-    sportVenues.forEach((venue) => {
-      let allMatch = true;
-      let hasMissingInfo = false;
-
-      selectedAmenities.forEach((key) => {
-        const amenity = venue.amenities[key];
-        const state = getAmenityState(amenity);
-
-        if (state !== "within") {
-          allMatch = false;
-        }
-
-        if (state === "unknown") {
-          hasMissingInfo = true;
-        }
+    try {
+      const data = await searchVenues({
+        sport,
+        suburb,
+        toilet,
+        parking,
+        stop,
+        change,
+        limit,
       });
 
-      if (allMatch) {
-        matchedVenues.push(venue);
-      } else if (hasMissingInfo) {
-        missingInfoVenues.push(venue);
-      }
-    });
-
-    // Show closest venues first
-    matchedVenues.sort((a, b) => a.distance - b.distance);
-
-    // Save the values used for this search
-    setResults({
-      total: sportVenues.length,
-      matched: matchedVenues,
-      undocumented: missingInfoVenues,
-      place: PLACE_NAMES[postcode] || suburb,
-      searchedSport: sport,
-      searchedLimit: limit,
-      selectedAmenities: selectedAmenities,
-    });
+      setResults({
+        total: data.total,
+        matched: data.matched,
+        undocumented: data.undocumented,
+        undocumentedLabel: data.undocumentedLabel,
+        place: data.place,
+        searchedSport: sport,
+        // The backend tells us exactly which distance it used, even if
+        // the user didn't pick one, so we always show the real number.
+        searchedLimit: data.distanceLimitM ? String(data.distanceLimitM) : "",
+        selectedAmenities: selectedAmenities,
+      });
+    } catch (error) {
+      setSearchError(
+        error.message || "Something went wrong loading venues. Please try again."
+      );
+    } finally {
+      setIsSearching(false);
+    }
   }
 
   // Clear the form only
@@ -181,14 +174,15 @@ function Home() {
     setLimit("");
 
     setFormError("");
+    setSearchError("");
     setShowSports(false);
     setShowSuburbs(false);
 
     // Keep current search results
   }
 
-  const sportMatches = findMatches(SPORTS, sport);
-  const suburbMatches = findMatches(SUBURBS, suburb);
+  const sportMatches = findMatches(sports, sport);
+  const suburbMatches = findMatches(suburbs, suburb);
 
   return (
     <div className="split">
@@ -369,74 +363,46 @@ function Home() {
             </label>
           </div>
 
-          {/* Distance */}
+          {/* Distance — options now come from GET /config, not hardcoded */}
           <h2 className="section-title">
             Distance to a facility
           </h2>
 
           <div className="distance-options">
-            <label
-              className={
-                limit === "250"
-                  ? "distance-option selected-distance"
-                  : "distance-option"
-              }
-            >
-              <input
-                type="radio"
-                name="limit"
-                value="250"
-                checked={limit === "250"}
-                onChange={(event) =>
-                  setLimit(event.target.value)
+            {distanceBands.map((band) => (
+              <label
+                key={band}
+                className={
+                  limit === String(band)
+                    ? "distance-option selected-distance"
+                    : "distance-option"
                 }
-              />
-              250m
-            </label>
-
-            <label
-              className={
-                limit === "500"
-                  ? "distance-option selected-distance"
-                  : "distance-option"
-              }
-            >
-              <input
-                type="radio"
-                name="limit"
-                value="500"
-                checked={limit === "500"}
-                onChange={(event) =>
-                  setLimit(event.target.value)
-                }
-              />
-              500m
-            </label>
-
-            <label
-              className={
-                limit === "1000"
-                  ? "distance-option selected-distance"
-                  : "distance-option"
-              }
-            >
-              <input
-                type="radio"
-                name="limit"
-                value="1000"
-                checked={limit === "1000"}
-                onChange={(event) =>
-                  setLimit(event.target.value)
-                }
-              />
-              1km
-            </label>
+              >
+                <input
+                  type="radio"
+                  name="limit"
+                  value={band}
+                  checked={limit === String(band)}
+                  onChange={(event) =>
+                    setLimit(event.target.value)
+                  }
+                />
+                {formatDistanceLabel(band)}
+              </label>
+            ))}
           </div>
 
           {/* Error */}
           {formError !== "" && (
             <p className="form-error" role="alert">
               {formError}
+            </p>
+          )}
+
+          {/* Network/search error, separate from form validation */}
+          {searchError !== "" && (
+            <p className="form-error" role="alert">
+              {searchError}
             </p>
           )}
 
@@ -453,8 +419,9 @@ function Home() {
             <button
               type="submit"
               className="search-button"
+              disabled={isSearching}
             >
-              Search venues
+              {isSearching ? "Searching…" : "Search venues"}
             </button>
           </div>
         </form>
@@ -482,9 +449,7 @@ function Home() {
 
               {results.searchedLimit !== "" && (
                 <span className="filter-badge">
-                  {results.searchedLimit === "1000"
-                    ? "1km"
-                    : results.searchedLimit + " m"}{" "}
+                  {formatDistanceLabel(Number(results.searchedLimit))}{" "}
                   facility limit
                 </span>
               )}
@@ -535,7 +500,8 @@ function Home() {
             {results.undocumented.length > 0 && (
               <div className="missing-section">
                 <h3>
-                  Missing accessibility information
+                  {results.undocumentedLabel ||
+                    "Missing accessibility information"}
                 </h3>
 
                 {results.undocumented.map((venue) => {

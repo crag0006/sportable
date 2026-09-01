@@ -132,6 +132,12 @@
   border: 1px solid #9bd6bb;
 }
 
+/* Green - confirmed at the venue itself, no distance to measure */
+.amenity-at-venue {
+  background-color: #e2f5ec;
+  border: 1px solid #9bd6bb;
+}
+
 /* Red - outside selected distance */
 .amenity-beyond {
   background-color: #fde9e8;
@@ -162,7 +168,8 @@
   flex-shrink: 0;
 }
 
-.status-within {
+.status-within,
+.status-at-venue {
   color: #17603f;
   background-color: white;
 }
