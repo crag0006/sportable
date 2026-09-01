@@ -9,26 +9,30 @@ export default function VenueHero({ hero }) {
           <p>{hero.address}</p>
         </div>
 
-        <div className="hero-badge hero-badge--success">{hero.badge}</div>
+        {hero.badge ? <div className="hero-badge hero-badge--success">{hero.badge}</div> : null}
       </div>
 
-      <div className="chips">
-        {hero.tags.map((tag) => (
-          <span key={tag} className="chip">
-            {tag}
-          </span>
-        ))}
-      </div>
+      {hero.tags?.length ? (
+        <div className="chips">
+          {hero.tags.map((tag) => (
+            <span key={tag} className="chip">
+              {tag}
+            </span>
+          ))}
+        </div>
+      ) : null}
 
-      <div className="hero-summary">
-        {hero.panels.map((panel) => (
-          <div key={panel.label} className="hero-panel">
-            <span>{panel.label}</span>
-            {panel.emphasis ? <strong>{panel.emphasis}</strong> : null}
-            <p>{panel.body}</p>
-          </div>
-        ))}
-      </div>
+      {hero.panels?.length ? (
+        <div className="hero-summary">
+          {hero.panels.map((panel) => (
+            <div key={panel.label} className="hero-panel">
+              <span>{panel.label}</span>
+              {panel.emphasis ? <strong>{panel.emphasis}</strong> : null}
+              <p>{panel.body}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </section>
   )
 }

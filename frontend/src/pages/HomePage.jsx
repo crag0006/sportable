@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import HomepageVenueCard from '../components/HomepageVenueCard'
 import { FACILITY_INFO, PLACE_NAMES, SPORTS, SUBURBS, VENUES } from '../data/homepageVenues'
 
@@ -10,7 +11,78 @@ function findMatches(list, typedText) {
   return list.filter((item) => item.toLowerCase().includes(typedText.toLowerCase()))
 }
 
+function getAmenityState(amenity, limit) {
+  if (!amenity || amenity.state === 'none') {
+    return 'unknown'
+  }
+
+  if (amenity.state === 'absent') {
+    return 'absent'
+  }
+
+  const facilityDistance = Number(amenity.distance)
+  const selectedLimit = Number(limit)
+
+  if (limit === '' || facilityDistance <= selectedLimit) {
+    return 'within'
+  }
+
+  return 'beyond'
+}
+
+function buildSearchResults({ sport, suburb, toilet, parking, stop, change, limit }) {
+  const postcode = suburb.slice(-4)
+  const sportVenues = VENUES.filter((venue) => venue.sports.includes(sport))
+  const selectedAmenities = []
+
+  if (toilet) selectedAmenities.push('toilet')
+  if (parking) selectedAmenities.push('parking')
+  if (stop) selectedAmenities.push('stop')
+  if (change) selectedAmenities.push('change')
+
+  const matchedVenues = []
+  const missingInfoVenues = []
+
+  sportVenues.forEach((venue) => {
+    let allMatch = true
+    let hasMissingInfo = false
+
+    selectedAmenities.forEach((key) => {
+      const amenity = venue.amenities[key]
+      const state = getAmenityState(amenity, limit)
+
+      if (state !== 'within') {
+        allMatch = false
+      }
+
+      if (state === 'unknown') {
+        hasMissingInfo = true
+      }
+    })
+
+    if (allMatch) {
+      matchedVenues.push(venue)
+    } else if (hasMissingInfo) {
+      missingInfoVenues.push(venue)
+    }
+  })
+
+  matchedVenues.sort((firstVenue, secondVenue) => firstVenue.distance - secondVenue.distance)
+
+  return {
+    total: sportVenues.length,
+    matched: matchedVenues,
+    undocumented: missingInfoVenues,
+    place: PLACE_NAMES[postcode] || suburb,
+    searchedSport: sport,
+    searchedLimit: limit,
+    selectedAmenities,
+  }
+}
+
 export default function HomePage() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [sport, setSport] = useState('Basketball')
   const [suburb, setSuburb] = useState('Preston 3072')
   const [toilet, setToilet] = useState(true)
@@ -23,24 +95,46 @@ export default function HomePage() {
   const [results, setResults] = useState(null)
   const [formError, setFormError] = useState('')
 
-  function getAmenityState(amenity) {
-    if (!amenity || amenity.state === 'none') {
-      return 'unknown'
+  useEffect(() => {
+    const draftSearch = location.state?.draftSearch
+    if (!draftSearch) return
+
+    const nextSport = draftSearch.sport ?? ''
+    const nextSuburb = draftSearch.suburb ?? ''
+    const nextLimit = draftSearch.limit ?? ''
+    const nextAmenities = draftSearch.selectedAmenities ?? []
+    const nextToilet = nextAmenities.includes('Accessible toilet')
+    const nextParking = nextAmenities.includes('Accessible parking')
+    const nextStop = nextAmenities.includes('Step-free transport stop')
+    const nextChange = nextAmenities.includes('Accessible change facility')
+
+    setSport(nextSport)
+    setSuburb(nextSuburb)
+    setLimit(nextLimit)
+    setToilet(nextToilet)
+    setParking(nextParking)
+    setStop(nextStop)
+    setChange(nextChange)
+    setShowSports(false)
+    setShowSuburbs(false)
+    setFormError('')
+
+    if (location.state?.autoSearch && nextSport && nextSuburb) {
+      setResults(
+        buildSearchResults({
+          sport: nextSport,
+          suburb: nextSuburb,
+          toilet: nextToilet,
+          parking: nextParking,
+          stop: nextStop,
+          change: nextChange,
+          limit: nextLimit,
+        }),
+      )
     }
 
-    if (amenity.state === 'absent') {
-      return 'absent'
-    }
-
-    const facilityDistance = Number(amenity.distance)
-    const selectedLimit = Number(limit)
-
-    if (limit === '' || facilityDistance <= selectedLimit) {
-      return 'within'
-    }
-
-    return 'beyond'
-  }
+    navigate('/', { replace: true, state: null })
+  }, [location.state, navigate])
 
   function runSearch(event) {
     if (event) {
@@ -66,53 +160,17 @@ export default function HomePage() {
     setShowSports(false)
     setShowSuburbs(false)
 
-    const postcode = suburb.slice(-4)
-    const sportVenues = VENUES.filter((venue) => venue.sports.includes(sport))
-    const selectedAmenities = []
-
-    if (toilet) selectedAmenities.push('toilet')
-    if (parking) selectedAmenities.push('parking')
-    if (stop) selectedAmenities.push('stop')
-    if (change) selectedAmenities.push('change')
-
-    const matchedVenues = []
-    const missingInfoVenues = []
-
-    sportVenues.forEach((venue) => {
-      let allMatch = true
-      let hasMissingInfo = false
-
-      selectedAmenities.forEach((key) => {
-        const amenity = venue.amenities[key]
-        const state = getAmenityState(amenity)
-
-        if (state !== 'within') {
-          allMatch = false
-        }
-
-        if (state === 'unknown') {
-          hasMissingInfo = true
-        }
-      })
-
-      if (allMatch) {
-        matchedVenues.push(venue)
-      } else if (hasMissingInfo) {
-        missingInfoVenues.push(venue)
-      }
-    })
-
-    matchedVenues.sort((firstVenue, secondVenue) => firstVenue.distance - secondVenue.distance)
-
-    setResults({
-      total: sportVenues.length,
-      matched: matchedVenues,
-      undocumented: missingInfoVenues,
-      place: PLACE_NAMES[postcode] || suburb,
-      searchedSport: sport,
-      searchedLimit: limit,
-      selectedAmenities,
-    })
+    setResults(
+      buildSearchResults({
+        sport,
+        suburb,
+        toilet,
+        parking,
+        stop,
+        change,
+        limit,
+      }),
+    )
   }
 
   function handleClear() {

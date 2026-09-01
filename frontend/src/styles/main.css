@@ -177,6 +177,14 @@ svg {
   overflow: hidden;
 }
 
+.static-search-panel-summary {
+  cursor: default;
+}
+
+.static-search-panel-content {
+  display: block;
+}
+
 .drawer-card summary {
   list-style: none;
 }
@@ -1233,9 +1241,8 @@ svg {
   width: 100%;
   min-height: 100vh;
   background:
-    linear-gradient(140deg, rgba(12, 28, 45, 0.2), rgba(20, 80, 122, 0.06)),
-    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.55), transparent 34%),
-    linear-gradient(180deg, #dde6ea 0%, #b6c3cb 100%);
+    linear-gradient(140deg, rgba(12, 28, 45, 0.22), rgba(20, 80, 122, 0.08)),
+    url('../assets/home-access.jpg') center center / cover no-repeat;
 }
 
 .home-hero-brand {

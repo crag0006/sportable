@@ -107,6 +107,17 @@ export function FacilityIconGlyph({ icon }) {
           <path d="M8 11h8" />
         </svg>
       )
+    case 'change':
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden="true" {...shared}>
+          <circle cx="9" cy="5.5" r="1.8" />
+          <path d="M9 8v5.2" />
+          <path d="M9 10.5l4.2 2.2" />
+          <path d="M9 13.2l-2.6 4.3" />
+          <path d="M13 12.8l2.8 4.7" />
+          <circle cx="16.8" cy="17.2" r="2.4" />
+        </svg>
+      )
     default:
       return null
   }

@@ -1,6 +1,21 @@
 import { FacilityIconGlyph } from './Icons'
 
 export default function FacilityCard({ facility }) {
+  const metaItems =
+    facility.metaItems ??
+    [
+      { label: 'Source', value: facility.source || '—' },
+      { label: 'Updated', value: facility.updated || '—' },
+      {
+        label: facility.thirdLabel || 'Detail',
+        value: facility.thirdValue || '—',
+      },
+      {
+        label: facility.locationLabel ?? 'Location',
+        value: facility.location || '—',
+      },
+    ]
+
   return (
     <article className="facility-card">
       <div className="facility-icon">
@@ -14,26 +29,16 @@ export default function FacilityCard({ facility }) {
             <p>{facility.description}</p>
           </div>
 
-          <div className="distance-pill">{facility.distance}</div>
+          <div className="distance-pill">{facility.pillText || facility.distance || '—'}</div>
         </div>
 
         <div className="meta-grid">
-          <div className="meta">
-            <span>Source</span>
-            <strong>{facility.source}</strong>
-          </div>
-          <div className="meta">
-            <span>Updated</span>
-            <strong>{facility.updated}</strong>
-          </div>
-          <div className="meta">
-            <span>{facility.thirdLabel}</span>
-            <strong>{facility.thirdValue}</strong>
-          </div>
-          <div className="meta">
-            <span>{facility.locationLabel ?? 'Location'}</span>
-            <strong>{facility.location}</strong>
-          </div>
+          {metaItems.map((item) => (
+            <div className="meta" key={`${facility.id}-${item.label}`}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
         </div>
       </div>
     </article>

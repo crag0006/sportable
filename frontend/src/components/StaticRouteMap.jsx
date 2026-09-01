@@ -5,6 +5,9 @@ import { LocateIcon, ZoomInIcon, ZoomOutIcon } from './Icons'
 export default function StaticRouteMap({ mapData, facilities, sectionTitle, sectionBody }) {
   const [zoomLevel, setZoomLevel] = useState(1)
   const [isLocated, setIsLocated] = useState(false)
+  const summaryCards = mapData?.summaryCards ?? []
+  const callouts = mapData?.callouts ?? []
+  const facilityItems = facilities ?? []
 
   const mapTransform = useMemo(() => {
     const translateX = isLocated ? '-8%' : '0%'
@@ -37,7 +40,7 @@ export default function StaticRouteMap({ mapData, facilities, sectionTitle, sect
     <article className="map-card">
       <div className="section-head">
         <div>
-          <h3>{mapData.title}</h3>
+          <h3>{mapData?.title ?? 'Map overview'}</h3>
         </div>
       </div>
 
@@ -85,7 +88,7 @@ export default function StaticRouteMap({ mapData, facilities, sectionTitle, sect
           <div className="marker end">V</div>
           <div className={isLocated ? 'user-pulse is-visible' : 'user-pulse'} />
 
-          {mapData.callouts.map((callout) => (
+          {callouts.map((callout) => (
             <div key={callout.key} className={`map-callout ${callout.key}`}>
               {callout.label}
             </div>
@@ -98,14 +101,16 @@ export default function StaticRouteMap({ mapData, facilities, sectionTitle, sect
         </div>
       </div>
 
-      <div className="map-summary">
-        {mapData.summaryCards.map((card) => (
-          <div key={card.label} className="summary-card">
-            <span>{card.label}</span>
-            <strong>{card.value}</strong>
-          </div>
-        ))}
-      </div>
+      {summaryCards.length > 0 ? (
+        <div className="map-summary">
+          {summaryCards.map((card) => (
+            <div key={card.label} className="summary-card">
+              <span>{card.label}</span>
+              <strong>{card.value}</strong>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <div className="map-facilities">
         <div className="map-facilities-head">
@@ -113,11 +118,13 @@ export default function StaticRouteMap({ mapData, facilities, sectionTitle, sect
           {sectionBody ? <p>{sectionBody}</p> : null}
         </div>
 
-        <div className="route-list">
-          {facilities.map((item) => (
-            <DirectionsFacilityItem key={item.id} item={item} />
-          ))}
-        </div>
+        {facilityItems.length > 0 ? (
+          <div className="route-list">
+            {facilityItems.map((item) => (
+              <DirectionsFacilityItem key={item.id} item={item} />
+            ))}
+          </div>
+        ) : null}
       </div>
     </article>
   )

@@ -4,7 +4,7 @@ export default function DirectionsHero({ hero }) {
       <p className="eyebrow">{hero.eyebrow}</p>
       <h2>{hero.title}</h2>
       <p>{hero.address}</p>
-      <div className="hero-badge hero-badge--success">{hero.badge}</div>
+      {hero.badge ? <div className="hero-badge hero-badge--success">{hero.badge}</div> : null}
     </section>
   )
 }
