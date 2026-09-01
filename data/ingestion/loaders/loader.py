@@ -28,11 +28,13 @@ The rejection alarm
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
+from collections.abc import Iterable, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 import pandas as pd
 import psycopg
@@ -52,7 +54,7 @@ SRID = 7844
 MAX_QUARANTINE_RATE_PCT = 15.0
 
 
-class LoadAborted(RuntimeError):
+class LoadAbortedError(RuntimeError):
     """Raised when a load exceeds the quarantine threshold."""
 
 
@@ -183,7 +185,11 @@ def clip_to_scope(
     ]
 
     with conn.cursor() as cur:
-        cur.execute("CREATE TEMP TABLE _scope_check (idx integer, lon double precision, lat double precision) ON COMMIT DROP")
+        cur.execute(
+            "CREATE TEMP TABLE _scope_check "
+            "(idx integer, lon double precision, lat double precision) "
+            "ON COMMIT DROP"
+        )
         with cur.copy("COPY _scope_check (idx, lon, lat) FROM STDIN") as copy:
             for record in points:
                 copy.write_row(record)
@@ -234,7 +240,7 @@ def _upsert(
         lon_col, lat_col = geometry_from
         lon_i, lat_i = columns.index(lon_col), columns.index(lat_col)
         target_columns = [c for c in columns if c not in (lon_col, lat_col)] + ["geom"]
-        parts = [f"%s" for c in columns if c not in (lon_col, lat_col)]
+        parts = ["%s" for c in columns if c not in (lon_col, lat_col)]
         # Rebuild the tuple order to match: non-geometry columns, then the point.
         reordered = []
         for r in rows:
@@ -242,11 +248,9 @@ def _upsert(
             keep += [r[lon_i], r[lat_i]]
             reordered.append(keep)
         rows = reordered
-        values_expression = ", ".join(parts + [f"ST_SetSRID(ST_MakePoint(%s, %s), {SRID})"])
+        values_expression = ", ".join([*parts, f"ST_SetSRID(ST_MakePoint(%s, %s), {SRID})"])
 
-    updates = ", ".join(
-        f"{c} = EXCLUDED.{c}" for c in target_columns if c not in key_columns
-    )
+    updates = ", ".join(f"{c} = EXCLUDED.{c}" for c in target_columns if c not in key_columns)
     sql = f"""
         INSERT INTO {table} ({", ".join(target_columns)})
         VALUES ({values_expression})
@@ -294,7 +298,7 @@ def check_rejection_rate(source_id: str, loaded: int, quarantined: int) -> float
         return 0.0
     rate = round(100 * quarantined / total, 2)
     if rate > MAX_QUARANTINE_RATE_PCT:
-        raise LoadAborted(
+        raise LoadAbortedError(
             f"{source_id} quarantined {quarantined:,} of {total:,} rows ({rate}%), "
             f"above the {MAX_QUARANTINE_RATE_PCT}% threshold. The load has been "
             f"abandoned. Inspect the quarantine table before rerunning; do not "
@@ -306,19 +310,49 @@ def check_rejection_rate(source_id: str, loaded: int, quarantined: int) -> float
 # Source-specific loads
 
 VENUE_COLUMNS = [
-    "venue_id", "source_id", "load_run_id", "name", "full_address",
-    "suburb_name", "postcode", "lga_name", "ownership", "purpose",
-    "changeroom_description", "onsite_accessible_toilet",
-    "onsite_accessible_parking", "retrieved_at", "longitude", "latitude",
+    "venue_id",
+    "source_id",
+    "load_run_id",
+    "name",
+    "full_address",
+    "suburb_name",
+    "postcode",
+    "lga_name",
+    "ownership",
+    "purpose",
+    "changeroom_description",
+    "onsite_accessible_toilet",
+    "onsite_accessible_parking",
+    "retrieved_at",
+    "longitude",
+    "latitude",
 ]
 
 AMENITY_COLUMNS = [
-    "amenity_id", "source_id", "load_run_id", "kind", "name", "address",
-    "key_required", "mlak_24h", "payment_required", "opening_hours",
-    "access_note", "facility_note", "is_inside_venue", "key_is_derived",
-    "changing_places", "byo_sling", "has_shower", "ambulant",
-    "left_hand_transfer", "right_hand_transfer", "accessible_parking_on_site",
-    "retrieved_at", "longitude", "latitude",
+    "amenity_id",
+    "source_id",
+    "load_run_id",
+    "kind",
+    "name",
+    "address",
+    "key_required",
+    "mlak_24h",
+    "payment_required",
+    "opening_hours",
+    "access_note",
+    "facility_note",
+    "is_inside_venue",
+    "key_is_derived",
+    "changing_places",
+    "byo_sling",
+    "has_shower",
+    "ambulant",
+    "left_hand_transfer",
+    "right_hand_transfer",
+    "accessible_parking_on_site",
+    "retrieved_at",
+    "longitude",
+    "latitude",
 ]
 
 
@@ -329,15 +363,12 @@ def _tuples(frame: pd.DataFrame, columns: Sequence[str]) -> list[tuple]:
         record = []
         for c in columns:
             value = row.get(c)
-            if isinstance(value, float) and pd.isna(value):
-                value = None
-            elif value is pd.NaT:
+            if (isinstance(value, float) and pd.isna(value)) or value is pd.NaT:
                 value = None
             elif hasattr(value, "item") and not isinstance(value, (str, bytes)):
-                try:
+                # numpy scalars expose .item(); anything else keeps its value.
+                with contextlib.suppress(Exception):
                     value = value.item()
-                except Exception:
-                    pass
             record.append(value)
         out.append(tuple(record))
     return out
@@ -357,8 +388,12 @@ def load_venues(
     kept, rejected = clip_to_scope(conn, venues)
 
     loaded = _upsert(
-        conn, "venue", VENUE_COLUMNS, ["venue_id"],
-        _tuples(kept, VENUE_COLUMNS), geometry_from=("longitude", "latitude"),
+        conn,
+        "venue",
+        VENUE_COLUMNS,
+        ["venue_id"],
+        _tuples(kept, VENUE_COLUMNS),
+        geometry_from=("longitude", "latitude"),
     )
 
     # Child rows are replaced wholesale for the venues in this batch, because a
@@ -406,8 +441,12 @@ def load_amenities(
     kept, rejected = clip_to_scope(conn, amenities)
 
     loaded = _upsert(
-        conn, "amenity", AMENITY_COLUMNS, ["amenity_id"],
-        _tuples(kept, AMENITY_COLUMNS), geometry_from=("longitude", "latitude"),
+        conn,
+        "amenity",
+        AMENITY_COLUMNS,
+        ["amenity_id"],
+        _tuples(kept, AMENITY_COLUMNS),
+        geometry_from=("longitude", "latitude"),
     )
 
     quarantined = write_quarantine(conn, load_run_id, source_id, quarantine)

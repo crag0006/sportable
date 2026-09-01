@@ -94,7 +94,7 @@ class TransformResult:
     def summary(self) -> str:
         s = self.stats
         lines = [
-            f"DS-01 transform",
+            "DS-01 transform",
             f"  rows read                {s.get('rows_read', 0):,}",
             f"  facilities in source     {s.get('facilities_in_source', 0):,}",
             f"  facilities in scope      {s.get('facilities_in_scope', 0):,}",
@@ -113,6 +113,7 @@ class TransformResult:
                 for status, n in self.venues[col].value_counts().items():
                     lines.append(f"    {status:<26} {n:,}")
         return "\n".join(lines)
+
 
 # Helpers
 
@@ -265,9 +266,7 @@ def _compose_address(row: pd.Series) -> str | None:
 
     street = " ".join(p for p in parts if p)
 
-    tail = ", ".join(
-        p for p in (_clean(row.get("Suburb/Town")), _clean(row.get("Pcode"))) if p
-    )
+    tail = ", ".join(p for p in (_clean(row.get("Suburb/Town")), _clean(row.get("Pcode"))) if p)
 
     joined = ", ".join(p for p in (street, tail) if p)
     return joined or None
@@ -294,10 +293,7 @@ def transform(
     stats: dict[str, Any] = {"rows_read": len(raw)}
     df = raw.copy()
 
-    missing = [
-        c for c in ("Facility ID", "Facility Name", "LGA Name")
-        if c not in df.columns
-    ]
+    missing = [c for c in ("Facility ID", "Facility Name", "LGA Name") if c not in df.columns]
 
     if missing:
         raise ValueError(f"DS-01 sheet is missing required columns: {missing}")
@@ -317,17 +313,9 @@ def transform(
     for facility_id, group in df.groupby("Facility ID", sort=True):
         first = group.iloc[0]
 
-        lat, conflict_lat = (
-            _collapse(group["Latitude"])
-            if "Latitude" in group
-            else (None, False)
-        )
+        lat, conflict_lat = _collapse(group["Latitude"]) if "Latitude" in group else (None, False)
 
-        lon, conflict_lon = (
-            _collapse(group["Longitude"])
-            if "Longitude" in group
-            else (None, False)
-        )
+        lon, conflict_lon = _collapse(group["Longitude"]) if "Longitude" in group else (None, False)
 
         reason = _reason_for_coordinates(lat, lon)
 
@@ -357,6 +345,11 @@ def transform(
                 }
             )
             continue
+
+        # _reason_for_coordinates returns a reason whenever either coordinate is
+        # missing or out of range, so both are real floats past the guard above.
+        # mypy cannot follow that through `reason`, so state it explicitly.
+        assert lat is not None and lon is not None
 
         venue: dict[str, Any] = {
             "venue_id": str(facility_id),
@@ -451,11 +444,7 @@ def transform(
     stats["collapse_conflicts"] = conflicts
     stats["venues_loaded"] = len(venues)
     stats["sport_rows_loaded"] = len(venue_sports)
-    stats["distinct_sports"] = (
-        int(venue_sports["sport"].nunique())
-        if len(venue_sports)
-        else 0
-    )
+    stats["distinct_sports"] = int(venue_sports["sport"].nunique()) if len(venue_sports) else 0
 
     return TransformResult(
         venues=venues,

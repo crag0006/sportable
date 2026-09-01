@@ -20,7 +20,6 @@ from pathlib import Path
 
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 sys.path.insert(0, str(ROOT / "data" / "ingestion" / "extractors"))
@@ -122,8 +121,7 @@ def run_here(args, source_ids):
     else:
         if not args.bucket:
             print(
-                "A bucket is required for --target s3. "
-                "Get it with `make bucket` or pass --bucket."
+                "A bucket is required for --target s3. Get it with `make bucket` or pass --bucket."
             )
             return 2
 
@@ -135,7 +133,6 @@ def run_here(args, source_ids):
     failed = 0
 
     for source_id in source_ids:
-
         print(f"\nProcessing {source_id}...")
 
         try:
@@ -152,10 +149,7 @@ def run_here(args, source_ids):
         try:
             result = fetch.fetch_source(source_id, force=args.force)
         except Exception as error:
-            print(
-                f"{source_id}: fetch failed - "
-                f"{type(error).__name__}: {error}"
-            )
+            print(f"{source_id}: fetch failed - {type(error).__name__}: {error}")
             failed += 1
             continue
 
@@ -165,7 +159,6 @@ def run_here(args, source_ids):
             print(f"Downloaded: {result['bytes']:,} bytes")
 
         if result.get("sha256"):
-
             expected = (card.get("retrieval") or {}).get("expected_sha256")
 
             if expected is None:
@@ -181,9 +174,7 @@ def run_here(args, source_ids):
             if output_folder:
                 print(f"Manifest: {output_folder / result['manifest_key']}")
             else:
-                print(
-                    f"Manifest: s3://{args.bucket}/{result['manifest_key']}"
-                )
+                print(f"Manifest: s3://{args.bucket}/{result['manifest_key']}")
 
     return 1 if failed else 0
 

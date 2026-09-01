@@ -70,9 +70,7 @@ class TransformResult:
                 lines.append(f"    {reason:<24} {n:,}")
 
         if s.get("distinct_street_segments") is not None:
-            lines.append(
-                f"  distinct street segments {s['distinct_street_segments']:,}"
-            )
+            lines.append(f"  distinct street segments {s['distinct_street_segments']:,}")
 
         return "\n".join(lines)
 
@@ -157,29 +155,15 @@ def transform(
     df = raw.copy()
 
     if USAGE_COLUMN in df.columns:
-        vocabulary = (
-            df[USAGE_COLUMN]
-            .fillna("(null)")
-            .astype(str)
-            .value_counts()
-        )
+        vocabulary = df[USAGE_COLUMN].fillna("(null)").astype(str).value_counts()
 
         stats["usage_vocabulary"] = vocabulary.to_dict()
 
-        usage_normalised = (
-            df[USAGE_COLUMN]
-            .astype(str)
-            .str.strip()
-            .str.lower()
-        )
+        usage_normalised = df[USAGE_COLUMN].astype(str).str.strip().str.lower()
 
-        is_accessible = usage_normalised.isin(
-            ACCESSIBLE_USAGE_VALUES
-        )
+        is_accessible = usage_normalised.isin(ACCESSIBLE_USAGE_VALUES)
 
-        unrecognised = sorted(
-            set(usage_normalised[~is_accessible])
-        )
+        unrecognised = sorted(set(usage_normalised[~is_accessible]))
 
         if unrecognised:
             stats["unrecognised_usage_values"] = unrecognised
@@ -216,8 +200,7 @@ def transform(
                     "natural_key": None,
                     "reason": reason,
                     "detail": (
-                        "the geometry and the published Latitude/Longitude "
-                        "attributes disagree"
+                        "the geometry and the published Latitude/Longitude attributes disagree"
                         if reason == "SCHEMA_VIOLATION"
                         else f"geometry={geometry!r}"
                     ),
@@ -230,6 +213,11 @@ def transform(
                 }
             )
             continue
+
+        # _coordinates returns a reason whenever it could not produce a usable
+        # pair, so both are real floats past the guard above. Stated explicitly
+        # because mypy cannot narrow them through `reason`.
+        assert latitude is not None and longitude is not None
 
         amenity_rows.append(
             {
@@ -264,16 +252,10 @@ def transform(
         2,
     )
 
-    stats["distinct_street_segments"] = (
-        int(amenities["name"].nunique())
-        if len(amenities)
-        else 0
-    )
+    stats["distinct_street_segments"] = int(amenities["name"].nunique()) if len(amenities) else 0
 
     if len(amenities):
-        collisions = int(
-            amenities["amenity_id"].duplicated().sum()
-        )
+        collisions = int(amenities["amenity_id"].duplicated().sum())
 
         if collisions:
             raise ValueError(

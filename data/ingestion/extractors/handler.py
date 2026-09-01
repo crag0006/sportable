@@ -29,7 +29,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -37,7 +37,6 @@ import boto3
 import yaml
 from botocore.config import Config
 from botocore.exceptions import ClientError
-
 
 LOG = logging.getLogger()
 LOG.setLevel(logging.INFO)
@@ -60,9 +59,7 @@ RAW_BUCKET = os.environ.get("RAW_BUCKET", "")
 # In Lambda the cards sit beside the code at /var/task/sources. Locally the
 # default resolves next to this file, and scripts/fetch_run.py overrides it to
 # data/sources so the repo copy stays the single source of truth.
-REGISTER_DIR = Path(
-    os.environ.get("REGISTER_DIR", Path(__file__).parent / "sources")
-)
+REGISTER_DIR = Path(os.environ.get("REGISTER_DIR", Path(__file__).parent / "sources"))
 
 # Written on every object so a bucket policy can require encryption in transit
 # and at rest without the fetch silently failing.
@@ -87,7 +84,7 @@ class FetchError(RuntimeError):
     pass
 
 
-class NotFetchable(ValueError):
+class NotFetchableError(ValueError):
     pass
 
 
@@ -112,18 +109,12 @@ def load_source_card(source_id: str) -> dict[str, Any]:
     matches = sorted(REGISTER_DIR.glob(f"{source_id}_*.yaml"))
 
     if not matches:
-        raise FileNotFoundError(
-            f"No source card found for {source_id} in {REGISTER_DIR}"
-        )
+        raise FileNotFoundError(f"No source card found for {source_id} in {REGISTER_DIR}")
 
-    card = yaml.safe_load(
-        matches[0].read_text(encoding="utf-8")
-    )
+    card = yaml.safe_load(matches[0].read_text(encoding="utf-8"))
 
     if card.get("source_id") != source_id:
-        raise ValueError(
-            f"{matches[0].name} has a different source_id"
-        )
+        raise ValueError(f"{matches[0].name} has a different source_id")
 
     if not card.get("publisher"):
         raise ValueError(f"{source_id} has no publisher")
@@ -156,107 +147,72 @@ def load_source_card(source_id: str) -> dict[str, Any]:
     return card
 
 
-def resolve_download_url(
-    card: dict[str, Any]
-) -> tuple[str, dict[str, Any]]:
+def resolve_download_url(card: dict[str, Any]) -> tuple[str, dict[str, Any]]:
 
     retrieval = card["retrieval"]
     resolver = retrieval.get("resolver", "static_url")
 
     if resolver == "static_url":
-        return retrieval["download_url"], {
-            "resolver": "static_url"
-        }
+        return retrieval["download_url"], {"resolver": "static_url"}
 
     if resolver == "ckan_resource_lookup":
         config = retrieval.get("resolver_config") or {}
 
         package_id = config.get("package_id")
         if not package_id:
-            raise ValueError(
-                f"{card['source_id']} has no package_id"
-            )
+            raise ValueError(f"{card['source_id']} has no package_id")
 
-        wanted_format = (
-            config.get("format") or "CSV"
-        ).upper()
+        wanted_format = (config.get("format") or "CSV").upper()
 
-        api_root = (
-            config.get("api_root")
-            or _ckan_root(retrieval["landing_page"])
-        )
+        api_root = config.get("api_root") or _ckan_root(retrieval["landing_page"])
 
-        api_url = (
-            f"{api_root}/api/3/action/package_show?"
-            + urllib.parse.urlencode({"id": package_id})
+        api_url = f"{api_root}/api/3/action/package_show?" + urllib.parse.urlencode(
+            {"id": package_id}
         )
 
         body, _ = _http_get(api_url, headers={})
         data = json.loads(body.decode("utf-8"))
 
         if not data.get("success"):
-            raise FetchError(
-                f"Could not get CKAN package {package_id}"
-            )
+            raise FetchError(f"Could not get CKAN package {package_id}")
 
         resources = [
             resource
             for resource in data["result"].get("resources", [])
-            if (
-                (resource.get("format") or "").upper()
-                == wanted_format
-                and resource.get("url")
-            )
+            if ((resource.get("format") or "").upper() == wanted_format and resource.get("url"))
         ]
 
         if not resources:
-            raise FetchError(
-                f"No {wanted_format} resource found"
-            )
+            raise FetchError(f"No {wanted_format} resource found")
 
         selected = max(
             resources,
-            key=lambda x: (
-                x.get("last_modified")
-                or x.get("created")
-                or ""
-            ),
+            key=lambda x: x.get("last_modified") or x.get("created") or "",
         )
 
         provenance = {
             "resolver": "ckan_resource_lookup",
             "package_id": package_id,
             "resource_id": selected.get("id"),
-            "resource_last_modified": (
-                selected.get("last_modified")
-                or selected.get("created")
-            ),
+            "resource_last_modified": (selected.get("last_modified") or selected.get("created")),
             "registered_url": retrieval["download_url"],
-            "url_changed_since_register": (
-                selected["url"]
-                != retrieval["download_url"]
-            ),
+            "url_changed_since_register": (selected["url"] != retrieval["download_url"]),
         }
 
         if provenance["url_changed_since_register"]:
             LOG.warning(
-                "%s is using a different URL than the one "
-                "in the source card",
+                "%s is using a different URL than the one in the source card",
                 card["source_id"],
             )
 
         return selected["url"], provenance
 
-    raise ValueError(
-        f"Unknown resolver {resolver!r}"
-    )
+    raise ValueError(f"Unknown resolver {resolver!r}")
 
 
 def _ckan_root(landing_page: str) -> str:
 
-    head, separator, _ = landing_page.partition(
-        "/dataset/"
-    )
+    head, separator, _ = landing_page.partition("/dataset/")
 
     if separator:
         return head.rstrip("/")
@@ -266,26 +222,16 @@ def _ckan_root(landing_page: str) -> str:
     return f"{parts.scheme}://{parts.netloc}"
 
 
-def _http_get(
-    url: str,
-    headers: dict[str, str]
-) -> tuple[bytes, dict[str, Any]]:
+def _http_get(url: str, headers: dict[str, str]) -> tuple[bytes, dict[str, Any]]:
 
-    request = urllib.request.Request(
-        url,
-        method="GET"
-    )
+    request = urllib.request.Request(url, method="GET")
 
     request.add_header("User-Agent", USER_AGENT)
 
     for key, value in headers.items():
         request.add_header(key, value)
 
-    with urllib.request.urlopen(
-        request,
-        timeout=120
-    ) as response:
-
+    with urllib.request.urlopen(request, timeout=120) as response:
         chunks = []
 
         while True:
@@ -301,21 +247,13 @@ def _http_get(
         metadata = {
             "status": response.status,
             "etag": response.headers.get("ETag"),
-            "last_modified": response.headers.get(
-                "Last-Modified"
-            ),
-            "content_type": response.headers.get(
-                "Content-Type"
-            ),
-            "content_length": response.headers.get(
-                "Content-Length"
-            ),
+            "last_modified": response.headers.get("Last-Modified"),
+            "content_type": response.headers.get("Content-Type"),
+            "content_length": response.headers.get("Content-Length"),
             # filename_for() reads this to honour a publisher-supplied filename.
             # Without it that branch never runs and every object falls back to
             # the raw_prefix name.
-            "content_disposition": response.headers.get(
-                "Content-Disposition"
-            ),
+            "content_disposition": response.headers.get("Content-Disposition"),
             "final_url": response.url,
         }
 
@@ -323,61 +261,44 @@ def _http_get(
 
 
 def fetch_with_retry(
-    url: str,
-    conditional: dict[str, str]
-) -> tuple[
-    bytes | None,
-    dict[str, Any],
-    list[dict[str, Any]]
-]:
+    url: str, conditional: dict[str, str]
+) -> tuple[bytes | None, dict[str, Any], list[dict[str, Any]]]:
 
     attempts = []
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
-
         started = time.time()
 
         try:
-            body, metadata = _http_get(
-                url,
-                conditional
-            )
+            body, metadata = _http_get(url, conditional)
 
-            metadata["duration_seconds"] = round(
-                time.time() - started,
-                3
-            )
+            metadata["duration_seconds"] = round(time.time() - started, 3)
 
-            attempts.append({
-                "attempt": attempt,
-                "status": metadata["status"]
-            })
+            attempts.append({"attempt": attempt, "status": metadata["status"]})
 
             return body, metadata, attempts
 
         except urllib.error.HTTPError as error:
-
-            attempts.append({
-                "attempt": attempt,
-                "status": error.code,
-                "reason": error.reason,
-            })
+            attempts.append(
+                {
+                    "attempt": attempt,
+                    "status": error.code,
+                    "reason": error.reason,
+                }
+            )
 
             if error.code == 304:
-                return None, {
-                    "status": 304,
-                    "etag": conditional.get(
-                        "If-None-Match"
-                    ),
-                    "last_modified": conditional.get(
-                        "If-Modified-Since"
-                    ),
-                    "duration_seconds": round(
-                        time.time() - started,
-                        3
-                    ),
-                    "final_url": url,
-                }, attempts
+                return (
+                    None,
+                    {
+                        "status": 304,
+                        "etag": conditional.get("If-None-Match"),
+                        "last_modified": conditional.get("If-Modified-Since"),
+                        "duration_seconds": round(time.time() - started, 3),
+                        "final_url": url,
+                    },
+                    attempts,
+                )
 
             if error.code in NO_RETRY_STATUS:
                 raise FetchError(
@@ -386,23 +307,13 @@ def fetch_with_retry(
                 ) from error
 
             if 400 <= error.code < 500:
-                raise FetchError(
-                    f"{error.code} {error.reason} for {url}"
-                ) from error
+                raise FetchError(f"{error.code} {error.reason} for {url}") from error
 
-        except (
-            urllib.error.URLError,
-            TimeoutError
-        ) as error:
-
-            attempts.append({
-                "attempt": attempt,
-                "error": str(error)
-            })
+        except (urllib.error.URLError, TimeoutError) as error:
+            attempts.append({"attempt": attempt, "error": str(error)})
 
         if attempt < MAX_ATTEMPTS:
-
-            delay = BACKOFF_BASE_SECONDS ** attempt
+            delay = BACKOFF_BASE_SECONDS**attempt
 
             LOG.warning(
                 "attempt %d failed for %s, retrying in %ds",
@@ -413,9 +324,7 @@ def fetch_with_retry(
 
             time.sleep(delay)
 
-    raise FetchError(
-        f"All {MAX_ATTEMPTS} attempts failed for {url}"
-    )
+    raise FetchError(f"All {MAX_ATTEMPTS} attempts failed for {url}")
 
 
 def check_payload_shape(
@@ -439,22 +348,19 @@ def check_payload_shape(
     if not body:
         raise FetchError(f"{source_id} returned an empty body")
 
-    if head[:14].lower().startswith(b"<!doctype html") or head[:5].lower() == b"<html":
-        if fmt not in {"html", "htm"}:
-            raise FetchError(
-                f"{source_id} returned an HTML page, not {fmt}. The resource may "
-                f"have been withdrawn, moved or made private."
-            )
+    if (
+        head[:14].lower().startswith(b"<!doctype html") or head[:5].lower() == b"<html"
+    ) and fmt not in {"html", "htm"}:
+        raise FetchError(
+            f"{source_id} returned an HTML page, not {fmt}. The resource may "
+            f"have been withdrawn, moved or made private."
+        )
 
     if fmt in {"kml", "xml", "gpx"} and not head.startswith(b"<"):
-        raise FetchError(
-            f"{source_id} declares {fmt} but the body does not begin with an XML tag"
-        )
+        raise FetchError(f"{source_id} declares {fmt} but the body does not begin with an XML tag")
 
     if fmt in {"zip", "kmz", "xlsx", "shp"} and not body.startswith(b"PK"):
-        raise FetchError(
-            f"{source_id} declares {fmt} but the body carries no zip signature"
-        )
+        raise FetchError(f"{source_id} declares {fmt} but the body carries no zip signature")
 
     if fmt == "json" and head[:1] not in (b"{", b"["):
         raise FetchError(
@@ -462,55 +368,34 @@ def check_payload_shape(
         )
 
     if fmt == "csv" and head.startswith(b"PK"):
-        raise FetchError(
-            f"{source_id} declares csv but the body is a zip archive"
-        )
+        raise FetchError(f"{source_id} declares csv but the body is a zip archive")
 
 
-def object_key(
-    raw_prefix: str,
-    run_date: str,
-    filename: str
-) -> str:
+def object_key(raw_prefix: str, run_date: str, filename: str) -> str:
 
     return f"{raw_prefix}/dt={run_date}/{filename}"
 
 
-def manifest_key(
-    raw_prefix: str,
-    run_date: str,
-    run_id: str
-) -> str:
+def manifest_key(raw_prefix: str, run_date: str, run_id: str) -> str:
 
-    return (
-        f"_manifests/{raw_prefix}/dt={run_date}/"
-        f"run-{run_id}.json"
-    )
+    return f"_manifests/{raw_prefix}/dt={run_date}/run-{run_id}.json"
 
 
 def latest_manifest_key(raw_prefix: str) -> str:
     return f"_manifests/{raw_prefix}/latest.json"
 
 
-def read_latest_manifest(
-    raw_prefix: str
-) -> dict[str, Any] | None:
+def read_latest_manifest(raw_prefix: str) -> dict[str, Any] | None:
 
     try:
-        response = s3.get_object(
-            Bucket=RAW_BUCKET,
-            Key=latest_manifest_key(raw_prefix)
-        )
+        response = s3.get_object(Bucket=RAW_BUCKET, Key=latest_manifest_key(raw_prefix))
 
-        return json.loads(
-            response["Body"].read().decode("utf-8")
-        )
+        return json.loads(response["Body"].read().decode("utf-8"))
 
     except s3.exceptions.NoSuchKey:
         return None
 
     except ClientError as error:
-
         code = error.response.get("Error", {}).get("Code")
 
         # First run for a prefix: there is no previous manifest and no previous
@@ -536,17 +421,10 @@ def json_default(value: Any) -> str:
     if isinstance(value, (date, datetime)):
         return value.isoformat()
 
-    raise TypeError(
-        f"{type(value).__name__} is not JSON serialisable"
-    )
+    raise TypeError(f"{type(value).__name__} is not JSON serialisable")
 
 
-def write_manifest(
-    raw_prefix: str,
-    run_date: str,
-    run_id: str,
-    manifest: dict[str, Any]
-) -> str:
+def write_manifest(raw_prefix: str, run_date: str, run_id: str, manifest: dict[str, Any]) -> str:
 
     body = json.dumps(
         manifest,
@@ -555,11 +433,7 @@ def write_manifest(
         default=json_default,
     ).encode("utf-8")
 
-    key = manifest_key(
-        raw_prefix,
-        run_date,
-        run_id
-    )
+    key = manifest_key(raw_prefix, run_date, run_id)
 
     s3.put_object(
         Bucket=RAW_BUCKET,
@@ -591,111 +465,62 @@ def ascii_metadata(value: str, limit: int = 1024) -> str:
     which is the most expensive place to fail.
     """
 
-    return (
-        value.encode("ascii", "ignore").decode("ascii")[:limit]
-    )
+    return value.encode("ascii", "ignore").decode("ascii")[:limit]
 
 
-def filename_for(
-    card: dict[str, Any],
-    url: str,
-    response_meta: dict[str, Any]
-) -> str:
+def filename_for(card: dict[str, Any], url: str, response_meta: dict[str, Any]) -> str:
 
-    disposition = response_meta.get(
-        "content_disposition"
-    ) or ""
+    disposition = response_meta.get("content_disposition") or ""
 
     match = re.search(
         r'filename\*?=(?:UTF-8\'\')?"?([^";]+)"?',
         disposition,
     )
 
-    if match:
-        filename = match.group(1)
-    else:
-        filename = Path(
-            urllib.parse.urlsplit(url).path
-        ).name
+    filename = match.group(1) if match else Path(urllib.parse.urlsplit(url).path).name
 
-    filename = re.sub(
-        r"[^A-Za-z0-9._-]",
-        "_",
-        filename
-    ).strip("._")
+    filename = re.sub(r"[^A-Za-z0-9._-]", "_", filename).strip("._")
 
-    expected_extension = (
-        "."
-        + card["retrieval"]["format"].lower()
-    )
+    expected_extension = "." + card["retrieval"]["format"].lower()
 
-    if (
-        not filename
-        or Path(filename).suffix.lower()
-        != expected_extension
-    ):
-        filename = (
-            card["retrieval"]["raw_prefix"]
-            + expected_extension
-        )
+    if not filename or Path(filename).suffix.lower() != expected_extension:
+        filename = card["retrieval"]["raw_prefix"] + expected_extension
 
     return filename
 
 
-def fetch_source(
-    source_id: str,
-    force: bool = False
-) -> dict[str, Any]:
+def fetch_source(source_id: str, force: bool = False) -> dict[str, Any]:
 
     if not RAW_BUCKET:
-        raise RuntimeError(
-            "RAW_BUCKET is not set"
-        )
+        raise RuntimeError("RAW_BUCKET is not set")
 
     card = load_source_card(source_id)
 
     if card.get("tier") not in FETCHABLE_TIERS:
-        raise NotFetchable(
-            f"{source_id} is not a fetchable source"
-        )
+        raise NotFetchableError(f"{source_id} is not a fetchable source")
 
     retrieval = card["retrieval"]
     raw_prefix = retrieval["raw_prefix"]
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     run_date = now.strftime("%Y-%m-%d")
-    run_id = now.strftime(
-        "%Y%m%dT%H%M%SZ"
-    )
+    run_id = now.strftime("%Y%m%dT%H%M%SZ")
 
-    url, url_provenance = resolve_download_url(
-        card
-    )
+    url, url_provenance = resolve_download_url(card)
 
-    previous = (
-        read_latest_manifest(raw_prefix)
-        or {}
-    )
+    previous = read_latest_manifest(raw_prefix) or {}
 
     conditional = {}
 
     if not force:
-
         if previous.get("etag"):
-            conditional["If-None-Match"] = (
-                previous["etag"]
-            )
+            conditional["If-None-Match"] = previous["etag"]
 
         elif previous.get("last_modified"):
-            conditional["If-Modified-Since"] = (
-                previous["last_modified"]
-            )
+            conditional["If-Modified-Since"] = previous["last_modified"]
 
-    body, response_meta, attempts = fetch_with_retry(
-        url,
-        conditional
-    )
+    body, response_meta, attempts = fetch_with_retry(url, conditional)
 
     manifest = {
         "source_id": source_id,
@@ -709,19 +534,14 @@ def fetch_source(
         "http": response_meta,
         "attempts": attempts,
         "etag": response_meta.get("etag"),
-        "last_modified": response_meta.get(
-            "last_modified"
-        ),
+        "last_modified": response_meta.get("last_modified"),
         # Recorded so the transform and the profiling notebooks can tell a
         # source with no publisher-side change detection from one that simply
         # had not changed. A source offering neither header is hash-only.
         "conditional_get_available": bool(
-            response_meta.get("etag")
-            or response_meta.get("last_modified")
+            response_meta.get("etag") or response_meta.get("last_modified")
         ),
-        "publisher_last_updated": card.get(
-            "publisher_last_updated"
-        ),
+        "publisher_last_updated": card.get("publisher_last_updated"),
         "licence": {
             "name": card["licence"].get("name"),
             "version": card["licence"].get("version"),
@@ -732,17 +552,16 @@ def fetch_source(
     }
 
     if body is None:
-
-        manifest.update({
-            "outcome": "no_change",
-            "reason": "http_304_not_modified",
-            "sha256": previous.get("sha256"),
-            "bytes": previous.get("bytes"),
-            "object_key": previous.get(
-                "object_key"
-            ),
-            "object_written": False,
-        })
+        manifest.update(
+            {
+                "outcome": "no_change",
+                "reason": "http_304_not_modified",
+                "sha256": previous.get("sha256"),
+                "bytes": previous.get("bytes"),
+                "object_key": previous.get("object_key"),
+                "object_written": False,
+            }
+        )
 
         written = write_manifest(
             raw_prefix,
@@ -774,7 +593,7 @@ def fetch_source(
     expected = retrieval.get("expected_sha256")
     if expected:
         manifest["expected_sha256"] = expected
-        manifest["sha256_matches_pin"] = (expected == digest)
+        manifest["sha256_matches_pin"] = expected == digest
         if expected != digest:
             log_json(
                 "HASH_PIN_MISMATCH",
@@ -783,19 +602,15 @@ def fetch_source(
                 pinned=expected,
             )
 
-    if (
-        not force
-        and previous.get("sha256") == digest
-    ):
-
-        manifest.update({
-            "outcome": "no_change",
-            "reason": "identical_payload_hash",
-            "object_key": previous.get(
-                "object_key"
-            ),
-            "object_written": False,
-        })
+    if not force and previous.get("sha256") == digest:
+        manifest.update(
+            {
+                "outcome": "no_change",
+                "reason": "identical_payload_hash",
+                "object_key": previous.get("object_key"),
+                "object_written": False,
+            }
+        )
 
         written = write_manifest(
             raw_prefix,
@@ -814,21 +629,14 @@ def fetch_source(
     key = object_key(
         raw_prefix,
         run_date,
-        filename_for(
-            card,
-            url,
-            response_meta
-        ),
+        filename_for(card, url, response_meta),
     )
 
     s3.put_object(
         Bucket=RAW_BUCKET,
         Key=key,
         Body=body,
-        ContentType=(
-            response_meta.get("content_type")
-            or "application/octet-stream"
-        ),
+        ContentType=(response_meta.get("content_type") or "application/octet-stream"),
         ServerSideEncryption=SSE_ALGORITHM,
         # The lifecycle rule transitions on this tag rather than on a prefix, so
         # the payloads age into Glacier Instant Retrieval while _manifests/ stays
@@ -843,11 +651,13 @@ def fetch_source(
         },
     )
 
-    manifest.update({
-        "outcome": "landed",
-        "object_key": key,
-        "object_written": True,
-    })
+    manifest.update(
+        {
+            "outcome": "landed",
+            "object_key": key,
+            "object_written": True,
+        }
+    )
 
     written = write_manifest(
         raw_prefix,
@@ -882,15 +692,10 @@ def requested_source_ids(event: dict[str, Any]) -> list[str]:
     if event.get("source_id"):
         return [event["source_id"]]
 
-    raise ValueError(
-        "Event carries neither source_id nor source_ids"
-    )
+    raise ValueError("Event carries neither source_id nor source_ids")
 
 
-def handler(
-    event: dict[str, Any],
-    context: Any = None
-) -> dict[str, Any]:
+def handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]:
     """Lambda entry point.
 
     One schedule rule can cover several sources, so a failure on one must not
@@ -907,14 +712,10 @@ def handler(
     failures: list[str] = []
 
     for source_id in source_ids:
-
         try:
-            results.append(
-                fetch_source(source_id, force=force)
-            )
+            results.append(fetch_source(source_id, force=force))
 
-        except NotFetchable as error:
-
+        except NotFetchableError as error:
             # DS-06 is a request-time routing service, not a file. It is in the
             # register because the licence and attribution obligations are real,
             # but there is nothing to land. Skipping is the correct outcome, not
@@ -925,14 +726,15 @@ def handler(
                 reason=str(error),
             )
 
-            results.append({
-                "outcome": "skipped",
-                "source_id": source_id,
-                "reason": str(error),
-            })
+            results.append(
+                {
+                    "outcome": "skipped",
+                    "source_id": source_id,
+                    "reason": str(error),
+                }
+            )
 
         except Exception as error:
-
             log_json(
                 "FETCH_FAILED",
                 source_id=source_id,
@@ -942,12 +744,14 @@ def handler(
 
             failures.append(source_id)
 
-            results.append({
-                "outcome": "failed",
-                "source_id": source_id,
-                "error_type": type(error).__name__,
-                "error": str(error),
-            })
+            results.append(
+                {
+                    "outcome": "failed",
+                    "source_id": source_id,
+                    "error_type": type(error).__name__,
+                    "error": str(error),
+                }
+            )
 
     summary = {
         "requested": source_ids,
@@ -959,8 +763,7 @@ def handler(
 
     if failures:
         raise FetchError(
-            f"Fetch failed for {', '.join(failures)}. "
-            f"See the run summary in this log stream."
+            f"Fetch failed for {', '.join(failures)}. See the run summary in this log stream."
         )
 
     return summary

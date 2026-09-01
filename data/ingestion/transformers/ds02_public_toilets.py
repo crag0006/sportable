@@ -297,9 +297,7 @@ def transform(
                     "ambulant": None,
                     "left_hand_transfer": None,
                     "right_hand_transfer": None,
-                    "accessible_parking_on_site": _flag(
-                        row.get("ParkingAccessible")
-                    ),
+                    "accessible_parking_on_site": _flag(row.get("ParkingAccessible")),
                     "changing_places": bool(changing),
                     "byo_sling": _flag(row.get("BYOSling")),
                     "has_shower": _flag(row.get("ACShower")),

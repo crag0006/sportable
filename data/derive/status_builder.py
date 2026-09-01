@@ -68,10 +68,7 @@ class StatusOutcome:
             for status, n in sorted(counts.items(), key=lambda kv: -kv[1]):
                 lines.append(f"    {status:<26} {n:,}")
 
-            lines.append(
-                f"    {'confirmed share':<26} "
-                f"{round(100 * confirmed / total, 1)}%"
-            )
+            lines.append(f"    {'confirmed share':<26} {round(100 * confirmed / total, 1)}%")
 
         return "\n".join(lines)
 
@@ -102,21 +99,15 @@ def _nearest_sql(kind: str) -> str:
 def build(conn, load_run_id: int) -> StatusOutcome:
     """Build the venue accessibility statuses and access chain."""
 
-    venues = conn.execute(
-        "SELECT count(*) AS n FROM venue"
-    ).fetchone()["n"]
+    venues = conn.execute("SELECT count(*) AS n FROM venue").fetchone()["n"]
 
     if venues == 0:
-        raise RuntimeError(
-            "No venues loaded. Run the DS-01 load before the status builder."
-        )
+        raise RuntimeError("No venues loaded. Run the DS-01 load before the status builder.")
 
     # Get the amenity types currently loaded.
     present = {
         r["kind"]
-        for r in conn.execute(
-            "SELECT DISTINCT kind::text AS kind FROM amenity"
-        ).fetchall()
+        for r in conn.execute("SELECT DISTINCT kind::text AS kind FROM amenity").fetchall()
     }
 
     venue_attributes = {
@@ -135,15 +126,10 @@ def build(conn, load_run_id: int) -> StatusOutcome:
     by_kind: dict[str, dict[str, int]] = {}
 
     for kind, venue_column in KINDS.items():
-
         nearest: dict[str, tuple[str | None, float | None]] = {}
 
         if kind in present:
-            for row in conn.execute(
-                _nearest_sql(kind),
-                {"kind": kind}
-            ).fetchall():
-
+            for row in conn.execute(_nearest_sql(kind), {"kind": kind}).fetchall():
                 vid = row["venue_id"]
                 aid = row["amenity_id"]
                 dist = row["distance_m"]
@@ -154,32 +140,20 @@ def build(conn, load_run_id: int) -> StatusOutcome:
 
                 current = nearest.get(vid)
 
-                if (
-                    current is None
-                    or current[1] is None
-                    or dist < current[1]
-                ):
+                if current is None or current[1] is None or dist < current[1]:
                     nearest[vid] = (aid, float(dist))
 
         counts: dict[str, int] = {}
 
         for venue_id, attributes in venue_attributes.items():
-            amenity_id, distance = nearest.get(
-                venue_id,
-                (None, None)
-            )
+            amenity_id, distance = nearest.get(venue_id, (None, None))
 
             published = None
 
             if venue_column:
-                published = attributes[
-                    venue_column.replace("onsite_", "")
-                ]
+                published = attributes[venue_column.replace("onsite_", "")]
 
-            near_enough = (
-                distance is not None
-                and distance <= CONFIRM_WITHIN_M
-            )
+            near_enough = distance is not None and distance <= CONFIRM_WITHIN_M
 
             # Venue-level information takes priority over nearby amenities.
             if published == CONFIRMED:
@@ -202,15 +176,9 @@ def build(conn, load_run_id: int) -> StatusOutcome:
                 status = NO_INFO
                 basis = "spatial_proximity"
 
-            keep_amenity = (
-                amenity_id if distance is not None else None
-            )
+            keep_amenity = amenity_id if distance is not None else None
 
-            keep_distance = (
-                round(distance, 1)
-                if distance is not None
-                else None
-            )
+            keep_distance = round(distance, 1) if distance is not None else None
 
             status_rows.append(
                 (
@@ -221,12 +189,9 @@ def build(conn, load_run_id: int) -> StatusOutcome:
                     basis,
                     keep_amenity,
                     keep_distance,
-                    keep_distance is not None
-                    and keep_distance <= 250,
-                    keep_distance is not None
-                    and keep_distance <= 500,
-                    keep_distance is not None
-                    and keep_distance <= 1000,
+                    keep_distance is not None and keep_distance <= 250,
+                    keep_distance is not None and keep_distance <= 500,
+                    keep_distance is not None and keep_distance <= 1000,
                 )
             )
 
@@ -268,7 +233,7 @@ def _build_chain(conn, venues: int) -> int:
 
     rows: list[tuple] = []
 
-    statuses = {}
+    statuses: dict[Any, dict[str, Any]] = {}
 
     for r in conn.execute(
         """
@@ -280,13 +245,10 @@ def _build_chain(conn, venues: int) -> int:
           FROM venue_amenity_status
         """
     ).fetchall():
-
         statuses.setdefault(r["venue_id"], {})[r["kind"]] = r
 
     for venue_id in statuses:
-
         for link, kinds in LINK_SOURCES.items():
-
             if not kinds:
                 rows.append(
                     (
@@ -301,16 +263,9 @@ def _build_chain(conn, venues: int) -> int:
                 )
                 continue
 
-            candidates = [
-                statuses[venue_id][k]
-                for k in kinds
-                if k in statuses[venue_id]
-            ]
+            candidates = [statuses[venue_id][k] for k in kinds if k in statuses[venue_id]]
 
-            confirmed = [
-                c for c in candidates
-                if c["status"] == CONFIRMED
-            ]
+            confirmed = [c for c in candidates if c["status"] == CONFIRMED]
 
             if confirmed:
                 best = min(
@@ -322,15 +277,10 @@ def _build_chain(conn, venues: int) -> int:
                 )
 
                 if best["basis"] == "publisher_attribute":
-                    detail = (
-                        f"published at the venue "
-                        f"({best['kind'].replace('_', ' ')})"
-                    )
+                    detail = f"published at the venue ({best['kind'].replace('_', ' ')})"
                 else:
                     detail = (
-                        f"nearest "
-                        f"{best['kind'].replace('_', ' ')} "
-                        f"{int(best['distance_m'])} m away"
+                        f"nearest {best['kind'].replace('_', ' ')} {int(best['distance_m'])} m away"
                     )
 
                 rows.append(
@@ -343,18 +293,14 @@ def _build_chain(conn, venues: int) -> int:
                     )
                 )
 
-            elif any(
-                c["status"] == NOT_AVAILABLE
-                for c in candidates
-            ):
+            elif any(c["status"] == NOT_AVAILABLE for c in candidates):
                 rows.append(
                     (
                         venue_id,
                         link,
                         NOT_AVAILABLE,
                         "publisher_attribute",
-                        "the venue's own record states this "
-                        "is not available",
+                        "the venue's own record states this is not available",
                     )
                 )
 
@@ -365,8 +311,7 @@ def _build_chain(conn, venues: int) -> int:
                         link,
                         NO_INFO,
                         "spatial_proximity",
-                        "no source in the register answers "
-                        "this for this venue",
+                        "no source in the register answers this for this venue",
                     )
                 )
 
