@@ -1,7 +1,21 @@
 """
 Fetch source files and store them in the raw zone.
 
-The source details come from the YAML source cards.
+The source details come from the YAML source cards, which are packaged into the
+deployment artefact under /var/task/sources by `make package`.
+
+Runs as an AWS Lambda outside the VPC (stage 1 of the pipeline). The same module
+runs unchanged on a laptop against the real bucket, or against the local stub in
+scripts/fetch_run.py, so what is tested locally is what is deployed.
+
+Event shapes accepted:
+
+    {"source_id": "DS-01"}                       one source
+    {"source_ids": ["DS-01", "DS-02"]}           a schedule group
+    {"source_ids": ["DS-01"], "force": true}     ignore conditional GET and hash
+
+EventBridge Scheduler supplies the second shape as a constant JSON payload, one
+per schedule rule.
 """
 
 from __future__ import annotations
@@ -21,17 +35,38 @@ from typing import Any
 
 import boto3
 import yaml
+from botocore.config import Config
+from botocore.exceptions import ClientError
 
 
 LOG = logging.getLogger()
 LOG.setLevel(logging.INFO)
 
-s3 = boto3.client("s3")
+IN_LAMBDA = bool(os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+
+# Adaptive mode backs off on S3 throttling instead of failing the run. The fetch
+# itself has its own retry loop; this only covers the put and get calls.
+s3 = boto3.client(
+    "s3",
+    config=Config(
+        retries={"max_attempts": 5, "mode": "adaptive"},
+        connect_timeout=10,
+        read_timeout=60,
+    ),
+)
 
 RAW_BUCKET = os.environ.get("RAW_BUCKET", "")
+
+# In Lambda the cards sit beside the code at /var/task/sources. Locally the
+# default resolves next to this file, and scripts/fetch_run.py overrides it to
+# data/sources so the repo copy stays the single source of truth.
 REGISTER_DIR = Path(
     os.environ.get("REGISTER_DIR", Path(__file__).parent / "sources")
 )
+
+# Written on every object so a bucket policy can require encryption in transit
+# and at rest without the fetch silently failing.
+SSE_ALGORITHM = os.environ.get("SSE_ALGORITHM", "AES256")
 
 MAX_ATTEMPTS = int(os.environ.get("MAX_ATTEMPTS", "3"))
 BACKOFF_BASE_SECONDS = 2
@@ -54,6 +89,23 @@ class FetchError(RuntimeError):
 
 class NotFetchable(ValueError):
     pass
+
+
+def log_json(event_name: str, **fields: Any) -> None:
+    """Emit one structured line per notable event.
+
+    CloudWatch metric filters key off the `event` field, so a hash mismatch or a
+    quarantined publish becomes a graphable metric and an alarm rather than a
+    line someone has to notice in the log.
+    """
+
+    LOG.info(
+        json.dumps(
+            {"event": event_name, **fields},
+            default=json_default,
+            sort_keys=True,
+        )
+    )
 
 
 def load_source_card(source_id: str) -> dict[str, Any]:
@@ -457,6 +509,19 @@ def read_latest_manifest(
     except s3.exceptions.NoSuchKey:
         return None
 
+    except ClientError as error:
+
+        code = error.response.get("Error", {}).get("Code")
+
+        # First run for a prefix: there is no previous manifest and no previous
+        # snapshot. That is a normal cold start, not a fault.
+        if code in {"NoSuchKey", "404", "NoSuchBucket"}:
+            return None
+
+        # AccessDenied here would mean every run looks like a first run and the
+        # conditional GET never fires, so it is surfaced rather than swallowed.
+        raise
+
     except Exception as error:
         LOG.warning(
             "Could not read latest manifest for %s: %s",
@@ -501,16 +566,34 @@ def write_manifest(
         Key=key,
         Body=body,
         ContentType="application/json",
+        ServerSideEncryption=SSE_ALGORITHM,
     )
 
+    # The run manifest above is the immutable record. This one is a pointer the
+    # next run reads for the ETag and the previous hash, and it is overwritten
+    # every run. Bucket versioning keeps the history of it regardless.
     s3.put_object(
         Bucket=RAW_BUCKET,
         Key=latest_manifest_key(raw_prefix),
         Body=body,
         ContentType="application/json",
+        ServerSideEncryption=SSE_ALGORITHM,
     )
 
     return key
+
+
+def ascii_metadata(value: str, limit: int = 1024) -> str:
+    """S3 user metadata is header data and must be US-ASCII.
+
+    A publisher URL carrying a percent-unescaped non-ASCII character would make
+    put_object fail after the payload has already been downloaded and verified,
+    which is the most expensive place to fail.
+    """
+
+    return (
+        value.encode("ascii", "ignore").decode("ascii")[:limit]
+    )
 
 
 def filename_for(
@@ -559,18 +642,15 @@ def filename_for(
     return filename
 
 
-def handler(
-    event: dict[str, Any],
-    context: Any = None
+def fetch_source(
+    source_id: str,
+    force: bool = False
 ) -> dict[str, Any]:
 
     if not RAW_BUCKET:
         raise RuntimeError(
             "RAW_BUCKET is not set"
         )
-
-    source_id = event["source_id"]
-    force = bool(event.get("force"))
 
     card = load_source_card(source_id)
 
@@ -696,11 +776,11 @@ def handler(
         manifest["expected_sha256"] = expected
         manifest["sha256_matches_pin"] = (expected == digest)
         if expected != digest:
-            LOG.warning(
-                "%s payload hash %s does not match the pinned %s",
-                source_id,
-                digest,
-                expected,
+            log_json(
+                "HASH_PIN_MISMATCH",
+                source_id=source_id,
+                observed=digest,
+                pinned=expected,
             )
 
     if (
@@ -749,11 +829,17 @@ def handler(
             response_meta.get("content_type")
             or "application/octet-stream"
         ),
+        ServerSideEncryption=SSE_ALGORITHM,
+        # The lifecycle rule transitions on this tag rather than on a prefix, so
+        # the payloads age into Glacier Instant Retrieval while _manifests/ stays
+        # in Standard. Every run reads latest.json; that one should not be paying
+        # a retrieval price.
+        Tagging="zone=raw",
         Metadata={
             "source-id": source_id,
             "sha256": digest,
             "retrieved-at": now.isoformat(),
-            "source-url": url[:1024],
+            "source-url": ascii_metadata(url),
         },
     )
 
@@ -770,6 +856,14 @@ def handler(
         manifest,
     )
 
+    log_json(
+        "FETCH_LANDED",
+        source_id=source_id,
+        object_key=key,
+        sha256=digest,
+        bytes=len(body),
+    )
+
     return {
         "outcome": "landed",
         "source_id": source_id,
@@ -778,3 +872,95 @@ def handler(
         "bytes": len(body),
         "manifest_key": written,
     }
+
+
+def requested_source_ids(event: dict[str, Any]) -> list[str]:
+
+    if event.get("source_ids"):
+        return list(event["source_ids"])
+
+    if event.get("source_id"):
+        return [event["source_id"]]
+
+    raise ValueError(
+        "Event carries neither source_id nor source_ids"
+    )
+
+
+def handler(
+    event: dict[str, Any],
+    context: Any = None
+) -> dict[str, Any]:
+    """Lambda entry point.
+
+    One schedule rule can cover several sources, so a failure on one must not
+    stop the rest: a DataVic outage should not also cost the week's toilet map.
+    Every source is attempted, results are collected, and the invocation is
+    failed at the end only if something actually failed. That final raise is
+    what drives the Errors metric and the CloudWatch alarm.
+    """
+
+    source_ids = requested_source_ids(event)
+    force = bool(event.get("force"))
+
+    results: list[dict[str, Any]] = []
+    failures: list[str] = []
+
+    for source_id in source_ids:
+
+        try:
+            results.append(
+                fetch_source(source_id, force=force)
+            )
+
+        except NotFetchable as error:
+
+            # DS-06 is a request-time routing service, not a file. It is in the
+            # register because the licence and attribution obligations are real,
+            # but there is nothing to land. Skipping is the correct outcome, not
+            # a failure, and it must never page anyone.
+            log_json(
+                "FETCH_SKIPPED",
+                source_id=source_id,
+                reason=str(error),
+            )
+
+            results.append({
+                "outcome": "skipped",
+                "source_id": source_id,
+                "reason": str(error),
+            })
+
+        except Exception as error:
+
+            log_json(
+                "FETCH_FAILED",
+                source_id=source_id,
+                error_type=type(error).__name__,
+                error=str(error),
+            )
+
+            failures.append(source_id)
+
+            results.append({
+                "outcome": "failed",
+                "source_id": source_id,
+                "error_type": type(error).__name__,
+                "error": str(error),
+            })
+
+    summary = {
+        "requested": source_ids,
+        "failed": failures,
+        "results": results,
+    }
+
+    log_json("FETCH_RUN_SUMMARY", **summary)
+
+    if failures:
+        raise FetchError(
+            f"Fetch failed for {', '.join(failures)}. "
+            f"See the run summary in this log stream."
+        )
+
+    return summary
