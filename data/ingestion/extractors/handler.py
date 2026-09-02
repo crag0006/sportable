@@ -96,9 +96,7 @@ def load_source_card(source_id: str) -> dict[str, Any]:
     matches = sorted(REGISTER_DIR.glob(f"{source_id}_*.yaml"))
 
     if not matches:
-        raise FileNotFoundError(
-            f"No source card found for {source_id} in {REGISTER_DIR}"
-        )
+        raise FileNotFoundError(f"No source card found for {source_id} in {REGISTER_DIR}")
 
     card = yaml.safe_load(matches[0].read_text(encoding="utf-8"))
 
@@ -154,14 +152,10 @@ def resolve_download_url(
 
         wanted_format = (config.get("format") or "CSV").upper()
 
-        api_root = (
-            config.get("api_root")
-            or _ckan_root(retrieval["landing_page"])
-        )
+        api_root = config.get("api_root") or _ckan_root(retrieval["landing_page"])
 
-        api_url = (
-            f"{api_root}/api/3/action/package_show?"
-            + urllib.parse.urlencode({"id": package_id})
+        api_url = f"{api_root}/api/3/action/package_show?" + urllib.parse.urlencode(
+            {"id": package_id}
         )
 
         body, _ = _http_get(api_url, headers={})
@@ -173,10 +167,7 @@ def resolve_download_url(
         resources = [
             resource
             for resource in data["result"].get("resources", [])
-            if (
-                (resource.get("format") or "").upper() == wanted_format
-                and resource.get("url")
-            )
+            if ((resource.get("format") or "").upper() == wanted_format and resource.get("url"))
         ]
 
         if not resources:
@@ -191,14 +182,9 @@ def resolve_download_url(
             "resolver": "ckan_resource_lookup",
             "package_id": package_id,
             "resource_id": selected.get("id"),
-            "resource_last_modified": (
-                selected.get("last_modified")
-                or selected.get("created")
-            ),
+            "resource_last_modified": (selected.get("last_modified") or selected.get("created")),
             "registered_url": retrieval["download_url"],
-            "url_changed_since_register": (
-                selected["url"] != retrieval["download_url"]
-            ),
+            "url_changed_since_register": (selected["url"] != retrieval["download_url"]),
         }
 
         if provenance["url_changed_since_register"]:
@@ -304,9 +290,7 @@ def fetch_with_retry(
                     {
                         "status": 304,
                         "etag": conditional.get("If-None-Match"),
-                        "last_modified": conditional.get(
-                            "If-Modified-Since"
-                        ),
+                        "last_modified": conditional.get("If-Modified-Since"),
                         "duration_seconds": round(
                             time.time() - started,
                             3,
@@ -323,9 +307,7 @@ def fetch_with_retry(
                 ) from error
 
             if 400 <= error.code < 500:
-                raise FetchError(
-                    f"{error.code} {error.reason} for {url}"
-                ) from error
+                raise FetchError(f"{error.code} {error.reason} for {url}") from error
 
         except (urllib.error.URLError, TimeoutError) as error:
             attempts.append(
@@ -347,9 +329,7 @@ def fetch_with_retry(
 
             time.sleep(delay)
 
-    raise FetchError(
-        f"All {MAX_ATTEMPTS} attempts failed for {url}"
-    )
+    raise FetchError(f"All {MAX_ATTEMPTS} attempts failed for {url}")
 
 
 def check_payload_shape(
@@ -367,8 +347,7 @@ def check_payload_shape(
         raise FetchError(f"{source_id} returned an empty body")
 
     if (
-        head[:14].lower().startswith(b"<!doctype html")
-        or head[:5].lower() == b"<html"
+        head[:14].lower().startswith(b"<!doctype html") or head[:5].lower() == b"<html"
     ) and fmt not in {"html", "htm"}:
         raise FetchError(
             f"{source_id} returned an HTML page, not {fmt}. The resource may "
@@ -376,26 +355,18 @@ def check_payload_shape(
         )
 
     if fmt in {"kml", "xml", "gpx"} and not head.startswith(b"<"):
-        raise FetchError(
-            f"{source_id} declares {fmt} but the body does not begin "
-            f"with an XML tag"
-        )
+        raise FetchError(f"{source_id} declares {fmt} but the body does not begin with an XML tag")
 
     if fmt in {"zip", "kmz", "xlsx", "shp"} and not body.startswith(b"PK"):
-        raise FetchError(
-            f"{source_id} declares {fmt} but the body carries no zip signature"
-        )
+        raise FetchError(f"{source_id} declares {fmt} but the body carries no zip signature")
 
     if fmt == "json" and head[:1] not in (b"{", b"["):
         raise FetchError(
-            f"{source_id} declares json but the body does not begin "
-            f"with an object or array"
+            f"{source_id} declares json but the body does not begin with an object or array"
         )
 
     if fmt == "csv" and head.startswith(b"PK"):
-        raise FetchError(
-            f"{source_id} declares csv but the body is a zip archive"
-        )
+        raise FetchError(f"{source_id} declares csv but the body is a zip archive")
 
 
 def object_key(
@@ -430,9 +401,7 @@ def read_latest_manifest(
             Key=latest_manifest_key(raw_prefix),
         )
 
-        return json.loads(
-            response["Body"].read().decode("utf-8")
-        )
+        return json.loads(response["Body"].read().decode("utf-8"))
 
     except s3.exceptions.NoSuchKey:
         return None
@@ -459,9 +428,7 @@ def json_default(value: Any) -> str:
     if isinstance(value, (date, datetime)):
         return value.isoformat()
 
-    raise TypeError(
-        f"{type(value).__name__} is not JSON serialisable"
-    )
+    raise TypeError(f"{type(value).__name__} is not JSON serialisable")
 
 
 def write_manifest(
@@ -527,11 +494,7 @@ def filename_for(
         disposition,
     )
 
-    filename = (
-        match.group(1)
-        if match
-        else Path(urllib.parse.urlsplit(url).path).name
-    )
+    filename = match.group(1) if match else Path(urllib.parse.urlsplit(url).path).name
 
     filename = re.sub(
         r"[^A-Za-z0-9._-]",
@@ -541,14 +504,8 @@ def filename_for(
 
     expected_extension = "." + card["retrieval"]["format"].lower()
 
-    if (
-        not filename
-        or Path(filename).suffix.lower() != expected_extension
-    ):
-        filename = (
-            card["retrieval"]["raw_prefix"]
-            + expected_extension
-        )
+    if not filename or Path(filename).suffix.lower() != expected_extension:
+        filename = card["retrieval"]["raw_prefix"] + expected_extension
 
     return filename
 
@@ -564,9 +521,7 @@ def fetch_source(
     card = load_source_card(source_id)
 
     if card.get("tier") not in FETCHABLE_TIERS:
-        raise NotFetchableError(
-            f"{source_id} is not a fetchable source"
-        )
+        raise NotFetchableError(f"{source_id} is not a fetchable source")
 
     retrieval = card["retrieval"]
     raw_prefix = retrieval["raw_prefix"]
@@ -608,8 +563,7 @@ def fetch_source(
         "etag": response_meta.get("etag"),
         "last_modified": response_meta.get("last_modified"),
         "conditional_get_available": bool(
-            response_meta.get("etag")
-            or response_meta.get("last_modified")
+            response_meta.get("etag") or response_meta.get("last_modified")
         ),
         "publisher_last_updated": card.get("publisher_last_updated"),
         "licence": {
@@ -707,10 +661,7 @@ def fetch_source(
         Bucket=RAW_BUCKET,
         Key=key,
         Body=body,
-        ContentType=(
-            response_meta.get("content_type")
-            or "application/octet-stream"
-        ),
+        ContentType=(response_meta.get("content_type") or "application/octet-stream"),
         ServerSideEncryption=SSE_ALGORITHM,
         Tagging="zone=raw",
         Metadata={
@@ -764,9 +715,7 @@ def requested_source_ids(
     if event.get("source_id"):
         return [event["source_id"]]
 
-    raise ValueError(
-        "Event carries neither source_id nor source_ids"
-    )
+    raise ValueError("Event carries neither source_id nor source_ids")
 
 
 def handler(
@@ -838,8 +787,7 @@ def handler(
 
     if failures:
         raise FetchError(
-            f"Fetch failed for {', '.join(failures)}. "
-            f"See the run summary in this log stream."
+            f"Fetch failed for {', '.join(failures)}. See the run summary in this log stream."
         )
 
     return summary

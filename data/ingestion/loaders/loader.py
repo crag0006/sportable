@@ -179,9 +179,7 @@ def clip_to_scope(
     if frame.empty:
         return frame, frame
 
-    row = conn.execute(
-        "SELECT count(*) AS n FROM lga WHERE in_greater_melbourne"
-    ).fetchone()
+    row = conn.execute("SELECT count(*) AS n FROM lga WHERE in_greater_melbourne").fetchone()
 
     if not row or row["n"] == 0:
         raise RuntimeError(
@@ -206,9 +204,7 @@ def clip_to_scope(
             """
         )
 
-        with cur.copy(
-            "COPY _scope_check (idx, lon, lat) FROM STDIN"
-        ) as copy:
+        with cur.copy("COPY _scope_check (idx, lon, lat) FROM STDIN") as copy:
             for record in points:
                 copy.write_row(record)
 
@@ -271,39 +267,29 @@ def _upsert(
         lon_i = columns.index(lon_col)
         lat_i = columns.index(lat_col)
 
-        target_columns = [
-            c for c in columns
-            if c not in (lon_col, lat_col)
-        ] + ["geom"]
+        target_columns = [c for c in columns if c not in (lon_col, lat_col)] + ["geom"]
 
-        parts = [
-            "%s"
-            for c in columns
-            if c not in (lon_col, lat_col)
-        ]
+        parts = ["%s" for c in columns if c not in (lon_col, lat_col)]
 
         # Put longitude and latitude at the end because they are used
         # to create the geometry in SQL.
         reordered = []
 
         for r in rows:
-            keep = [
-                v
-                for i, v in enumerate(r)
-                if i not in (lon_i, lat_i)
-            ]
+            keep = [v for i, v in enumerate(r) if i not in (lon_i, lat_i)]
 
             keep += [r[lon_i], r[lat_i]]
             reordered.append(keep)
 
         rows = reordered
-        values_expression = ", ".join([*parts,f"ST_SetSRID(ST_MakePoint(%s, %s), {SRID})",])
+        values_expression = ", ".join(
+            [
+                *parts,
+                f"ST_SetSRID(ST_MakePoint(%s, %s), {SRID})",
+            ]
+        )
 
-    updates = ", ".join(
-        f"{c} = EXCLUDED.{c}"
-        for c in target_columns
-        if c not in key_columns
-    )
+    updates = ", ".join(f"{c} = EXCLUDED.{c}" for c in target_columns if c not in key_columns)
 
     sql = f"""
         INSERT INTO {table} ({", ".join(target_columns)})
@@ -503,9 +489,7 @@ def load_venues(
     if loaded and not venue_sports.empty:
         ids = tuple(kept["venue_id"].tolist())
 
-        sports = venue_sports[
-            venue_sports["venue_id"].isin(kept["venue_id"])
-        ]
+        sports = venue_sports[venue_sports["venue_id"].isin(kept["venue_id"])]
 
         with conn.cursor() as cur:
             cur.execute(

@@ -134,9 +134,7 @@ def apply_parent_inheritance(
     df = stops.copy()
 
     if "wheelchair_boarding" in df.columns:
-        df["wheelchair_boarding_raw"] = df["wheelchair_boarding"].map(
-            _wheelchair_value
-        )
+        df["wheelchair_boarding_raw"] = df["wheelchair_boarding"].map(_wheelchair_value)
     else:
         df["wheelchair_boarding_raw"] = WB_INHERIT_OR_UNKNOWN
 
@@ -151,8 +149,7 @@ def apply_parent_inheritance(
     df["parent_key"] = parent_column
 
     parents = {
-        (row["mode_id"], row["stop_id"]): row["wheelchair_boarding_raw"]
-        for _, row in df.iterrows()
+        (row["mode_id"], row["stop_id"]): row["wheelchair_boarding_raw"] for _, row in df.iterrows()
     }
 
     effective = []
@@ -202,16 +199,12 @@ def transform(
 ) -> TransformResult:
     """Transform DS-03 GTFS stops into amenities and quarantine rows."""
 
-    stats: dict[str, Any] = {
-        "rows_read": len(stops)
-    }
+    stats: dict[str, Any] = {"rows_read": len(stops)}
 
     missing = [c for c in REQUIRED_COLUMNS if c not in stops.columns]
 
     if missing:
-        raise ValueError(
-            f"DS-03 stops frame is missing required columns: {missing}"
-        )
+        raise ValueError(f"DS-03 stops frame is missing required columns: {missing}")
 
     df = stops.copy()
 
@@ -332,9 +325,7 @@ def transform(
     )
 
     if len(amenities):
-        duplicate_ids = int(
-            amenities["amenity_id"].duplicated().sum()
-        )
+        duplicate_ids = int(amenities["amenity_id"].duplicated().sum())
 
         if duplicate_ids:
             raise ValueError(

@@ -88,9 +88,7 @@ def transform(
 
     stats: dict[str, Any] = {"features_read": len(features)}
 
-    missing = [
-        c for c in (CODE_COLUMN, NAME_COLUMN) if c not in features.columns
-    ]
+    missing = [c for c in (CODE_COLUMN, NAME_COLUMN) if c not in features.columns]
 
     if missing:
         raise ValueError(

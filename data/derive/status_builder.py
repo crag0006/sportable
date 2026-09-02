@@ -109,23 +109,15 @@ class StatusOutcome:
             for status, n in sorted(counts.items(), key=lambda kv: -kv[1]):
                 lines.append(f"    {status:<26} {n:,}")
 
-            lines.append(
-                f"    {'confirmed share':<26} "
-                f"{round(100 * confirmed / total, 1)}%"
-            )
+            lines.append(f"    {'confirmed share':<26} {round(100 * confirmed / total, 1)}%")
 
             extra = self.attachments.get(kind, {})
 
             if extra.get("details"):
-                lines.append(
-                    f"    {'detail attached':<26} {extra['details']:,}"
-                )
+                lines.append(f"    {'detail attached':<26} {extra['details']:,}")
 
             if extra.get("alternatives"):
-                lines.append(
-                    f"    {'nearby alternative shown':<26} "
-                    f"{extra['alternatives']:,}"
-                )
+                lines.append(f"    {'nearby alternative shown':<26} {extra['alternatives']:,}")
 
         return "\n".join(lines)
 
@@ -158,21 +150,15 @@ def _nearest_sql(kind: str) -> str:
 def build(conn, load_run_id: int) -> StatusOutcome:
     """Build the venue accessibility statuses and access chain."""
 
-    venues = conn.execute(
-        "SELECT count(*) AS n FROM venue"
-    ).fetchone()["n"]
+    venues = conn.execute("SELECT count(*) AS n FROM venue").fetchone()["n"]
 
     if venues == 0:
-        raise RuntimeError(
-            "No venues loaded. Run the DS-01 load before the status builder."
-        )
+        raise RuntimeError("No venues loaded. Run the DS-01 load before the status builder.")
 
     # Check which amenity kinds are currently available.
     present = {
         r["kind"]
-        for r in conn.execute(
-            "SELECT DISTINCT kind::text AS kind FROM amenity"
-        ).fetchall()
+        for r in conn.execute("SELECT DISTINCT kind::text AS kind FROM amenity").fetchall()
     }
 
     for kind in KINDS:
@@ -200,15 +186,10 @@ def build(conn, load_run_id: int) -> StatusOutcome:
     attachments: dict[str, dict[str, int]] = {}
 
     for kind, venue_column in KINDS.items():
-
         nearest: dict[str, tuple[str | None, str | None, float | None]] = {}
 
         if kind in present:
-            for row in conn.execute(
-                _nearest_sql(kind),
-                {"kind": kind}
-            ).fetchall():
-
+            for row in conn.execute(_nearest_sql(kind), {"kind": kind}).fetchall():
                 vid = row["venue_id"]
                 aid = row["amenity_id"]
                 dist = row["distance_m"]
@@ -219,11 +200,7 @@ def build(conn, load_run_id: int) -> StatusOutcome:
 
                 current = nearest.get(vid)
 
-                if (
-                    current is None
-                    or current[2] is None
-                    or dist < current[2]
-                ):
+                if current is None or current[2] is None or dist < current[2]:
                     nearest[vid] = (aid, row["source_id"], float(dist))
 
         counts: dict[str, int] = {}
@@ -238,14 +215,9 @@ def build(conn, load_run_id: int) -> StatusOutcome:
             published = None
 
             if venue_column:
-                published = attributes[
-                    venue_column.replace("onsite_", "")
-                ]
+                published = attributes[venue_column.replace("onsite_", "")]
 
-            near_enough = (
-                distance is not None
-                and distance <= CONFIRM_WITHIN_M
-            )
+            near_enough = distance is not None and distance <= CONFIRM_WITHIN_M
 
             # The venue's own published value always takes priority.
             # Nearby facilities are only used when the venue has not
@@ -275,26 +247,16 @@ def build(conn, load_run_id: int) -> StatusOutcome:
                 basis = "spatial_proximity"
                 source_id = None
 
-            keep_amenity = (
-                amenity_id if distance is not None else None
-            )
+            keep_amenity = amenity_id if distance is not None else None
 
-            keep_distance = (
-                round(distance, 1)
-                if distance is not None
-                else None
-            )
+            keep_distance = round(distance, 1) if distance is not None else None
 
             # Keep a nearby public facility as an alternative when the
             # venue itself says that it does not have the facility.
             alternative_amenity = None
             alternative_distance = None
 
-            if (
-                status == NOT_AVAILABLE
-                and amenity_id is not None
-                and keep_distance is not None
-            ):
+            if status == NOT_AVAILABLE and amenity_id is not None and keep_distance is not None:
                 alternative_amenity = amenity_id
                 alternative_distance = keep_distance
 
@@ -325,12 +287,9 @@ def build(conn, load_run_id: int) -> StatusOutcome:
                     source_id,
                     keep_amenity,
                     keep_distance,
-                    keep_distance is not None
-                    and keep_distance <= 250,
-                    keep_distance is not None
-                    and keep_distance <= 500,
-                    keep_distance is not None
-                    and keep_distance <= 1000,
+                    keep_distance is not None and keep_distance <= 250,
+                    keep_distance is not None and keep_distance <= 500,
+                    keep_distance is not None and keep_distance <= 1000,
                     alternative_amenity,
                     alternative_distance,
                     detail_amenity,
@@ -402,13 +361,10 @@ def _build_chain(conn) -> int:
           FROM venue_amenity_status
         """
     ).fetchall():
-
         statuses.setdefault(r["venue_id"], {})[r["kind"]] = r
 
     for venue_id in statuses:
-
         for link, kind in LINK_KIND.items():
-
             if kind is None:
                 rows.append(
                     (
@@ -480,10 +436,7 @@ def _detail_for(record: dict[str, Any]) -> str:
             return f"The venue's own record publishes {facility} on site."
 
         if record["status"] == NOT_AVAILABLE:
-            return (
-                f"The venue's own record states there is no {facility} "
-                "on site."
-            )
+            return f"The venue's own record states there is no {facility} on site."
 
     if record["status"] == CONFIRMED and record["distance_m"] is not None:
         return (
