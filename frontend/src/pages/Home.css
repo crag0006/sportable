@@ -1,0 +1,440 @@
+/* Use the same sizing for all elements */
+* {
+  box-sizing: border-box;
+}
+
+/* Main page */
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #1a1a1a;
+}
+
+/* Main layout */
+.split {
+  display: grid;
+  grid-template-columns: 480px 1fr;
+  min-height: 100vh;
+}
+
+/* Left side */
+.split-left {
+  background-color: #0c1c2d;
+  padding: 1.75rem 2rem;
+  max-height: 100vh;
+  overflow-y: auto;
+}
+
+/* Right side */
+.split-right {
+  background-color: #f3f6f5;
+  max-height: 100vh;
+  overflow-y: auto;
+}
+
+/* Homepage image */
+.photo {
+  width: 100%;
+  min-height: 100vh;
+  background-image: url("/images/image.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
+/* Logo */
+.hero-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: white;
+  margin-bottom: 1.5rem;
+}
+
+.hero-name {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.hero-tagline {
+  font-size: 0.9rem;
+  color: #b9c6d3;
+}
+
+/* Main heading */
+.hero-headline {
+  color: white;
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0 0 1.5rem 0;
+  border-left: 4px solid #ffbf47;
+  padding-left: 0.9rem;
+}
+
+/* Search panel */
+.panel {
+  background-color: white;
+  padding: 1.25rem;
+  border-radius: 10px;
+}
+
+/* Form field */
+.field {
+  position: relative;
+}
+
+.second-field {
+  margin-top: 0.8rem;
+}
+
+label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1a2733;
+  margin-bottom: 0.3rem;
+}
+
+/* Text input */
+.input {
+  width: 100%;
+  height: 42px;
+  padding: 0 0.7rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  background-color: white;
+  border: 1px solid #87919a;
+  border-radius: 6px;
+}
+
+.input:focus {
+  border-color: #14507a;
+}
+
+/* Suggestions */
+.suggestions {
+  position: absolute;
+  width: 100%;
+  z-index: 10;
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0 0;
+  background-color: white;
+  border: 1px solid #c4cbd2;
+  border-radius: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.suggestions button {
+  width: 100%;
+  padding: 10px;
+  text-align: left;
+  font-family: inherit;
+  background-color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.suggestions button:hover {
+  background-color: #eef4f9;
+}
+
+/* No match message */
+.no-match {
+  color: #96231f;
+  font-size: 0.8rem;
+  margin-top: 5px;
+}
+
+/* Form headings */
+.section-title {
+  font-size: 0.95rem;
+  color: #0c1c2d;
+  margin: 1rem 0 0.6rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid #e6eaee;
+}
+
+/* Amenity checkboxes */
+.checks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.85rem;
+  font-weight: normal;
+  margin: 0;
+}
+
+.check input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: #14507a;
+}
+
+/* Distance choices */
+.distance-options {
+  display: flex;
+  gap: 8px;
+}
+
+.distance-option {
+  flex: 1;
+  padding: 9px 5px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: normal;
+  background-color: #f4f6f8;
+  border: 1px solid #d0d7dd;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.distance-option input {
+  display: none;
+}
+
+.selected-distance {
+  color: white;
+  background-color: #14507a;
+  border-color: #14507a;
+}
+
+/* Error message */
+.form-error {
+  color: #96231f;
+  background-color: #fdf3f2;
+  border: 1px solid #e3b5b3;
+  border-radius: 6px;
+  padding: 10px;
+  margin-top: 1rem;
+  font-size: 0.85rem;
+}
+
+.required {
+  color: #96231f;
+}
+
+/* Search buttons */
+.buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 1.2rem;
+}
+
+.search-button,
+.clear-button {
+  height: 44px;
+  padding: 0 18px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.search-button {
+  color: white;
+  background-color: #14507a;
+  border: 1px solid #14507a;
+}
+
+.search-button:hover {
+  background-color: #0f3d5e;
+}
+
+.clear-button {
+  color: #14507a;
+  background-color: white;
+  border: 1px solid #14507a;
+}
+
+.clear-button:hover {
+  background-color: #eef5fa;
+}
+
+/* Results area */
+.results {
+  max-width: 1100px;
+  padding: 2rem;
+  margin: auto;
+}
+
+/* Results heading */
+.results-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 1.3rem;
+  border-bottom: 3px solid #0c1c2d;
+  padding-bottom: 1rem;
+}
+
+.results-heading h2 {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #0c1c2d;
+}
+
+.results-heading p {
+  margin: 5px 0 0 0;
+  font-size: 0.9rem;
+  color: #63717a;
+}
+
+/* Selected facility distance */
+.filter-badge {
+  padding: 7px 12px;
+  background-color: #e2f5ec;
+  color: #17603f;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Colour guide */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #d6dfdc;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #607074;
+  font-size: 0.78rem;
+}
+
+.legend-box {
+  width: 20px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+/* Green */
+.available-box {
+  background-color: #e2f5ec;
+  border: 1px solid #9bd6bb;
+}
+
+/* Red */
+.problem-box {
+  background-color: #fde9e8;
+  border: 1px solid #e0aaa6;
+}
+
+/* Grey */
+.unknown-box {
+  background-color: #ecefef;
+  border: 1px dashed #a8b1b3;
+}
+
+/* No results */
+.empty-card {
+  padding: 1.5rem;
+  background-color: white;
+  border: 1px solid #d8e0dd;
+  border-radius: 10px;
+}
+
+.empty-card h3 {
+  margin-top: 0;
+}
+
+.empty-card p {
+  margin-bottom: 0;
+  color: #66777a;
+}
+
+/* Missing information */
+.missing-section {
+  margin-top: 1.5rem;
+  padding: 1.2rem;
+  background-color: white;
+  border: 1px dashed #aab5b2;
+  border-radius: 8px;
+}
+
+.missing-section h3 {
+  margin: 0 0 10px 0;
+  font-size: 1rem;
+}
+
+.missing-venue {
+  padding: 10px 0;
+  font-size: 0.85rem;
+  border-top: 1px solid #edf0ef;
+}
+
+.missing-venue:first-of-type {
+  border-top: none;
+}
+
+.missing-venue p {
+  margin: 5px 0 0 0;
+  color: #66777a;
+  line-height: 1.5;
+}
+
+/* Keyboard focus */
+:focus-visible {
+  outline: 3px solid #2b8c69;
+  outline-offset: 2px;
+}
+
+/* Smaller screens */
+@media (max-width: 900px) {
+  .split {
+    grid-template-columns: 1fr;
+  }
+
+  .split-left,
+  .split-right {
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  .photo {
+    min-height: 300px;
+  }
+
+  .results {
+    padding: 1.3rem;
+  }
+
+  .results-heading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .checks {
+    grid-template-columns: 1fr;
+  }
+
+  .distance-options,
+  .buttons {
+    flex-direction: column;
+  }
+
+  .search-button,
+  .clear-button {
+    width: 100%;
+  }
+}

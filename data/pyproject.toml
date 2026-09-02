@@ -1,0 +1,89 @@
+# ==============================================================================
+# sportable-data — ingestion and derivation code
+# ==============================================================================
+#
+# WHY THIS IS SEPARATE FROM backend/pyproject.toml
+#   The two run in different Lambda functions with different jobs. The API
+#   Lambda is latency-sensitive and lives inside a 250 MB unzipped package
+#   limit; the ingestion Lambdas are batch jobs that will want heavier libraries
+#   (pandas, shapely, geopandas). Sharing one dependency set would drag every
+#   one of those into the API's package, inflating its cold start for no reason.
+#
+#   Separate projects, separate lock files, separate blast radius.
+#
+# ADDING A DEPENDENCY — Data team
+#   cd data && uv add pandas          updates pyproject.toml AND uv.lock
+#   Commit BOTH files. CI runs `uv sync --frozen`, which fails if they disagree.
+#   Never `pip install` — it changes your machine and nothing else.
+#
+# STYLE
+#   Ruff configuration is deliberately absent here. It lives in ../ruff.toml so
+#   that data/ and backend/ are linted identically. mypy and pytest stay local,
+#   because they need this package's installed dependencies.
+# ==============================================================================
+
+[project]
+name = "sportable-data"
+version = "0.1.0"
+description = "SportAble Melbourne — open-data ingestion, validation and derivation"
+requires-python = ">=3.12"
+
+# Runtime dependencies are the Data team's call. Add them with `uv add` as the
+# extractors, transformers and loaders are written.
+dependencies = [
+    "boto3>=1.43.83",
+    "geopandas>=1.1.4",
+    "jupyter>=1.1.1",
+    "openpyxl>=3.1.5",
+    "pandas>=3.0.5",
+    # psycopg 3, NOT psycopg2. loaders/loader.py does `import psycopg` and
+    # `from psycopg.rows import dict_row`, which exist only in v3 — with
+    # psycopg2-binary the module is named `psycopg2` and the loader fails at
+    # import. backend/ is on v3 as well, so this also keeps one driver in the
+    # project rather than two.
+    "psycopg[binary]>=3.2",
+    "pyyaml>=6.0.3",
+    "shapely>=2.1.2",
+    "sqlalchemy>=2.0.52",
+    "tabulate>=0.10.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=5.0",
+    "mypy>=1.13",
+    # CI runs `uv run ruff check .` in this directory, and each uv project has
+    # its own environment — backend/ having ruff does nothing for data/.
+    # Without this the Lint step fails with "Failed to spawn: ruff", which reads
+    # like a broken runner rather than a missing dependency.
+    #
+    # Style itself is NOT configured here: ruff.toml at the repository root is
+    # shared with backend/, so both folders lint to one standard.
+    "ruff>=0.16",
+]
+
+[tool.mypy]
+python_version = "3.12"
+# Deliberately not `strict` yet: ingestion code deals in loosely-typed payloads
+# from third-party portals, and strict mode on day one produces noise rather
+# than signal. Tighten it once the column contracts in schemas/ are settled.
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+# These ship no type information and no py.typed marker, so mypy refuses to
+# import them. A tooling gap rather than a defect in our code: pandas-stubs and
+# friends are generated, large, and have to be pinned in step with the runtime
+# package. Revisit if the transformers grow enough that typed DataFrames would
+# genuinely catch something.
+[[tool.mypy.overrides]]
+module = ["boto3", "botocore.*", "pandas.*", "yaml"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# data/ on sys.path so tests import `ingestion.*` and `derive.*` directly.
+pythonpath = ["."]
+addopts = "--cov=ingestion --cov=derive --cov-report=term-missing"
+markers = ["integration: requires a live PostGIS container"]

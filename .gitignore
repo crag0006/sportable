@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# uv
+uv.lock.bak
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+# ...and the bare name, which `terraform plan -out=tfplan` produces. The glob
+# above does not match a file with no extension.
+tfplan
+crash.log
+.terraform.lock.hcl.bak
+override.tf
+override.tf.json
+
+# Lambda build artefacts
+build/
+*.zip
+
+# Data
+data/notebooks/**/*.ipynb_checkpoints/
+data/**/output/
+*.csv
+*.geojson
+*.parquet
+!data/sources/*.csv
+
+# Secrets — never commit; use SSM Parameter Store
+.env
+.env.*
+*.pem
+*.key
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Personal planning notes — kept outside the repo
+iteration-*-tasks.md
+iteration-1-infra-backend-tasks.md
+
+# Lambda deployment packages built by archive_file at plan time
+infra/modules/*/.build/
+*.zip
+
+# Fetched raw data. scripts/fetch_run.py --target local writes here; the real
+# raw zone is the versioned S3 bucket. These are tens of megabytes of publisher
+# payloads that are re-fetchable on demand and must never enter git history —
+# once committed, a 40 MB shapefile is in every clone forever.
+data/_raw/

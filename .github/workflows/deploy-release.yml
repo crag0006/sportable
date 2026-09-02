@@ -1,0 +1,196 @@
+# ==============================================================================
+# Deploy — iteration release
+# ==============================================================================
+#
+# WHAT THIS IS FOR
+#   Each iteration is submitted at its own URL, and that URL has to keep showing
+#   what was submitted after the team moves on. Staging cannot do that: it has
+#   one bucket and one distribution, and every push to `dev` overwrites them.
+#
+#   So each iteration has its own environment under infra/envs/iteration-N/,
+#   with its own bucket, distribution and domain. This workflow deploys a
+#   release branch into the matching one.
+#
+#     release-iteration-1  ->  infra/envs/iteration-1  ->  sportablemelbourne-iteration1.me
+#     release-iteration-2  ->  infra/envs/iteration-2  ->  ...
+#
+# HOW IT DIFFERS FROM deploy-staging.yml
+#   FRONTEND ONLY. No terraform apply, no Lambda, no alias shift, no migrations.
+#   The API and the database are shared with staging, so a release deploy must
+#   not touch them — its whole job is to publish a frozen bundle.
+#
+#   Infrastructure for an iteration environment is applied deliberately, by
+#   hand, when the iteration is set up. It is not something a release push
+#   should be able to change.
+# ==============================================================================
+
+name: Deploy — iteration release
+
+on:
+  push:
+    branches: ["release-iteration-*"]
+
+  # For re-publishing a submitted iteration without an empty commit — after a
+  # cache problem, or to confirm the URL still serves after a DNS change.
+  workflow_dispatch:
+
+# One release at a time. cancel-in-progress is false for the same reason as the
+# staging deploy: a cancelled upload can leave a bucket half old and half new.
+concurrency:
+  group: deploy-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-southeast-2
+  ROLE_ARN: arn:aws:iam::725699850301:role/sportable-github-deploy
+  TF_VERSION: 1.16.0
+
+jobs:
+  deploy:
+    name: Publish the release bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # release-iteration-1 -> infra/envs/iteration-1
+      #
+      # Derived from the branch name rather than configured, so adding
+      # iteration 2 is a branch and a directory, with nothing to remember to
+      # change here. If the directory does not exist the step fails with that
+      # said plainly, rather than Terraform initialising an empty folder and
+      # reporting no outputs.
+      - name: Which iteration is this?
+        id: env
+        run: |
+          set -euo pipefail
+          branch="${GITHUB_REF_NAME}"
+          dir="infra/envs/${branch#release-}"
+
+          if [ ! -d "$dir" ]; then
+            echo "::error::No environment at $dir for branch $branch. Create it before releasing."
+            exit 1
+          fi
+
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+          echo "Deploying $branch from $dir"
+
+      - name: Assume the deploy role
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: release-${{ github.run_id }}
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          # The wrapper decorates stdout and breaks `terraform output -raw`.
+          terraform_wrapper: false
+
+      # init and READ only. The environment's infrastructure is applied by hand;
+      # this workflow only needs to know where to put files.
+      - name: Read the environment's outputs
+        id: tf
+        working-directory: ${{ steps.env.outputs.dir }}
+        run: |
+          set -euo pipefail
+          terraform init -input=false
+          {
+            echo "site_bucket=$(terraform output -raw site_bucket)"
+            echo "distribution_id=$(terraform output -raw distribution_id)"
+            echo "site_url=$(terraform output -raw site_url)"
+          } >> "$GITHUB_OUTPUT"
+          echo "Publishing to $(terraform output -raw site_url)"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build the frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      # Two uploads, because the right cache policy differs by file.
+      #
+      # Hashed assets are immutable — the name changes when the content does —
+      # so they are cached for a year. index.html is NOT hashed: it is the file
+      # that names the current assets, so it must never be cached or a returning
+      # visitor keeps loading last month's bundle. On a submitted iteration that
+      # would be permanent.
+      - name: Upload to S3
+        run: |
+          set -euo pipefail
+          aws s3 sync frontend/dist "s3://${{ steps.tf.outputs.site_bucket }}/" \
+            --delete \
+            --exclude "index.html" \
+            --cache-control "public,max-age=31536000,immutable"
+          aws s3 cp frontend/dist/index.html "s3://${{ steps.tf.outputs.site_bucket }}/index.html" \
+            --cache-control "no-cache,must-revalidate"
+
+      - name: Invalidate the CloudFront cache
+        run: |
+          set -euo pipefail
+          ID=$(aws cloudfront create-invalidation \
+                 --distribution-id "${{ steps.tf.outputs.distribution_id }}" \
+                 --paths "/*" --query 'Invalidation.Id' --output text)
+          echo "Invalidation $ID — waiting."
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "${{ steps.tf.outputs.distribution_id }}" --id "$ID"
+
+      # Tested through the public URL, because that is the address being
+      # submitted. A green upload proves files exist; only a request proves the
+      # distribution, the certificate and the SPA fallback all agree.
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          URL="${{ steps.tf.outputs.site_url }}"
+          echo "Testing $URL"
+
+          fail() { echo "::error::$1"; exit 1; }
+
+          for attempt in 1 2 3 4 5; do
+            CODE=$(curl -s -o /tmp/root.html -w '%{http_code}' "$URL/" || echo 000)
+            [ "$CODE" = "200" ] && break
+            echo "attempt $attempt: HTTP $CODE — retrying in 5s"
+            sleep 5
+          done
+          [ "$CODE" = "200" ] || fail "site root returned HTTP $CODE"
+
+          grep -qi '<div id="root"' /tmp/root.html \
+            || fail "index.html does not look like the built SPA"
+
+          # A deep link must fall back to index.html rather than 404 — this is
+          # what makes /venues/<id> work on a refresh.
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' "$URL/venues/does-not-exist")
+          [ "$CODE" = "200" ] || fail "SPA fallback returned HTTP $CODE"
+
+          # The API is shared with staging and reached through this
+          # distribution. If this fails the bundle is fine but the page will be
+          # empty, which is worth knowing before a marker finds out.
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/v1/health")
+          [ "$CODE" = "200" ] || fail "shared API not reachable through this distribution (HTTP $CODE)"
+
+          echo "Smoke test passed."
+
+      - name: Summary
+        run: |
+          {
+            echo "### Released ${GITHUB_REF_NAME}"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| URL | ${{ steps.tf.outputs.site_url }} |"
+            echo "| Environment | \`${{ steps.env.outputs.dir }}\` |"
+            echo "| Bucket | \`${{ steps.tf.outputs.site_bucket }}\` |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
