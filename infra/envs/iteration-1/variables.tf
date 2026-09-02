@@ -41,7 +41,7 @@ variable "enable_custom_domain" {
     Flip it to true once that prints ISSUED, then apply again.
   EOT
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "api_origin_domain" {
