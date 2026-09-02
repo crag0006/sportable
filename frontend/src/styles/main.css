@@ -157,7 +157,10 @@ svg {
 .drawer-card,
 .mini-note-card,
 .hero-card,
-.section-card,
+/* A teal accent stripe across the top of each section */
+.section-card {
+  border-top: 4px solid #0f4f59;
+}
 .map-card,
 .disclaimer-card {
   background: var(--surface-alt);
@@ -307,7 +310,9 @@ svg {
 }
 
 .field-label,
-.side-label,
+.side-label {
+  color: #58707e;
+}
 .eyebrow {
   color: #58707e;
 }
@@ -710,7 +715,7 @@ svg {
 .hero-copy-main p,
 .hero-card > p:not(.eyebrow) {
   margin: 8px 0 0;
-  color: var(--text-soft);
+  color: #3f545e;
   line-height: 1.6;
 }
 
@@ -740,11 +745,11 @@ svg {
 
 .hero-panel {
   padding: 18px;
-  border-radius: 18px;
-  background: #fff;
-  border: 1px solid #dde5e3;
+  border-radius: 14px;
+  background: #f2f9f8;
+  border: 1px solid #cfe7e3;
+  border-left: 4px solid #0f4f59;
 }
-
 .hero-panel span {
   display: block;
   margin-bottom: 6px;
@@ -752,7 +757,7 @@ svg {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #60727c;
+  color: #33474f;
 }
 
 .hero-panel strong {
@@ -764,9 +769,31 @@ svg {
 
 .hero-panel p {
   margin: 6px 0 0;
-  color: var(--text-soft);
+  color: #3f545e;
   line-height: 1.5;
   font-size: 14px;
+}
+
+.get-directions-button {
+  display: inline-block;
+  padding: 12px 28px;
+  border-radius: 999px;
+  background: #0f4f59;
+  color: white;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(15, 79, 89, 0.25);
+}
+
+.get-directions-button:hover {
+  background: #0c3e46;
+}
+
+.hero-top-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
 }
 
 .chips {
@@ -779,8 +806,9 @@ svg {
 .chip {
   padding: 8px 12px;
   border-radius: 999px;
-  background: #edf1f0;
-  color: #37505c;
+  background: #e0f2f1;
+  color: #0f4f59;
+  border: 1px solid #b2dfdb;
   font-size: 13px;
   font-weight: 700;
 }
@@ -797,6 +825,56 @@ svg {
 
 .facility-card {
   grid-template-columns: 46px minmax(0, 1fr);
+}
+
+/* Color-code each facility card by status, same green/red/grey system
+   used on the search results page */
+.facility-within,
+.facility-at_venue {
+  background: #e2f5ec;
+  border-color: #9bd6bb;
+}
+
+.facility-beyond,
+.facility-absent {
+  background: #fde9e8;
+  border-color: #e0aaa6;
+}
+
+.facility-unknown {
+  background: #ecefef;
+  border: 1px dashed #a8b1b3;
+}
+
+.distance-pill--within,
+.distance-pill--at_venue {
+  background: #d7f0e2;
+  border-color: #9bd6bb;
+  color: #17603f;
+}
+
+.distance-pill--beyond,
+.distance-pill--absent {
+  background: #fbdedb;
+  border-color: #e0aaa6;
+  color: #a52b26;
+}
+
+.distance-pill--unknown {
+  background: #e6e9e9;
+  border-color: #a8b1b3;
+  color: #55636a;
+}
+
+/* Sport chip colour, matching the search results page */
+.chip {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #e0f2f1;
+  color: #0f4f59;
+  border: 1px solid #b2dfdb;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .route-item {
@@ -856,6 +934,111 @@ svg {
   font-size: 15px;
   font-weight: 800;
   white-space: nowrap;
+}
+
+/* Simple full-width layout for the venue detail page — replaces the
+   old two-column layout that left a big empty box on the left. */
+.venue-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #eaf4f2 0%, #f6f8f7 45%, #eef5f4 100%);
+}
+
+.venue-topbar {
+  position: relative;
+  background:
+    linear-gradient(120deg, rgba(12, 28, 45, 0.92), rgba(12, 28, 45, 0.86)),
+    url('../assets/home-access.jpg') center center / cover no-repeat;
+  padding: 1rem 2rem;
+}
+
+.venue-topbar-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.venue-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: #fff;
+}
+
+.venue-brand-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.venue-brand-tagline {
+  font-size: 0.75rem;
+  color: #b9c6d3;
+}
+
+.venue-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.venue-back-link:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.venue-content {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1.75rem 2rem 3rem;
+  display: grid;
+  gap: 18px;
+}
+
+/* A photo banner at the top of the venue detail page */
+.venue-banner {
+  position: relative;
+  height: 200px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: url('../assets/home-access.jpg') center center / cover no-repeat;
+}
+
+.venue-banner-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 20px;
+  background: linear-gradient(180deg, rgba(12, 28, 45, 0) 45%, rgba(12, 28, 45, 0.78) 100%);
+}
+
+.venue-banner-text {
+  margin: 0;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+@media (max-width: 640px) {
+  .venue-topbar-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .venue-content {
+    padding: 1.25rem 1rem 2.5rem;
+  }
 }
 
 .meta-grid {
@@ -1806,4 +1989,113 @@ svg {
   .home-direction-button {
     width: 100%;
   }
+}
+
+.types-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.type-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #f2f9f8;
+  border: 1px solid #cfe7e3;
+}
+
+.type-summary-card span {
+  font-size: 0.85rem;
+  color: #33474f;
+}
+
+.type-summary-card strong {
+  font-size: 1.4rem;
+  color: #0f4f59;
+}
+
+.type-summary-card--no_data {
+  background: #f5f5f5;
+  border-color: #ddd;
+}
+
+.type-summary-card--no_data strong {
+  color: #777;
+  font-size: 1rem;
+}
+
+.corridor-map {
+  margin-top: 12px;
+}
+
+.map-note {
+  font-size: 0.85rem;
+  color: #58707e;
+  margin: 8px 0 0 0;
+}
+
+.map-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+  font-size: 0.8rem;
+  color: #33474f;
+  flex-wrap: wrap;
+}
+
+.map-legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.manual-location-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.manual-location-form input {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 10px;
+  border: 1px solid #cfd8dc;
+  border-radius: 8px;
+}
+
+.manual-location-form button {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: #0f4f59;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.view-more-button {
+  margin-top: 14px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid #0f4f59;
+  background: white;
+  color: #0f4f59;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.view-more-button:hover {
+  background: #f2f9f8;
 }

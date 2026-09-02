@@ -33,7 +33,11 @@ export function getVenue(id) {
 }
 
 export function getConfig() {
-  return getJSON('/config')
+  return getJSON('/config').then((data) => ({
+    distanceBandsM: data.distance_bands_m,
+    defaultDistanceM: data.default_distance_m,
+    maxResults: data.max_results,
+  }))
 }
 
 export function getSports() {
@@ -46,6 +50,11 @@ export function getSuburbs() {
   return getJSON('/suburbs').then((body) =>
     (body.suburbs ?? []).map((item) => item.label),
   )
+}
+
+export function getCorridor(venueId, from) {
+  const params = new URLSearchParams({ from })
+  return getJSON(`/venues/${encodeURIComponent(venueId)}/corridor?${params.toString()}`)
 }
 
 export function searchVenues({ sport, suburb, toilet, parking, stop, change, limit }) {

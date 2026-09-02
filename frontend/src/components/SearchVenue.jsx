@@ -143,15 +143,11 @@ facilityKeys.forEach((key) => {
           <p className="venue-location">
             {venue.suburb} {venue.postcode}
           </p>
-        </div>
-
-       <div className="venue-distance">
-            <span className="distance-label">Venue distance</span>
-            <strong>{venue.distance} km away</strong>
-                  </div>
+        </div>       
       </div>
 
       {/* Sports */}
+      <p className="sports-heading">Other sports offered here:</p>
       <div className="sport-chips">
         {venue.sports.map((venueSport) => (
           <span
@@ -163,10 +159,9 @@ facilityKeys.forEach((key) => {
         ))}
       </div>
 
-      {/* Surface */}
       <p className="surface-text">
         <strong>Surface:</strong>{" "}
-        {venue.surface}
+        {venue.surface || "Information Not available"}
       </p>
 
       <div className="access-heading">

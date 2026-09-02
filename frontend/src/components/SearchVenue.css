@@ -29,45 +29,30 @@
   color: #66777a;
 }
 
-/* Distance to the venue */
-.venue-distance {
-  min-width: 120px;
-  padding: 8px 12px;
-  background-color: #e7f3f1;
-  border-radius: 8px;
-  text-align: center;
-  color: #0c4e58;
-}
-
-.distance-label {
-  display: block;
-  margin-bottom: 2px;
-  font-size: 0.68rem;
-  font-weight: 500;
-  color: #66777a;
-}
-
-.venue-distance strong {
-  display: block;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #0c4e58;
-}
-
 /* Sports */
 .sport-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 1rem;
+  margin-top: 0;
 }
 
 .sport-chip {
-  padding: 5px 10px;
-  background-color: #edf1f0;
-  color: #334b50;
+  padding: 5px 12px;
+  background-color: #e0f2f1;
+  color: #0f4f59;
+  border: 1px solid #b2dfdb;
   border-radius: 20px;
   font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* Heading above the sport chips */
+.sports-heading {
+  margin: 14px 0 6px 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #536368;  
 }
 
 /* Surface information */
@@ -91,22 +76,22 @@
 .amenity-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  gap: 8px;
 }
 
 .amenity-box {
-  min-height: 86px;
+  min-height: 64px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 8px 10px;
   border-radius: 7px;
 }
 
 .facility-icon {
-  width: 32px;
+  width: 26px;
   text-align: center;
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   flex-shrink: 0;
 }
 
@@ -115,14 +100,14 @@
 }
 
 .amenity-box strong {
-  font-size: 0.83rem;
+  font-size: 0.76rem;
   color: #19373b;
 }
 
 .amenity-box p {
-  margin: 4px 0 0 0;
-  font-size: 0.76rem;
-  line-height: 1.35;
+  margin: 2px 0 0 0;
+  font-size: 0.7rem;
+  line-height: 1.3;
   color: #536368;
 }
 
