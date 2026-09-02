@@ -77,6 +77,13 @@ body {
   border-radius: 10px;
 }
 
+/* Small grey helper text under a search box */
+.field-hint {
+  margin: 4px 0 0 0;
+  font-size: 0.78rem;
+  color: #8a9699;
+}
+
 /* Form field */
 .field {
   position: relative;
@@ -204,6 +211,26 @@ label {
   color: white;
   background-color: #14507a;
   border-color: #14507a;
+}
+
+
+/* Clickable heading that shows/hides the missing-info list */
+.missing-toggle {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0 0 10px 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #102d32;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.missing-toggle:hover {
+  color: #0f4f59;
 }
 
 /* Error message */
@@ -388,6 +415,26 @@ label {
   margin: 5px 0 0 0;
   color: #66777a;
   line-height: 1.5;
+}
+
+/* "View more venues" button below the results list */
+.view-more-button {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  background-color: white;
+  color: #0f4f59;
+  border: 1px solid #0f4f59;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.view-more-button:hover {
+  background-color: #eef5f4;
 }
 
 /* Keyboard focus */

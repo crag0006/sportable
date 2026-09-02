@@ -1,6 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import DirectionsPage from './pages/DirectionsPage'
-import HomePage from './pages/HomePage'
+import HomePage from './pages/Home'
 import VenueDetailPage from './pages/VenueDetailPage'
 
 export default function App() {

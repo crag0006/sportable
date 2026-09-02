@@ -3,9 +3,22 @@ import VenueCard, { FACILITY_INFO } from "../components/SearchVenue";
 import "./Home.css";
 import { getSports, getSuburbs, getConfig, searchVenues } from "../api/venues";
 
-// We no longer import fake data from "../data/Venues" — this page now
-// asks the real backend for everything instead. You can delete
-// src/data/Venues.js once you've tested this against the real API.
+// Reads whatever search we last saved, so if someone leaves this page
+// (eg to look at one venue) and comes back, they see the same results
+// instead of a blank form. Returns null if nothing was saved yet.
+function getSavedSearch() {
+  try {
+    const saved = sessionStorage.getItem("sportable-last-search");
+
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch {
+    // If the saved data is broken for any reason, just ignore it.
+  }
+
+  return null;
+}
 
 // Turns 1000 into "1km" and 500 into "500m", so the buttons look nice.
 function formatDistanceLabel(meters) {
@@ -27,24 +40,24 @@ function Home() {
   const [distanceBands, setDistanceBands] = useState([250, 500, 1000]); // fallback until backend is live
 
   // Search form values
-  const [sport, setSport] = useState("");
-  const [suburb, setSuburb] = useState("");
+  const [sport, setSport] = useState(() => getSavedSearch()?.sport ?? "");
+  const [suburb, setSuburb] = useState(() => getSavedSearch()?.suburb ?? "");
 
   // Amenity filters
-  const [toilet, setToilet] = useState(false);
-  const [parking, setParking] = useState(false);
-  const [stop, setStop] = useState(false);
-  const [change, setChange] = useState(false);
+  const [toilet, setToilet] = useState(() => getSavedSearch()?.toilet ?? false);
+  const [parking, setParking] = useState(() => getSavedSearch()?.parking ?? false);
+  const [stop, setStop] = useState(() => getSavedSearch()?.stop ?? false);
+  const [change, setChange] = useState(() => getSavedSearch()?.change ?? false);
 
   // Distance filter
-  const [limit, setLimit] = useState("");
+  const [limit, setLimit] = useState(() => getSavedSearch()?.limit ?? "");
 
   // Search suggestions
   const [showSports, setShowSports] = useState(false);
   const [showSuburbs, setShowSuburbs] = useState(false);
 
   // Search results
-  const [results, setResults] = useState(null);
+  const [results, setResults] = useState(() => getSavedSearch()?.results ?? null);
 
   // Error message (form validation)
   const [formError, setFormError] = useState("");
@@ -52,6 +65,13 @@ function Home() {
   // Loading / network-error state for the search call
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
+  
+  // Whether the "missing accessibility information" section is expanded
+  const [showMissing, setShowMissing] = useState(false);
+
+  // How many venue cards to show at once. Starts small; "View more" reveals more.
+  const [visibleCount, setVisibleCount] = useState(() => getSavedSearch()?.visibleCount ?? 5);
+
 
   // As soon as the page opens, ask the backend for the sport list, the
   // suburb list, and the distance choices.
@@ -140,18 +160,41 @@ function Home() {
         limit,
       });
 
-      setResults({
-        total: data.total,
-        matched: data.matched,
-        undocumented: data.undocumented,
-        undocumentedLabel: data.undocumentedLabel,
-        place: data.place,
-        searchedSport: sport,
-        // The backend tells us exactly which distance it used, even if
-        // the user didn't pick one, so we always show the real number.
-        searchedLimit: data.distanceLimitM ? String(data.distanceLimitM) : "",
-        selectedAmenities: selectedAmenities,
-      });
+     const newResults = {
+  total: data.total,
+  matched: data.matched,
+  undocumented: data.undocumented,
+  undocumentedLabel: data.undocumentedLabel,
+  place: data.place,
+  searchedSport: sport,
+  searchedPlace: suburb,
+  searchedLimit: limit,
+  selectedAmenities: selectedAmenities,
+};
+
+setResults(newResults);
+setVisibleCount(5);
+
+// Remember this search, so coming back from a venue page shows the
+// same results instead of an empty form.
+try {
+  sessionStorage.setItem(
+    "sportable-last-search",
+    JSON.stringify({
+      sport,
+      suburb,
+      toilet,
+      parking,
+      stop,
+      change,
+      limit,
+      results: newResults,
+      visibleCount: 5,
+    })
+  );
+} catch {
+  // Not critical if this fails — just skip remembering it.
+}
     } catch (error) {
       setSearchError(
         error.message || "Something went wrong loading venues. Please try again."
@@ -265,6 +308,10 @@ function Home() {
               )}
           </div>
 
+          {/* Small helper text under the box */}
+            <p className="field-hint">Enter minimum 3 letters to search.</p>
+
+
           {/* Suburb */}
           <div className="field second-field">
             <label htmlFor="suburb">
@@ -283,7 +330,7 @@ function Home() {
                 setSuburb(event.target.value);
                 setShowSuburbs(true);
               }}
-            />
+            />            
 
             {showSuburbs && suburbMatches.length > 0 && (
               <ul className="suggestions">
@@ -309,8 +356,12 @@ function Home() {
                 <p className="no-match">
                   Try a Greater Melbourne suburb or postcode.
                 </p>
-              )}
+              )}            
           </div>
+
+          {/* Small helper text under the box */}
+            <p className="field-hint">Enter minimum 3 letters/numbers to search.</p>
+
 
           {/* Amenities */}
           <h2 className="section-title">
@@ -365,7 +416,7 @@ function Home() {
 
           {/* Distance — options now come from GET /config, not hardcoded */}
           <h2 className="section-title">
-            Distance to a facility
+            Preferred Distance to a facility
           </h2>
 
           <div className="distance-options">
@@ -437,13 +488,13 @@ function Home() {
             <div className="results-heading">
               <div>
                 <h2>
-                  {results.matched.length} of{" "}
-                  {results.total} venues found
+                  {results.matched.length === results.total
+                  ? `${results.total} venues found`
+                  : `${results.matched.length} of ${results.total} venues found`}
                 </h2>
 
                 <p>
-                  {results.searchedSport} near{" "}
-                  {results.place}
+                   {results.searchedSport} venues near {results.searchedPlace}
                 </p>
               </div>
 
@@ -468,14 +519,24 @@ function Home() {
             )}
 
             {/* Venue cards */}
-            {results.matched.map((venue) => (
-              <VenueCard
-                key={venue.id}
-                venue={venue}
-                limit={results.searchedLimit}
-              />
-            ))}
+{results.matched.slice(0, visibleCount).map((venue) => (
+  <VenueCard
+    key={venue.id}
+    venue={venue}
+    limit={results.searchedLimit}
+  />
+))}
 
+{/* View more button — only shows if there are more to reveal */}
+{visibleCount < results.matched.length && (
+  <button
+    type="button"
+    className="view-more-button"
+    onClick={() => setVisibleCount(visibleCount + 5)}
+  >
+    View more venues ({results.matched.length - visibleCount} more)
+  </button>
+)}
             {/* Colour guide */}
             {results.matched.length > 0 && (
               <div className="legend">
@@ -496,27 +557,24 @@ function Home() {
               </div>
             )}
 
-            {/* Missing selected information */}
-            {results.undocumented.length > 0 && (
-              <div className="missing-section">
-                <h3>
-                  {results.undocumentedLabel ||
-                    "Missing accessibility information"}
-                </h3>
+          {/* Missing selected information */}
+{results.undocumented.length > 0 && (
+  <div className="missing-section">
+    <button
+      type="button"
+      className="missing-toggle"
+      onClick={() => setShowMissing(!showMissing)}
+    >
+      {results.undocumentedLabel ||
+        "Missing accessibility information"}{" "}
+      ({results.undocumented.length}) {showMissing ? "▲" : "▼"}
+    </button>
 
-                {results.undocumented.map((venue) => {
-                  const missingFacilities =
-                    results.selectedAmenities.filter(
-                      (key) => {
-                        const item =
-                          venue.amenities[key];
-
-                        return (
-                          !item ||
-                          item.state === "none"
-                        );
-                      }
-                    );
+    {showMissing && results.undocumented.map((venue) => {
+       const missingFacilities = results.selectedAmenities.filter((key) => {
+      const item = venue.amenities[key];
+      return !item || item.state === "none";
+    });
 
                   return (
                     <div
