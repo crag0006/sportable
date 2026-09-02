@@ -1,4 +1,6 @@
-export default function VenueHero({ hero }) {
+import { Link } from "react-router-dom";
+
+export default function VenueHero({ hero, venueId }) {
   return (
     <section className="hero-card">
       <p className="eyebrow">{hero.eyebrow}</p>
@@ -9,7 +11,14 @@ export default function VenueHero({ hero }) {
           <p>{hero.address}</p>
         </div>
 
-        {hero.badge ? <div className="hero-badge hero-badge--success">{hero.badge}</div> : null}
+        <div className="hero-top-actions">
+          {hero.badge ? <div className="hero-badge hero-badge--success">{hero.badge}</div> : null}
+          {venueId ? (
+            <Link className="get-directions-button" to={`/venues/${venueId}/directions`}>
+              Get directions
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       {hero.tags?.length ? (
@@ -34,5 +43,5 @@ export default function VenueHero({ hero }) {
         </div>
       ) : null}
     </section>
-  )
+  );
 }

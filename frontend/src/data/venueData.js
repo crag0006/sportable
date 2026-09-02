@@ -44,7 +44,7 @@ export const weatherData = {
 
 export const venueDetailData = {
   sidebarHeadline: 'Venue Information',
-  backLabel: 'Back to venue home',
+  backLabel: 'Back to search results',
   backTo: '/',
   hero: {
     eyebrow: 'Venue detail',
@@ -132,7 +132,7 @@ export const venueFacilities = [
 
 export const directionsPageData = {
   sidebarHeadline: 'Directions',
-  backLabel: 'Back to venue home',
+  backLabel: 'Back to venue',
   backTo: '/venues/1',
   hero: {
     eyebrow: 'Directions',
