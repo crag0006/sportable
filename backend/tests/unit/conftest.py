@@ -14,6 +14,8 @@ from app.api.deps import get_repository
 from app.main import app
 from app.repositories.protocols import (
     ChainRow,
+    CorridorFacilityRow,
+    CorridorResult,
     FacilityRow,
     PlaceRow,
     ReferencePoint,
@@ -69,6 +71,8 @@ VENUES: list[VenueRow] = [
                 "spatial_proximity",
                 45.0,
                 amenity_name="Preston City Oval Toilets",
+                amenity_lat=-37.7398,
+                amenity_lon=145.0101,
                 opening_hours="6:00am - 9:00pm",
                 key_required=True,
                 is_inside_venue=False,
@@ -82,6 +86,8 @@ VENUES: list[VenueRow] = [
                 120.0,
                 FACILITIES,
                 amenity_name="Cramer St bay",
+                amenity_lat=-37.7412,
+                amenity_lon=145.0080,
                 opening_hours="24 hours",
             ),
             _row(
@@ -143,6 +149,59 @@ VENUES: list[VenueRow] = [
 ]
 
 
+# The corridor Preston -> Preston City Oval: two toilets and a parking bay at
+# fixed fractions along the line. Transport stops exist in no dataset (GTFS
+# pending), change facilities exist but none near this line.
+CORRIDOR_TOTALS = {
+    "accessible_toilet": 5,
+    "accessible_parking": 3,
+    "accessible_transport_stop": 0,
+    "accessible_change_facility": 2,
+}
+
+CORRIDOR_ROWS: list[CorridorFacilityRow] = [
+    CorridorFacilityRow(
+        kind="accessible_toilet",
+        name="Gower St toilets",
+        address="1 Gower St, Preston",
+        lat=-37.7410,
+        lon=145.0020,
+        distance_from_path_m=90.0,
+        fraction=0.2,
+        opening_hours="24 hours",
+        key_required=False,
+        source_name=TOILET_MAP[0],
+        source_updated=TOILET_MAP[1],
+        retrieved_at=RETRIEVED,
+    ),
+    CorridorFacilityRow(
+        kind="accessible_parking",
+        name="High St bay",
+        address=None,
+        lat=-37.7405,
+        lon=145.0060,
+        distance_from_path_m=420.0,
+        fraction=0.55,
+        source_name="On-street Car Park Bay Restrictions",
+        source_updated=date(2026, 6, 30),
+        retrieved_at=RETRIEVED,
+    ),
+    CorridorFacilityRow(
+        kind="accessible_toilet",
+        name="Northland",
+        address=None,
+        lat=-37.7396,
+        lon=145.0335,
+        distance_from_path_m=800.0,
+        fraction=0.8,
+        key_required=True,
+        source_name=TOILET_MAP[0],
+        source_updated=TOILET_MAP[1],
+        retrieved_at=RETRIEVED,
+    ),
+]
+
+
 class FakeRepository:
     def list_sports(self) -> list[SportRow]:
         return [SportRow("Basketball", 3), SportRow("Netball", 1), SportRow("Swimming", 1)]
@@ -160,6 +219,18 @@ class FakeRepository:
 
     def get_venue(self, venue_id: str) -> VenueRow | None:
         return next((v for v in VENUES if v.venue_id == venue_id), None)
+
+    def corridor(
+        self, origin: ReferencePoint, venue: VenueRow, within_m: int, kinds: list[str]
+    ) -> CorridorResult:
+        rows = sorted(
+            (r for r in CORRIDOR_ROWS if r.kind in kinds and r.distance_from_path_m <= within_m),
+            key=lambda r: r.fraction,
+        )
+        return CorridorResult(
+            facilities=tuple(rows),
+            totals={kind: CORRIDOR_TOTALS.get(kind, 0) for kind in kinds},
+        )
 
 
 @pytest.fixture

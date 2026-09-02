@@ -42,6 +42,8 @@ KIND_TO_KEY: dict[str, FrontendKey] = {
     "accessible_change_facility": "change",
 }
 
+KEY_TO_KIND: dict[FrontendKey, str] = {key: kind for kind, key in KIND_TO_KEY.items()}
+
 # Everything a client might reasonably send for a facility filter.
 KEY_ALIASES: dict[str, FrontendKey] = {
     "toilet": "toilet",
