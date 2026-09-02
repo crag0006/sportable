@@ -13,6 +13,8 @@ from typing import Any
 from app.core.db import connection
 from app.repositories.protocols import (
     ChainRow,
+    CorridorFacilityRow,
+    CorridorResult,
     FacilityRow,
     PlaceRow,
     ReferencePoint,
@@ -126,6 +128,36 @@ SELECT link::text AS link, status::text AS status, basis::text AS basis, detail
 """
 
 
+SQL_CORRIDOR = f"""
+WITH path AS (
+    SELECT ST_MakeLine(
+               ST_SetSRID(ST_MakePoint(%(origin_lon)s, %(origin_lat)s), {SRID}),
+               ST_SetSRID(ST_MakePoint(%(venue_lon)s, %(venue_lat)s), {SRID})
+           ) AS line
+)
+SELECT a.kind::text AS kind, a.name, a.address,
+       ST_Y(a.geom) AS lat, ST_X(a.geom) AS lon,
+       a.opening_hours, a.key_required, a.retrieved_at,
+       ST_Distance(a.geom::geography, p.line::geography) AS distance_from_path_m,
+       ST_LineLocatePoint(p.line, a.geom) AS fraction,
+       s.name AS source_name, s.publisher_last_updated AS source_updated
+  FROM amenity a
+ CROSS JOIN path p
+  LEFT JOIN source s ON s.source_id = a.source_id
+ WHERE a.kind::text = ANY(%(kinds)s)
+   AND ST_DWithin(a.geom::geography, p.line::geography, %(within_m)s)
+ ORDER BY fraction, distance_from_path_m, a.amenity_id
+ LIMIT 200
+"""
+
+SQL_AMENITY_TOTALS = """
+SELECT kind::text AS kind, count(*) AS total
+  FROM amenity
+ WHERE kind::text = ANY(%(kinds)s)
+ GROUP BY kind
+"""
+
+
 def _float(value: Any) -> float | None:
     if value is None:
         return None
@@ -215,6 +247,46 @@ class PostgresVenueRepository:
                 return None
             venues = self._assemble(conn, [row], with_chain=True)
         return venues[0] if venues else None
+
+    def corridor(
+        self, origin: ReferencePoint, venue: VenueRow, within_m: int, kinds: list[str]
+    ) -> CorridorResult:
+        params = {
+            "origin_lat": origin.latitude,
+            "origin_lon": origin.longitude,
+            "venue_lat": venue.latitude,
+            "venue_lon": venue.longitude,
+            "within_m": within_m,
+            "kinds": kinds,
+        }
+        with connection() as conn:
+            rows = conn.execute(SQL_CORRIDOR, params).fetchall()
+            totals = {
+                t["kind"]: t["total"]
+                for t in conn.execute(SQL_AMENITY_TOTALS, {"kinds": kinds}).fetchall()
+            }
+        facilities = tuple(
+            CorridorFacilityRow(
+                kind=r["kind"],
+                name=r["name"],
+                address=r["address"],
+                lat=float(r["lat"]),
+                lon=float(r["lon"]),
+                distance_from_path_m=_float(r["distance_from_path_m"]) or 0.0,
+                fraction=float(r["fraction"]),
+                opening_hours=r["opening_hours"],
+                key_required=r["key_required"],
+                source_name=r["source_name"],
+                source_updated=(
+                    r["source_updated"] if isinstance(r["source_updated"], date) else None
+                ),
+                retrieved_at=(
+                    r["retrieved_at"] if isinstance(r["retrieved_at"], datetime) else None
+                ),
+            )
+            for r in rows
+        )
+        return CorridorResult(facilities=facilities, totals=totals)
 
     def _assemble(self, conn: Any, rows: list[Any], with_chain: bool) -> list[VenueRow]:
         if not rows:

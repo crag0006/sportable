@@ -24,11 +24,18 @@ from fastapi import APIRouter, Request
 from app.api.deps import Repo, SettingsDep
 from app.core.config import SearchConfig
 from app.core.errors import ApiError
-from app.domain.facilities import FRONTEND_KEYS, FrontendKey, parse_needs, partition
-from app.domain.presenters import venue_card_out, venue_out
+from app.domain.facilities import (
+    FRONTEND_KEYS,
+    KEY_TO_KIND,
+    FrontendKey,
+    parse_needs,
+    partition,
+)
+from app.domain.presenters import corridor_out, venue_card_out, venue_out
 from app.repositories.protocols import ReferencePoint, VenueRepository
 from app.schemas.venues import (
     ConfigOut,
+    CorridorOut,
     HealthOut,
     ReferencePointOut,
     SearchOut,
@@ -43,6 +50,9 @@ router = APIRouter(prefix="/api/v1")
 _TRAILING_POSTCODE = re.compile(r"^(.*?)[\s,]*(\d{4})$")
 _LAT_LON = re.compile(r"^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$")
 _TRUTHY = {"1", "true", "yes", "on"}
+
+# US2.2 names these three; ``change`` is available on request via ?types=.
+DEFAULT_CORRIDOR_TYPES: tuple[FrontendKey, ...] = ("toilet", "parking", "stop")
 
 
 @router.get("/health", response_model=HealthOut)
@@ -128,7 +138,7 @@ def _parse_limit(raw: str | None, cfg: SearchConfig) -> int:
 def _parse_facilities(request: Request) -> list[FrontendKey]:
     q = request.query_params
     raw: list[str] = []
-    for name in ("needs", "amenities", "facilities"):
+    for name in ("needs", "types", "amenities", "facilities"):
         raw.extend(q.getlist(name))
     raw.extend(key for key in FRONTEND_KEYS if (q.get(key) or "").lower() in _TRUTHY)
     try:
@@ -185,3 +195,27 @@ def venue(venue_id: str, request: Request, repo: Repo) -> VenueCardOut:
         raise ApiError(404, "venue_not_found", f"No venue with id {venue_id!r}.")
     reference = _parse_from(request.query_params.get("from"), repo)
     return venue_card_out(row, reference)
+
+
+@router.get(
+    "/venues/{venue_id}/corridor",
+    response_model=CorridorOut,
+    response_model_exclude_none=True,
+)
+def corridor(venue_id: str, request: Request, repo: Repo, settings: SettingsDep) -> CorridorOut:
+    """US2.2 / US2.3 - the straight-line corridor (ADR-003). Not a route."""
+    row = repo.get_venue(venue_id)
+    if row is None:
+        raise ApiError(404, "venue_not_found", f"No venue with id {venue_id!r}.")
+    q = request.query_params
+    origin = _parse_from(q.get("from"), repo)
+    if origin is None:
+        raise ApiError(
+            422,
+            "validation_error",
+            "from is required: a suburb, postcode or latitude,longitude starting point",
+        )
+    within = _parse_limit(q.get("within") or q.get("limit"), settings.search)
+    keys = _parse_facilities(request) or list(DEFAULT_CORRIDOR_TYPES)
+    result = repo.corridor(origin, row, within, [KEY_TO_KIND[key] for key in keys])
+    return corridor_out(row, origin, within, keys, result)

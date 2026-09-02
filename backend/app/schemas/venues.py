@@ -114,3 +114,54 @@ class VenueCardOut(BaseModel):
     # Only when the request carried ?from= — kilometres from that point, one decimal.
     distance: float | None = None
     reference_point: ReferencePointOut | None = None
+
+
+# ------------------------------------------------------------------ corridor
+CorridorTypeStatus = Literal["found", "none_within", "no_data"]
+
+
+class CorridorVenueOut(BaseModel):
+    id: str
+    name: str
+    address: str | None
+    lat: float
+    lon: float
+
+
+class CorridorPathOut(BaseModel):
+    kind: str = "straight_line"
+    length_m: int  # straight-line metres, NOT a travel distance
+    within_m: int  # the corridor half-width applied
+    coordinates: list[list[float]]  # [[lat, lon], [lat, lon]]
+
+
+class CorridorTypeOut(BaseModel):
+    type: str
+    label: str
+    count: int
+    status: CorridorTypeStatus  # found | none_within | no_data — different copy each
+
+
+class CorridorFacilityOut(BaseModel):
+    seq: int  # 1-based position in travel order (AC2.3.2)
+    type: str
+    name: str | None = None
+    address: str | None = None
+    lat: float
+    lon: float
+    distance_from_path_m: int
+    along_path_m: int
+    opening_hours: str | None = None
+    mlak: bool | None = None
+    source: SourceOut | None = None
+
+
+class CorridorOut(BaseModel):
+    venue: CorridorVenueOut
+    origin: ReferencePointOut
+    path: CorridorPathOut
+    types: list[CorridorTypeOut]
+    facilities: list[CorridorFacilityOut]
+    checked: list[str]
+    not_checked: list[str]
+    retrieved_at: str | None = None
