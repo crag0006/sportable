@@ -105,6 +105,10 @@ jobs:
             echo "site_bucket=$(terraform output -raw site_bucket)"
             echo "distribution_id=$(terraform output -raw distribution_id)"
             echo "site_url=$(terraform output -raw site_url)"
+            # The distribution's own hostname. Always reachable once the upload
+            # finishes, regardless of whether the custom domain has been
+            # pointed yet — which is why the smoke test uses this one.
+            echo "cloudfront_url=https://$(terraform output -raw cloudfront_domain)"
           } >> "$GITHUB_OUTPUT"
           echo "Publishing to $(terraform output -raw site_url)"
 
@@ -147,19 +151,31 @@ jobs:
           aws cloudfront wait invalidation-completed \
             --distribution-id "${{ steps.tf.outputs.distribution_id }}" --id "$ID"
 
-      # Tested through the public URL, because that is the address being
-      # submitted. A green upload proves files exist; only a request proves the
-      # distribution, the certificate and the SPA fallback all agree.
+      # ------------------------------------------------------------------
+      # Smoke test — against the DISTRIBUTION, not the custom domain
+      # ------------------------------------------------------------------
+      # This tests the CloudFront hostname because that is what this workflow
+      # actually controls. The custom domain depends on DNS records added by
+      # hand at the registrar, outside the pipeline entirely.
+      #
+      # The first version tested the custom domain and failed with HTTP 000 —
+      # curl could not connect, because the apex record did not exist yet. The
+      # deploy had worked perfectly. A pipeline that reports failure for a step
+      # it neither performs nor can fix teaches people to ignore red runs, which
+      # costs far more than the missing check is worth.
+      #
+      # The custom domain is checked in the next step, and reported rather than
+      # enforced.
       - name: Smoke test
         run: |
           set -euo pipefail
-          URL="${{ steps.tf.outputs.site_url }}"
+          URL="${{ steps.tf.outputs.cloudfront_url }}"
           echo "Testing $URL"
 
           fail() { echo "::error::$1"; exit 1; }
 
           for attempt in 1 2 3 4 5; do
-            CODE=$(curl -s -o /tmp/root.html -w '%{http_code}' "$URL/" || echo 000)
+            CODE=$(curl -s -o /tmp/root.html -w '%{http_code}' "$URL/") || CODE="unreachable"
             [ "$CODE" = "200" ] && break
             echo "attempt $attempt: HTTP $CODE — retrying in 5s"
             sleep 5
@@ -170,7 +186,7 @@ jobs:
             || fail "index.html does not look like the built SPA"
 
           # A deep link must fall back to index.html rather than 404 — this is
-          # what makes /venues/<id> work on a refresh.
+          # what makes /venues/<id> survive a refresh.
           CODE=$(curl -s -o /dev/null -w '%{http_code}' "$URL/venues/does-not-exist")
           [ "$CODE" = "200" ] || fail "SPA fallback returned HTTP $CODE"
 
@@ -182,6 +198,39 @@ jobs:
 
           echo "Smoke test passed."
 
+      # Reported, never enforced. Pointing the domain is a manual step at the
+      # registrar; until it is done this says so plainly instead of failing a
+      # deploy that did everything asked of it.
+      - name: Is the custom domain live?
+        if: always()
+        run: |
+          set -uo pipefail
+          URL="${{ steps.tf.outputs.site_url }}"
+          CF="${{ steps.tf.outputs.cloudfront_url }}"
+
+          if [ "$URL" = "$CF" ]; then
+            echo "::notice::This environment has no custom domain configured."
+            exit 0
+          fi
+
+          # Branch on curl's EXIT STATUS, not on the status code string.
+          # `curl -w '%{http_code}'` prints 000 when it cannot connect AND exits
+          # non-zero, so `|| echo 000` appends a second one and you get "000000"
+          # — which matches no comparison and reports "resolved" for a host that
+          # never resolved. Exit status is the unambiguous signal.
+          if CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$URL/"); then
+            if [ "$CODE" = "200" ]; then
+              echo "::notice::$URL is live."
+            else
+              echo "::warning::$URL resolved but returned HTTP $CODE. Check the CloudFront aliases and the certificate."
+            fi
+          else
+            echo "::warning::$URL does not resolve yet. Add these at the registrar:"
+            echo "::warning::  ALIAS  @    -> ${CF#https://}"
+            echo "::warning::  CNAME  www  -> ${CF#https://}"
+            echo "The bundle is published and serving at $CF."
+          fi
+
       - name: Summary
         run: |
           {
@@ -190,6 +239,7 @@ jobs:
             echo "| | |"
             echo "|---|---|"
             echo "| URL | ${{ steps.tf.outputs.site_url }} |"
+            echo "| Distribution | ${{ steps.tf.outputs.cloudfront_url }} |"
             echo "| Environment | \`${{ steps.env.outputs.dir }}\` |"
             echo "| Bucket | \`${{ steps.tf.outputs.site_bucket }}\` |"
             echo "| Commit | \`${{ github.sha }}\` |"
