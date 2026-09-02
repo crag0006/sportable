@@ -323,7 +323,10 @@ jobs:
 
           # --- the API answers, through CloudFront ---
           for attempt in 1 2 3 4 5; do
-            CODE=$(curl -s -o /tmp/health.json -w '%{http_code}' "$URL/api/v1/health" || echo 000)
+            # `|| CODE=...` rather than `|| echo 000`: curl PRINTS 000 and then
+            # exits non-zero, so the echo appends a second one and the log reads
+            # "HTTP 000000", which looks like a bug in the pipeline.
+            CODE=$(curl -s -o /tmp/health.json -w '%{http_code}' "$URL/api/v1/health") || CODE="unreachable"
             [ "$CODE" = "200" ] && break
             echo "attempt $attempt: HTTP $CODE — retrying in 5s"
             sleep 5
