@@ -1,4 +1,4 @@
-import { FacilityIconGlyph } from './Icons'
+import { FacilityEmoji } from './Icons'
 
 export default function FacilityCard({ facility }) {
   const metaItems =
@@ -19,7 +19,7 @@ export default function FacilityCard({ facility }) {
   return (
     <article className="facility-card">
       <div className="facility-icon">
-        <FacilityIconGlyph icon={facility.icon} />
+        <FacilityEmoji icon={facility.icon} />
       </div>
 
       <div>

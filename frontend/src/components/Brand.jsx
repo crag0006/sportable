@@ -1,16 +1,25 @@
 export default function Brand() {
   return (
     <section className="brand" aria-label="SportAble brand">
-      <div className="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 32 32">
-          <path d="M9 9.5c2.8-2.5 8.2-2.7 10.7-.2 2.1 2.1 1.8 5.6-.5 7.7l-6.8 6.1" />
-          <path d="M10.5 16.5l4.2 4.2" />
-          <path d="M19.2 10.2l3.3 3.3" />
-        </svg>
-      </div>
+      <svg
+        className="brand-logo"
+        width="40"
+        height="40"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="11" cy="4" r="2" />
+        <path d="M11 8v6h5l3 6" />
+        <path d="M15.5 14a5.5 5.5 0 1 1-6-5.48" />
+      </svg>
       <div>
         <p className="brand-name">SportAble</p>
-        <p className="brand-tagline">KNOW MORE. PLAY MORE</p>
+        <p className="brand-tagline">Know more. Play more.</p>
       </div>
     </section>
   )

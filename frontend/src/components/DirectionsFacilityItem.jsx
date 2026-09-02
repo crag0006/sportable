@@ -1,4 +1,4 @@
-import { FacilityIconGlyph } from './Icons'
+import { FacilityEmoji } from './Icons'
 
 export default function DirectionsFacilityItem({ item }) {
   const metaItems = (item.meta ?? []).filter(
@@ -8,7 +8,7 @@ export default function DirectionsFacilityItem({ item }) {
   return (
     <article className="route-item">
       <div className="route-item-icon">
-        <FacilityIconGlyph icon={item.icon} />
+        <FacilityEmoji icon={item.icon} />
       </div>
 
       <div>

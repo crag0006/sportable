@@ -79,22 +79,11 @@ svg {
   margin-bottom: 4px;
 }
 
-.brand-mark {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
-  border: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.brand-mark svg {
-  width: 30px;
-  height: 30px;
+.brand-logo {
+  flex: 0 0 auto;
   fill: none;
   stroke: #fff;
-  stroke-width: 1.8;
+  stroke-width: 1.9;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -808,8 +797,7 @@ svg {
   display: grid;
   place-items: center;
   border-radius: 15px;
-  background: var(--primary-soft);
-  border: 1px solid #d2e3ed;
+  background: rgba(20, 80, 122, 0.08);
   color: var(--primary);
 }
 
@@ -823,10 +811,11 @@ svg {
   height: 44px;
 }
 
-.facility-icon svg,
-.route-item-icon svg {
-  width: 22px;
-  height: 22px;
+.facility-emoji {
+  display: inline-grid;
+  place-items: center;
+  font-size: 1.35rem;
+  line-height: 1;
 }
 
 .facility-top h3,

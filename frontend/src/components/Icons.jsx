@@ -53,6 +53,19 @@ export function LocateIcon() {
   )
 }
 
+export function FacilityEmoji({ icon }) {
+  const emojiByIcon = {
+    toilet: '🚻',
+    parking: '🅿',
+    transport: '🚋',
+    change: '♿',
+    ramp: '♿',
+    hoist: '♿',
+  }
+
+  return <span className="facility-emoji" aria-hidden="true">{emojiByIcon[icon] ?? '•'}</span>
+}
+
 export function FacilityIconGlyph({ icon }) {
   const shared = {
     fill: 'none',
