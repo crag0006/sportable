@@ -263,8 +263,26 @@ resource "aws_cloudfront_distribution" "site" {
     }
   }
 
+  # Custom domains, when this environment has them. Each iteration is served
+  # from its own distribution on its own domain, so the URL for a submitted
+  # iteration keeps showing that iteration after dev has moved on.
+  aliases = var.aliases
+
   viewer_certificate {
-    cloudfront_default_certificate = true
+    # Exactly one of these two paths applies. With no certificate the
+    # distribution keeps the free *.cloudfront.net one, which is what staging
+    # uses; with a certificate it serves the aliases above.
+    cloudfront_default_certificate = var.acm_certificate_arn == null
+    acm_certificate_arn            = var.acm_certificate_arn
+
+    # sni-only, not vip. `vip` dedicates an IP per distribution and costs about
+    # USD $600/month; sni-only is free and supported by every browser this
+    # project targets.
+    ssl_support_method = var.acm_certificate_arn == null ? null : "sni-only"
+
+    # The default when a certificate is attached is TLSv1, which is long
+    # obsolete. Set it explicitly rather than inheriting it.
+    minimum_protocol_version = var.acm_certificate_arn == null ? null : "TLSv1.2_2021"
   }
 
   tags = { Name = "${var.name_prefix}-cdn" }
