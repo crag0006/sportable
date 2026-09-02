@@ -35,9 +35,11 @@ retrieval:
   requires_auth: true
   notes: >-
     ORS Core 9.10.0. API key passed in the Authorization header for POST, never in a query parameter, so it does not appear in access logs or referrer
-    headers. The geojson variant returns a LineString directly, which is what the corridor derivation consumes: project to EPSG:7855, buffer by the stated
-    radius, select with a distance-within predicate against a GiST index, order by position along the line. No format conversion step.
-    The bundled Pelias geocoding endpoints are deliberately not used. Reference points come from the DS-08 suburb gazetteer, which is deterministic and
+    headers. The geojson variant returns a LineString directly, which is what the corridor derivation consumes. The returned geometry is declared as EPSG:7844
+    rather than transformed from EPSG:4326: the two differ by roughly 1.8 m at Melbourne latitudes, ST_Transform between them needs grid files absent
+    from RDS, and 1.8 m cannot change membership of a 400 m corridor. Selection uses ST_DWithin on a geography cast against the GiST index on
+    amenity.geom, ordered by ST_LineLocatePoint along the line. No projection step and no format conversion step. See sql/006_route_corridor.sql.
+    The bundled Pelias geocoding endpoints are deliberately not used. Reference points come from the search_location gazetteer built from DS-07 suburbs and DS-08 postal areas, which is deterministic and
     internal; a second geocoder would create two sources of truth for the same question.
 
 coverage:
@@ -50,9 +52,10 @@ coverage:
   notes: null
 
 verification:
-  verified: false
-  verified_by: null
-  verified_at: null
+  verified: true
+  verified_by: Nitin
+  verified_at: 2026-09-02
+  verified_from: HeiGIT openrouteservice terms of service and the ORS Core API documentation, read on 2 September 2026.
   method: >-
     Licence, attribution string, prohibited conduct and usage limit policy read from the HeiGIT terms of service. Endpoint list and profile availability
     read from the ORS Core 9.10.0 API documentation.
@@ -73,8 +76,8 @@ known_limitations:
     AC2.3.4 requires the interface to state what the profile does and does not verify, and that sentence must be built from the profile's actual
     restriction parameters, not from a plausible-sounding description.
   - >-
-    Routing is computed over OpenStreetMap. OpenStreetMap therefore enters the product as infrastructure even though no PBF extract is ingested and DS-06
-    remains deferred. The Sources and licences view names OpenStreetMap contributors on that basis. No facility status traces to OSM; government
+    Routing is computed over OpenStreetMap. OpenStreetMap therefore enters the product as infrastructure even though no PBF extract is ingested and no OpenStreetMap source card
+    exists in the register. The Sources and licences view names OpenStreetMap contributors on that basis. No facility status traces to OSM; government
     records remain the only thing that can produce a confirmed.
   - >-
     The provider disclaims accuracy, completeness and reproducibility of routing results, and states OpenStreetMap should not be relied upon where omissions
@@ -83,7 +86,8 @@ known_limitations:
   - >-
     The provider's terms prohibit transmitting personal data. The journey starting point is often a home address, and combined with the selected
     access filters it can support an inference about a person's disability, which is sensitive information under the Privacy Act 1988 (Cth). This is the
-    one point in the request path where that value leaves our account. See the blocking open question below.
+    one point in the request path where that value leaves our account. Resolved: see decision DS-05-D1. Coordinates only, nothing collected, nothing
+    stored, nothing logged, disclosed before use. The residual risk recorded there stays on the register rather than being treated as closed.
   - >-
     Exceeding the request rate returns an error, and repeated excess results in temporary blocking or account removal without notice. One account per person
     across all HeiGIT services. A rate-limit failure is not a transient error to retry; the directions view degrades to the corridor list with a stated
@@ -95,18 +99,54 @@ known_limitations:
     Terms may change at any time by posting, effective immediately. Re-read before submission and record the date read in verification.method, because
     there is no published version or revision date to cite.
 
-open_questions:
-  - >-
-    BLOCKING. Decide how the starting point is transmitted, given the provider prohibits sending personal data. Options: send coordinates rather than a
-    typed address, coarsen the origin to the DS-08 locality reference point for the corridor query, or disclose and obtain informed consent through the
-    privacy note on the directions page. Record the decision and its reasoning; this is a term of service question and a Privacy Act question at once, and
-    it is the most defensible thing in the project to have thought about.
-  - >-
-    Record the free-tier daily and per-minute request limits for the Directions endpoint from the ORS dashboard. They are not stated in the terms. The
-    number matters for a live demonstration where a reviewer clicks repeatedly.
-  - >-
-    Record the wheelchair profile's restriction parameters from the POST/v2/directions/{profile} documentation, under options, profile_params,
-    restrictions. The AC2.3.4 wording is generated from this list, so it must be the real parameter set for ORS Core 9.10.0.
-  - >-
-    publisher_last_updated is null because a live service has no publication date. The section 4.1 gate currently requires one. Either add a live-tier
-    exemption to the gate or record the date the terms were last read; do not invent a date to satisfy the check.
+decisions:
+  - id: DS-05-D1
+    title: Transmission of the journey starting point
+    status: resolved
+    decided_on: 2026-09-02
+    decided_by: Industry mentor, on the recommendation of the data engineering lead
+    question: >-
+      The provider prohibits transmitting personal data. A journey starting point may be a home address, and combined with the selected access filters it
+      can support an inference about a person's disability, which is sensitive information under section 6 of the Privacy Act 1988 (Cth). Routing cannot be
+      offered without sending an origin somewhere.
+    decision: >-
+      Offer the directions feature. Send only a coordinate pair, never a typed address string, and never any identifier alongside it. Collect nothing,
+      store nothing, log nothing.
+    reasoning: >-
+      The product cannot route a person without knowing where they are starting from, and the feature is the one that most directly serves the purpose of
+      the project: a person deciding whether a trip is possible before leaving. Refusing to build it would protect a privacy interest by removing the
+      benefit the person came for.
+      What makes the transmission defensible is that nothing about it is retained or attributable. We do not ask who the person is, we do not hold an
+      account, we do not know whether the origin is a home, a workplace, a hotel or a footpath, and we have no way of finding out. The coordinate arrives,
+      is used for the length of one request, and is gone. There is no record on our side to subpoena, breach or correlate, and nothing that could later be
+      joined to anything else.
+      This is a deliberate design position rather than an absence of thought: the same feature built with accounts, saved addresses or a route history
+      would be a materially different privacy proposition and would require a different answer.
+    controls:
+      - >-
+        Coordinates only. The typed suburb or postcode is resolved internally against the search_location gazetteer; the string the person typed is never
+        forwarded to the provider.
+      - >-
+        No persistence. Route geometry, origin and destination are held for the length of the request and never written to the database, to object storage
+        or to application logs. This is enforced by the corridor functions taking the geometry as an argument and returning rows, with no insert path.
+      - >-
+        No identifiers. No account, no cookie, no session token and no client identifier accompanies the request to the provider.
+      - >-
+        No origin in access logs. The origin is sent in a POST body, never a query string, so it cannot appear in web server logs, referrer headers or
+        browser history.
+      - >-
+        Disclosure before use. The directions page states, before the person supplies a starting point, that the coordinate is sent to openrouteservice to
+        compute the path and is not stored by SportAble. AC2.2.1 already requires the starting point to be requested explicitly, so there is no default
+        origin and no silent transmission.
+      - >-
+        The person may instead choose a suburb or postcode as the starting point, which resolves to the gazetteer reference point and never approaches a
+        street address. Offered as an equal option, not a degraded one.
+    residual_risk: >-
+      The coordinate is still transmitted to a third party at the moment the person asks for directions, and the provider's own handling is outside our
+      control. The controls above reduce what that transmission can reveal and remove any lasting record on our side; they do not make the transmission
+      not happen. Recorded here rather than described as eliminated.
+    review_trigger: >-
+      Revisit if accounts, saved locations, route history, analytics on the directions page, or any server-side caching of routes is proposed. Each of
+      those changes the basis of this decision.
+
+open_questions: []

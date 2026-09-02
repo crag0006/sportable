@@ -44,9 +44,10 @@ coverage:
     Loaded once at bootstrap. Every other source is filtered against this layer, so it loads before any of them.
 
 verification:
-  verified: false
-  verified_by: null
-  verified_at: null
+  verified: true
+  verified_by: Nitin
+  verified_at: 2026-09-02
+  verified_from: ABS ASGS Edition 3 digital boundary files page, read on 2 September 2026.
   method: >-
     Licence, custodian, publication dates and field definitions read from the Digital boundary files page of ASGS Edition 3.
 

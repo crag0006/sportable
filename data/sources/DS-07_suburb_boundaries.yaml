@@ -44,9 +44,10 @@ coverage:
     The 19 special purpose codes, including an Outside Australia code, are not real localities and must be excluded before the gazetteer is built.
 
 verification:
-  verified: false
-  verified_by: null
-  verified_at: null
+  verified: true
+  verified_by: Nitin
+  verified_at: 2026-09-02
+  verified_from: ABS ASGS Edition 3 digital boundary files page, read on 2 September 2026.
   method: >-
     Licence, custodian, publication date and field definitions read from the Digital boundary files page of ASGS Edition 3.
 

@@ -1,21 +1,15 @@
 """
 Fetch source files and store them in the raw zone.
 
-The source details come from the YAML source cards, which are packaged into the
-deployment artefact under /var/task/sources by `make package`.
+Source details come from the YAML source cards under /var/task/sources in
+Lambda. Locally, the same module can be run against the real bucket or the
+local fetch script.
 
-Runs as an AWS Lambda outside the VPC (stage 1 of the pipeline). The same module
-runs unchanged on a laptop against the real bucket, or against the local stub in
-scripts/fetch_run.py, so what is tested locally is what is deployed.
+Supported events:
 
-Event shapes accepted:
-
-    {"source_id": "DS-01"}                       one source
-    {"source_ids": ["DS-01", "DS-02"]}           a schedule group
-    {"source_ids": ["DS-01"], "force": true}     ignore conditional GET and hash
-
-EventBridge Scheduler supplies the second shape as a constant JSON payload, one
-per schedule rule.
+    {"source_id": "DS-01"}
+    {"source_ids": ["DS-01", "DS-02"]}
+    {"source_ids": ["DS-01"], "force": true}
 """
 
 from __future__ import annotations
@@ -43,8 +37,7 @@ LOG.setLevel(logging.INFO)
 
 IN_LAMBDA = bool(os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
 
-# Adaptive mode backs off on S3 throttling instead of failing the run. The fetch
-# itself has its own retry loop; this only covers the put and get calls.
+# Use adaptive retries for S3 calls.
 s3 = boto3.client(
     "s3",
     config=Config(
@@ -56,13 +49,15 @@ s3 = boto3.client(
 
 RAW_BUCKET = os.environ.get("RAW_BUCKET", "")
 
-# In Lambda the cards sit beside the code at /var/task/sources. Locally the
-# default resolves next to this file, and scripts/fetch_run.py overrides it to
-# data/sources so the repo copy stays the single source of truth.
-REGISTER_DIR = Path(os.environ.get("REGISTER_DIR", Path(__file__).parent / "sources"))
+# In Lambda this points to /var/task/sources. Locally it defaults to the
+# sources directory next to this file.
+REGISTER_DIR = Path(
+    os.environ.get(
+        "REGISTER_DIR",
+        Path(__file__).parent / "sources",
+    )
+)
 
-# Written on every object so a bucket policy can require encryption in transit
-# and at rest without the fetch silently failing.
 SSE_ALGORITHM = os.environ.get("SSE_ALGORITHM", "AES256")
 
 MAX_ATTEMPTS = int(os.environ.get("MAX_ATTEMPTS", "3"))
@@ -73,10 +68,7 @@ USER_AGENT = "SportAbleMelbourne-Fetch/1.0"
 
 FETCHABLE_TIERS = {"reference", "transit", "static"}
 
-# Status codes that must never be retried. A 429 from the Opendatasoft portals
-# is a monthly quota exhaustion, not a rate limit that clears in seconds, so
-# retrying with backoff burns the remaining quota and delays the alarm. It fails
-# immediately and lets the previous snapshot stand.
+# A 429 means the source quota has been reached, so retrying is not useful.
 NO_RETRY_STATUS = {429}
 
 
@@ -89,12 +81,7 @@ class NotFetchableError(ValueError):
 
 
 def log_json(event_name: str, **fields: Any) -> None:
-    """Emit one structured line per notable event.
-
-    CloudWatch metric filters key off the `event` field, so a hash mismatch or a
-    quarantined publish becomes a graphable metric and an alarm rather than a
-    line someone has to notice in the log.
-    """
+    """Write a structured log entry."""
 
     LOG.info(
         json.dumps(
@@ -121,10 +108,7 @@ def load_source_card(source_id: str) -> dict[str, Any]:
 
     licence = card.get("licence", {})
 
-    # DMP section 3.3: the load is abandoned if any registered source is missing
-    # a licence. A card carrying UNVERIFIED is a card that has not passed the
-    # section 4.1 gate, and it must fail here rather than land and be sorted out
-    # afterwards.
+    # Every source needs a complete and verified licence.
     if not licence.get("name") or not licence.get("url"):
         raise ValueError(f"{source_id} has an incomplete licence")
 
@@ -135,6 +119,7 @@ def load_source_card(source_id: str) -> dict[str, Any]:
         )
 
     retrieval = card.get("retrieval", {})
+
     if not retrieval.get("download_url"):
         raise ValueError(f"{source_id} has no download URL")
 
@@ -147,7 +132,9 @@ def load_source_card(source_id: str) -> dict[str, Any]:
     return card
 
 
-def resolve_download_url(card: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+def resolve_download_url(
+    card: dict[str, Any],
+) -> tuple[str, dict[str, Any]]:
 
     retrieval = card["retrieval"]
     resolver = retrieval.get("resolver", "static_url")
@@ -159,6 +146,7 @@ def resolve_download_url(card: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         config = retrieval.get("resolver_config") or {}
 
         package_id = config.get("package_id")
+
         if not package_id:
             raise ValueError(f"{card['source_id']} has no package_id")
 
@@ -222,7 +210,10 @@ def _ckan_root(landing_page: str) -> str:
     return f"{parts.scheme}://{parts.netloc}"
 
 
-def _http_get(url: str, headers: dict[str, str]) -> tuple[bytes, dict[str, Any]]:
+def _http_get(
+    url: str,
+    headers: dict[str, str],
+) -> tuple[bytes, dict[str, Any]]:
 
     request = urllib.request.Request(url, method="GET")
 
@@ -250,9 +241,6 @@ def _http_get(url: str, headers: dict[str, str]) -> tuple[bytes, dict[str, Any]]
             "last_modified": response.headers.get("Last-Modified"),
             "content_type": response.headers.get("Content-Type"),
             "content_length": response.headers.get("Content-Length"),
-            # filename_for() reads this to honour a publisher-supplied filename.
-            # Without it that branch never runs and every object falls back to
-            # the raw_prefix name.
             "content_disposition": response.headers.get("Content-Disposition"),
             "final_url": response.url,
         }
@@ -261,7 +249,8 @@ def _http_get(url: str, headers: dict[str, str]) -> tuple[bytes, dict[str, Any]]
 
 
 def fetch_with_retry(
-    url: str, conditional: dict[str, str]
+    url: str,
+    conditional: dict[str, str],
 ) -> tuple[bytes | None, dict[str, Any], list[dict[str, Any]]]:
 
     attempts = []
@@ -272,9 +261,17 @@ def fetch_with_retry(
         try:
             body, metadata = _http_get(url, conditional)
 
-            metadata["duration_seconds"] = round(time.time() - started, 3)
+            metadata["duration_seconds"] = round(
+                time.time() - started,
+                3,
+            )
 
-            attempts.append({"attempt": attempt, "status": metadata["status"]})
+            attempts.append(
+                {
+                    "attempt": attempt,
+                    "status": metadata["status"],
+                }
+            )
 
             return body, metadata, attempts
 
@@ -294,7 +291,10 @@ def fetch_with_retry(
                         "status": 304,
                         "etag": conditional.get("If-None-Match"),
                         "last_modified": conditional.get("If-Modified-Since"),
-                        "duration_seconds": round(time.time() - started, 3),
+                        "duration_seconds": round(
+                            time.time() - started,
+                            3,
+                        ),
                         "final_url": url,
                     },
                     attempts,
@@ -310,7 +310,12 @@ def fetch_with_retry(
                 raise FetchError(f"{error.code} {error.reason} for {url}") from error
 
         except (urllib.error.URLError, TimeoutError) as error:
-            attempts.append({"attempt": attempt, "error": str(error)})
+            attempts.append(
+                {
+                    "attempt": attempt,
+                    "error": str(error),
+                }
+            )
 
         if attempt < MAX_ATTEMPTS:
             delay = BACKOFF_BASE_SECONDS**attempt
@@ -333,14 +338,7 @@ def check_payload_shape(
     fmt: str,
     response_meta: dict[str, Any],
 ) -> None:
-    """Reject a 200 response whose body is not the declared format.
-
-    A publisher that has moved, withdrawn or restricted a resource often answers
-    with 200 and an HTML page rather than an error status. Nothing downstream
-    notices: the body hashes cleanly, lands in the raw zone and writes a success
-    manifest. The failure then surfaces days later as an unexplained parse error
-    in a notebook. Catching it here keeps a bad publish out of the archive.
-    """
+    """Check that the downloaded data matches the registered format."""
 
     fmt = (fmt or "").lower()
     head = body[:512].lstrip()
@@ -371,12 +369,20 @@ def check_payload_shape(
         raise FetchError(f"{source_id} declares csv but the body is a zip archive")
 
 
-def object_key(raw_prefix: str, run_date: str, filename: str) -> str:
+def object_key(
+    raw_prefix: str,
+    run_date: str,
+    filename: str,
+) -> str:
 
     return f"{raw_prefix}/dt={run_date}/{filename}"
 
 
-def manifest_key(raw_prefix: str, run_date: str, run_id: str) -> str:
+def manifest_key(
+    raw_prefix: str,
+    run_date: str,
+    run_id: str,
+) -> str:
 
     return f"_manifests/{raw_prefix}/dt={run_date}/run-{run_id}.json"
 
@@ -385,10 +391,15 @@ def latest_manifest_key(raw_prefix: str) -> str:
     return f"_manifests/{raw_prefix}/latest.json"
 
 
-def read_latest_manifest(raw_prefix: str) -> dict[str, Any] | None:
+def read_latest_manifest(
+    raw_prefix: str,
+) -> dict[str, Any] | None:
 
     try:
-        response = s3.get_object(Bucket=RAW_BUCKET, Key=latest_manifest_key(raw_prefix))
+        response = s3.get_object(
+            Bucket=RAW_BUCKET,
+            Key=latest_manifest_key(raw_prefix),
+        )
 
         return json.loads(response["Body"].read().decode("utf-8"))
 
@@ -398,13 +409,9 @@ def read_latest_manifest(raw_prefix: str) -> dict[str, Any] | None:
     except ClientError as error:
         code = error.response.get("Error", {}).get("Code")
 
-        # First run for a prefix: there is no previous manifest and no previous
-        # snapshot. That is a normal cold start, not a fault.
         if code in {"NoSuchKey", "404", "NoSuchBucket"}:
             return None
 
-        # AccessDenied here would mean every run looks like a first run and the
-        # conditional GET never fires, so it is surfaced rather than swallowed.
         raise
 
     except Exception as error:
@@ -424,7 +431,12 @@ def json_default(value: Any) -> str:
     raise TypeError(f"{type(value).__name__} is not JSON serialisable")
 
 
-def write_manifest(raw_prefix: str, run_date: str, run_id: str, manifest: dict[str, Any]) -> str:
+def write_manifest(
+    raw_prefix: str,
+    run_date: str,
+    run_id: str,
+    manifest: dict[str, Any],
+) -> str:
 
     body = json.dumps(
         manifest,
@@ -433,7 +445,11 @@ def write_manifest(raw_prefix: str, run_date: str, run_id: str, manifest: dict[s
         default=json_default,
     ).encode("utf-8")
 
-    key = manifest_key(raw_prefix, run_date, run_id)
+    key = manifest_key(
+        raw_prefix,
+        run_date,
+        run_id,
+    )
 
     s3.put_object(
         Bucket=RAW_BUCKET,
@@ -443,9 +459,8 @@ def write_manifest(raw_prefix: str, run_date: str, run_id: str, manifest: dict[s
         ServerSideEncryption=SSE_ALGORITHM,
     )
 
-    # The run manifest above is the immutable record. This one is a pointer the
-    # next run reads for the ETag and the previous hash, and it is overwritten
-    # every run. Bucket versioning keeps the history of it regardless.
+    # latest.json is overwritten each run and is used to find the previous
+    # snapshot.
     s3.put_object(
         Bucket=RAW_BUCKET,
         Key=latest_manifest_key(raw_prefix),
@@ -457,18 +472,20 @@ def write_manifest(raw_prefix: str, run_date: str, run_id: str, manifest: dict[s
     return key
 
 
-def ascii_metadata(value: str, limit: int = 1024) -> str:
-    """S3 user metadata is header data and must be US-ASCII.
-
-    A publisher URL carrying a percent-unescaped non-ASCII character would make
-    put_object fail after the payload has already been downloaded and verified,
-    which is the most expensive place to fail.
-    """
+def ascii_metadata(
+    value: str,
+    limit: int = 1024,
+) -> str:
+    """Make a value safe to store as S3 metadata."""
 
     return value.encode("ascii", "ignore").decode("ascii")[:limit]
 
 
-def filename_for(card: dict[str, Any], url: str, response_meta: dict[str, Any]) -> str:
+def filename_for(
+    card: dict[str, Any],
+    url: str,
+    response_meta: dict[str, Any],
+) -> str:
 
     disposition = response_meta.get("content_disposition") or ""
 
@@ -479,7 +496,11 @@ def filename_for(card: dict[str, Any], url: str, response_meta: dict[str, Any]) 
 
     filename = match.group(1) if match else Path(urllib.parse.urlsplit(url).path).name
 
-    filename = re.sub(r"[^A-Za-z0-9._-]", "_", filename).strip("._")
+    filename = re.sub(
+        r"[^A-Za-z0-9._-]",
+        "_",
+        filename,
+    ).strip("._")
 
     expected_extension = "." + card["retrieval"]["format"].lower()
 
@@ -489,7 +510,10 @@ def filename_for(card: dict[str, Any], url: str, response_meta: dict[str, Any]) 
     return filename
 
 
-def fetch_source(source_id: str, force: bool = False) -> dict[str, Any]:
+def fetch_source(
+    source_id: str,
+    force: bool = False,
+) -> dict[str, Any]:
 
     if not RAW_BUCKET:
         raise RuntimeError("RAW_BUCKET is not set")
@@ -520,7 +544,10 @@ def fetch_source(source_id: str, force: bool = False) -> dict[str, Any]:
         elif previous.get("last_modified"):
             conditional["If-Modified-Since"] = previous["last_modified"]
 
-    body, response_meta, attempts = fetch_with_retry(url, conditional)
+    body, response_meta, attempts = fetch_with_retry(
+        url,
+        conditional,
+    )
 
     manifest = {
         "source_id": source_id,
@@ -535,9 +562,6 @@ def fetch_source(source_id: str, force: bool = False) -> dict[str, Any]:
         "attempts": attempts,
         "etag": response_meta.get("etag"),
         "last_modified": response_meta.get("last_modified"),
-        # Recorded so the transform and the profiling notebooks can tell a
-        # source with no publisher-side change detection from one that simply
-        # had not changed. A source offering neither header is hash-only.
         "conditional_get_available": bool(
             response_meta.get("etag") or response_meta.get("last_modified")
         ),
@@ -576,8 +600,7 @@ def fetch_source(source_id: str, force: bool = False) -> dict[str, Any]:
             "manifest_key": written,
         }
 
-    # Verify the body is what the card says it is before anything is hashed,
-    # compared or written. A bad publish must not enter the immutable zone.
+    # Check the downloaded content before writing it to S3.
     check_payload_shape(
         source_id,
         body,
@@ -591,9 +614,11 @@ def fetch_source(source_id: str, force: bool = False) -> dict[str, Any]:
     manifest["bytes"] = len(body)
 
     expected = retrieval.get("expected_sha256")
+
     if expected:
         manifest["expected_sha256"] = expected
         manifest["sha256_matches_pin"] = expected == digest
+
         if expected != digest:
             log_json(
                 "HASH_PIN_MISMATCH",
@@ -638,10 +663,6 @@ def fetch_source(source_id: str, force: bool = False) -> dict[str, Any]:
         Body=body,
         ContentType=(response_meta.get("content_type") or "application/octet-stream"),
         ServerSideEncryption=SSE_ALGORITHM,
-        # The lifecycle rule transitions on this tag rather than on a prefix, so
-        # the payloads age into Glacier Instant Retrieval while _manifests/ stays
-        # in Standard. Every run reads latest.json; that one should not be paying
-        # a retrieval price.
         Tagging="zone=raw",
         Metadata={
             "source-id": source_id,
@@ -684,7 +705,9 @@ def fetch_source(source_id: str, force: bool = False) -> dict[str, Any]:
     }
 
 
-def requested_source_ids(event: dict[str, Any]) -> list[str]:
+def requested_source_ids(
+    event: dict[str, Any],
+) -> list[str]:
 
     if event.get("source_ids"):
         return list(event["source_ids"])
@@ -695,15 +718,11 @@ def requested_source_ids(event: dict[str, Any]) -> list[str]:
     raise ValueError("Event carries neither source_id nor source_ids")
 
 
-def handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]:
-    """Lambda entry point.
-
-    One schedule rule can cover several sources, so a failure on one must not
-    stop the rest: a DataVic outage should not also cost the week's toilet map.
-    Every source is attempted, results are collected, and the invocation is
-    failed at the end only if something actually failed. That final raise is
-    what drives the Errors metric and the CloudWatch alarm.
-    """
+def handler(
+    event: dict[str, Any],
+    context: Any = None,
+) -> dict[str, Any]:
+    """Lambda entry point."""
 
     source_ids = requested_source_ids(event)
     force = bool(event.get("force"))
@@ -713,13 +732,15 @@ def handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]:
 
     for source_id in source_ids:
         try:
-            results.append(fetch_source(source_id, force=force))
+            results.append(
+                fetch_source(
+                    source_id,
+                    force=force,
+                )
+            )
 
         except NotFetchableError as error:
-            # DS-06 is a request-time routing service, not a file. It is in the
-            # register because the licence and attribution obligations are real,
-            # but there is nothing to land. Skipping is the correct outcome, not
-            # a failure, and it must never page anyone.
+            # A non-file source is skipped rather than treated as a failure.
             log_json(
                 "FETCH_SKIPPED",
                 source_id=source_id,
@@ -759,7 +780,10 @@ def handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]:
         "results": results,
     }
 
-    log_json("FETCH_RUN_SUMMARY", **summary)
+    log_json(
+        "FETCH_RUN_SUMMARY",
+        **summary,
+    )
 
     if failures:
         raise FetchError(
