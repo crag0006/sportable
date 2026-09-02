@@ -222,6 +222,7 @@ def build(conn, load_run_id: int) -> StatusOutcome:
             # The venue's own published value always takes priority.
             # Nearby facilities are only used when the venue has not
             # published a yes/no value.
+            source_id: str | None = None
             if published == CONFIRMED:
                 status = CONFIRMED
                 basis = "publisher_attribute"
