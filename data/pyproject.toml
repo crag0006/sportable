@@ -30,13 +30,37 @@ requires-python = ">=3.12"
 
 # Runtime dependencies are the Data team's call. Add them with `uv add` as the
 # extractors, transformers and loaders are written.
-dependencies = []
+dependencies = [
+    "boto3>=1.43.83",
+    "geopandas>=1.1.4",
+    "jupyter>=1.1.1",
+    "openpyxl>=3.1.5",
+    "pandas>=3.0.5",
+    # psycopg 3, NOT psycopg2. loaders/loader.py does `import psycopg` and
+    # `from psycopg.rows import dict_row`, which exist only in v3 — with
+    # psycopg2-binary the module is named `psycopg2` and the loader fails at
+    # import. backend/ is on v3 as well, so this also keeps one driver in the
+    # project rather than two.
+    "psycopg[binary]>=3.2",
+    "pyyaml>=6.0.3",
+    "shapely>=2.1.2",
+    "sqlalchemy>=2.0.52",
+    "tabulate>=0.10.0",
+]
 
 [dependency-groups]
 dev = [
     "pytest>=8.3",
     "pytest-cov>=5.0",
     "mypy>=1.13",
+    # CI runs `uv run ruff check .` in this directory, and each uv project has
+    # its own environment — backend/ having ruff does nothing for data/.
+    # Without this the Lint step fails with "Failed to spawn: ruff", which reads
+    # like a broken runner rather than a missing dependency.
+    #
+    # Style itself is NOT configured here: ruff.toml at the repository root is
+    # shared with backend/, so both folders lint to one standard.
+    "ruff>=0.16",
 ]
 
 [tool.mypy]
@@ -47,6 +71,15 @@ python_version = "3.12"
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
+
+# These ship no type information and no py.typed marker, so mypy refuses to
+# import them. A tooling gap rather than a defect in our code: pandas-stubs and
+# friends are generated, large, and have to be pinned in step with the runtime
+# package. Revisit if the transformers grow enough that typed DataFrames would
+# genuinely catch something.
+[[tool.mypy.overrides]]
+module = ["boto3", "botocore.*", "pandas.*", "yaml"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

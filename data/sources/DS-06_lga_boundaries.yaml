@@ -1,0 +1,80 @@
+source_id: DS-06
+name: ASGS Local Government Areas
+publisher: Australian Bureau of Statistics
+description: >-
+  Local Government Area boundaries from the Australian Statistical Geography Standard, Edition 3, 2025 revision. Two jobs: enforcing the geographic scope
+  that every other source is filtered to, and supplying the per-LGA grouping the coverage section of the quality report is reported against.
+
+tier: static
+cadence: on_release
+
+licence:
+  name: Creative Commons Attribution
+  version: 4.0 International
+  url: https://creativecommons.org/licenses/by/4.0/
+  attribution_text: >-
+    Australian Statistical Geography Standard (ASGS) Edition 3 Local Government Areas, Australian Bureau of Statistics. Copyright Commonwealth of Australia
+    administered by the ABS.
+  share_alike: false
+  restricts_caching: false
+  restricts_redistribution: false
+  restricts_derived_works: false
+  notes: null
+
+retrieval:
+  landing_page: https://www.abs.gov.au/statistics/standards/australian-statistical-geography-standard-asgs/edition-3-july-2021-june-2026/access-and-downloads/digital-boundary-files
+  download_url: https://www.abs.gov.au/statistics/standards/australian-statistical-geography-standard-asgs/edition-3-july-2021-june-2026/access-and-downloads/digital-boundary-files/LGA_2025_AUST_GDA2020.zip
+  format: zip
+  raw_prefix: lga_boundaries
+  requires_auth: false
+  expected_sha256: acc3015a0ac78ade978c41a2e4110269b5219b60d6a56cbb70393ae647f31b15
+  notes: >-
+    ESRI shapefile in a zip, GDA2020, 38.84 MB. Take GDA2020 rather than GDA94: storage is EPSG:7844, so GDA94 would add a transform and a 1.8 metre offset
+    for nothing. Fields are LGA_CODE25, LGA_NAME25, STE_CODE21, STE_NAME21 and AREASQKM. The year suffix on the first two tracks the release year, not 2021,
+    and ASGS_LOCI_URI is absent from the 2025 file.
+
+coverage:
+  publisher_scope: national
+  records_total: null
+  records_in_target_area: null
+  basis: >-
+    PENDING PROFILE. Count LGA polygons nationally, then count those with STE_CODE21 equal to 2 for Victoria. Under City of Melbourne scope,
+    records_in_target_area is 1.
+  notes: >-
+    Loaded once at bootstrap. Every other source is filtered against this layer, so it loads before any of them.
+
+verification:
+  verified: false
+  verified_by: null
+  verified_at: null
+  method: >-
+    Licence, custodian, publication dates and field definitions read from the Digital boundary files page of ASGS Edition 3.
+
+publisher_last_updated: 2026-07-21
+
+supplies_venues: false
+supplies_facility_types: []
+supplies_boundaries: true
+
+iteration_1: true
+government_published: true
+depends_on: []
+
+known_limitations:
+  - >-
+    ASGS Local Government Areas are Mesh Block approximations of gazetted local government boundaries, not the gazetted boundaries themselves. The ABS
+    states they should not be used for legal purposes. For deciding whether a sport venue falls inside a municipality this is fine; for any claim about a
+    legal boundary it is not.
+  - >-
+    Edition 3 is used because Edition 4, released 22 July 2026, does not yet include Non ABS Structures. LGA and SAL are expected in October 2026. Using
+    a reference period that ended in June 2026 is the current published position, not an oversight, and this note is the record of why.
+  - >-
+    Positional accuracy derives from the Geoscape layers the boundaries are aligned to, plus or minus 2 metres in urban areas. Boundaries are generalised
+    to 5 cm with a 7.5 cm shared boundary tolerance. A venue sitting within a few metres of a municipal border could fall either side.
+  - >-
+    Published 6 October 2021, the Non ABS Structures set updated 22 July 2025, and the LGA 2025 file itself corrected on 21 July 2026 to fix Cocos (Keeling)
+    Islands state attributes. publisher_last_updated records the file-level correction date, which is the one that describes the artefact being loaded.
+  - >-
+    LGA boundaries are revised annually, so the 2025 vintage will be superseded. Record which vintage each build consumed; a venue's LGA is not a permanent fact.
+
+open_questions: []
