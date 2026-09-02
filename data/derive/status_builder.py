@@ -1,16 +1,30 @@
 """
-Builds the accessibility status for each venue based on the loaded
+Build accessibility status for each venue from the loaded
 venues and amenities.
 
 Writes:
     venue_amenity_status
     venue_access_chain
+
+Then refreshes the materialized views used by the API.
+
+The access chain has six links:
+    arrive_parking
+    arrive_transport
+    toilet
+    change
+    enter
+    play
+
+The venue's own published accessibility information takes priority over
+nearby public facilities. Nearby facilities are still stored so the API
+can show them separately.
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 LOG = logging.getLogger("sportable.status_builder")
@@ -18,6 +32,9 @@ LOG = logging.getLogger("sportable.status_builder")
 SRID = 7844
 
 BANDS_M = (250, 500, 1000)
+
+# Status is confirmed using the largest distance band.
+# The API applies the actual distance limit using the within_* fields.
 CONFIRM_WITHIN_M = max(BANDS_M)
 
 SEARCH_RADIUS_M = 5000
@@ -27,6 +44,14 @@ CONFIRMED = "confirmed"
 NOT_AVAILABLE = "not_available"
 NO_INFO = "no_published_information"
 
+# If a venue has already confirmed an on-site facility, a nearby DS-02
+# record can provide extra details such as opening hours.
+DETAIL_ATTACH_M = 50
+
+VENUE_SOURCE_ID = "DS-01"
+
+# Venue attributes that directly publish information about these facilities.
+# Change facilities and transport stops only come from nearby amenities.
 KINDS = {
     "accessible_toilet": "onsite_accessible_toilet",
     "accessible_parking": "onsite_accessible_parking",
@@ -34,13 +59,28 @@ KINDS = {
     "accessible_transport_stop": None,
 }
 
-LINK_SOURCES = {
-    "arrive": ("accessible_transport_stop", "accessible_parking"),
-    "enter": (),
-    "toilet": ("accessible_toilet",),
-    "change": ("accessible_change_facility",),
-    "play": (),
+# Each access chain link maps to one facility kind.
+LINK_KIND = {
+    "arrive_parking": "accessible_parking",
+    "arrive_transport": "accessible_transport_stop",
+    "toilet": "accessible_toilet",
+    "change": "accessible_change_facility",
+    "enter": None,
+    "play": None,
 }
+
+UNPUBLISHED_DETAIL = {
+    "enter": (
+        "No Australian open dataset publishes step-free entry at venue level. "
+        "Recorded as unpublished rather than estimated."
+    ),
+    "play": (
+        "No Australian open dataset publishes access to the playing surface at "
+        "venue level. Recorded as unpublished rather than estimated."
+    ),
+}
+
+READ_MODEL_VIEWS = ("venue_card", "sport_vocabulary", "search_location")
 
 
 @dataclass
@@ -50,6 +90,7 @@ class StatusOutcome:
     status_rows: int
     chain_rows: int
     by_kind: dict[str, dict[str, int]]
+    attachments: dict[str, dict[str, int]] = field(default_factory=dict)
 
     def summary(self) -> str:
         lines = [
@@ -68,21 +109,39 @@ class StatusOutcome:
             for status, n in sorted(counts.items(), key=lambda kv: -kv[1]):
                 lines.append(f"    {status:<26} {n:,}")
 
-            lines.append(f"    {'confirmed share':<26} {round(100 * confirmed / total, 1)}%")
+            lines.append(
+                f"    {'confirmed share':<26} "
+                f"{round(100 * confirmed / total, 1)}%"
+            )
+
+            extra = self.attachments.get(kind, {})
+
+            if extra.get("details"):
+                lines.append(
+                    f"    {'detail attached':<26} {extra['details']:,}"
+                )
+
+            if extra.get("alternatives"):
+                lines.append(
+                    f"    {'nearby alternative shown':<26} "
+                    f"{extra['alternatives']:,}"
+                )
 
         return "\n".join(lines)
 
 
 def _nearest_sql(kind: str) -> str:
-    """Find the nearest amenity for each venue."""
+    """Find the nearest amenity of a particular kind for each venue."""
 
     return f"""
         SELECT v.venue_id,
                n.amenity_id,
+               n.source_id,
                n.distance_m
           FROM venue v
           LEFT JOIN LATERAL (
                SELECT a.amenity_id,
+                      a.source_id,
                       ST_Distance(
                           a.geom::geography,
                           v.geom::geography
@@ -99,16 +158,30 @@ def _nearest_sql(kind: str) -> str:
 def build(conn, load_run_id: int) -> StatusOutcome:
     """Build the venue accessibility statuses and access chain."""
 
-    venues = conn.execute("SELECT count(*) AS n FROM venue").fetchone()["n"]
+    venues = conn.execute(
+        "SELECT count(*) AS n FROM venue"
+    ).fetchone()["n"]
 
     if venues == 0:
-        raise RuntimeError("No venues loaded. Run the DS-01 load before the status builder.")
+        raise RuntimeError(
+            "No venues loaded. Run the DS-01 load before the status builder."
+        )
 
-    # Get the amenity types currently loaded.
+    # Check which amenity kinds are currently available.
     present = {
         r["kind"]
-        for r in conn.execute("SELECT DISTINCT kind::text AS kind FROM amenity").fetchall()
+        for r in conn.execute(
+            "SELECT DISTINCT kind::text AS kind FROM amenity"
+        ).fetchall()
     }
+
+    for kind in KINDS:
+        if kind not in present:
+            LOG.warning(
+                "%s has no loaded amenities. Every venue will report no "
+                "published information for it.",
+                kind,
+            )
 
     venue_attributes = {
         r["venue_id"]: r
@@ -124,61 +197,123 @@ def build(conn, load_run_id: int) -> StatusOutcome:
 
     status_rows: list[tuple] = []
     by_kind: dict[str, dict[str, int]] = {}
+    attachments: dict[str, dict[str, int]] = {}
 
     for kind, venue_column in KINDS.items():
-        nearest: dict[str, tuple[str | None, float | None]] = {}
+
+        nearest: dict[str, tuple[str | None, str | None, float | None]] = {}
 
         if kind in present:
-            for row in conn.execute(_nearest_sql(kind), {"kind": kind}).fetchall():
+            for row in conn.execute(
+                _nearest_sql(kind),
+                {"kind": kind}
+            ).fetchall():
+
                 vid = row["venue_id"]
                 aid = row["amenity_id"]
                 dist = row["distance_m"]
 
                 if aid is None or dist is None or dist > SEARCH_RADIUS_M:
-                    nearest.setdefault(vid, (None, None))
+                    nearest.setdefault(vid, (None, None, None))
                     continue
 
                 current = nearest.get(vid)
 
-                if current is None or current[1] is None or dist < current[1]:
-                    nearest[vid] = (aid, float(dist))
+                if (
+                    current is None
+                    or current[2] is None
+                    or dist < current[2]
+                ):
+                    nearest[vid] = (aid, row["source_id"], float(dist))
 
         counts: dict[str, int] = {}
+        attached = {"alternatives": 0, "details": 0}
 
         for venue_id, attributes in venue_attributes.items():
-            amenity_id, distance = nearest.get(venue_id, (None, None))
+            amenity_id, amenity_source, distance = nearest.get(
+                venue_id,
+                (None, None, None),
+            )
 
             published = None
 
             if venue_column:
-                published = attributes[venue_column.replace("onsite_", "")]
+                published = attributes[
+                    venue_column.replace("onsite_", "")
+                ]
 
-            near_enough = distance is not None and distance <= CONFIRM_WITHIN_M
+            near_enough = (
+                distance is not None
+                and distance <= CONFIRM_WITHIN_M
+            )
 
-            # Venue-level information takes priority over nearby amenities.
+            # The venue's own published value always takes priority.
+            # Nearby facilities are only used when the venue has not
+            # published a yes/no value.
             if published == CONFIRMED:
                 status = CONFIRMED
                 basis = "publisher_attribute"
-
-            elif near_enough:
-                status = CONFIRMED
-                basis = "spatial_proximity"
-
-            elif kind not in present:
-                status = NO_INFO
-                basis = "not_published"
+                source_id = VENUE_SOURCE_ID
 
             elif published == NOT_AVAILABLE:
                 status = NOT_AVAILABLE
                 basis = "publisher_attribute"
+                source_id = VENUE_SOURCE_ID
+
+            elif near_enough:
+                status = CONFIRMED
+                basis = "spatial_proximity"
+                source_id = amenity_source
+
+            elif kind not in present:
+                status = NO_INFO
+                basis = "not_published"
+                source_id = None
 
             else:
                 status = NO_INFO
                 basis = "spatial_proximity"
+                source_id = None
 
-            keep_amenity = amenity_id if distance is not None else None
+            keep_amenity = (
+                amenity_id if distance is not None else None
+            )
 
-            keep_distance = round(distance, 1) if distance is not None else None
+            keep_distance = (
+                round(distance, 1)
+                if distance is not None
+                else None
+            )
+
+            # Keep a nearby public facility as an alternative when the
+            # venue itself says that it does not have the facility.
+            alternative_amenity = None
+            alternative_distance = None
+
+            if (
+                status == NOT_AVAILABLE
+                and amenity_id is not None
+                and keep_distance is not None
+            ):
+                alternative_amenity = amenity_id
+                alternative_distance = keep_distance
+
+            # Attach extra details from a nearby record when the venue
+            # already confirmed that the facility exists.
+            detail_amenity = None
+            detail_source = None
+            detail_distance = None
+
+            if (
+                status == CONFIRMED
+                and basis == "publisher_attribute"
+                and amenity_id is not None
+                and keep_distance is not None
+                and keep_distance <= DETAIL_ATTACH_M
+            ):
+                detail_amenity = amenity_id
+                detail_source = amenity_source
+                detail_distance = keep_distance
 
             status_rows.append(
                 (
@@ -187,17 +322,33 @@ def build(conn, load_run_id: int) -> StatusOutcome:
                     load_run_id,
                     status,
                     basis,
+                    source_id,
                     keep_amenity,
                     keep_distance,
-                    keep_distance is not None and keep_distance <= 250,
-                    keep_distance is not None and keep_distance <= 500,
-                    keep_distance is not None and keep_distance <= 1000,
+                    keep_distance is not None
+                    and keep_distance <= 250,
+                    keep_distance is not None
+                    and keep_distance <= 500,
+                    keep_distance is not None
+                    and keep_distance <= 1000,
+                    alternative_amenity,
+                    alternative_distance,
+                    detail_amenity,
+                    detail_source,
+                    detail_distance,
                 )
             )
+
+            if alternative_amenity is not None:
+                attached["alternatives"] += 1
+
+            if detail_amenity is not None:
+                attached["details"] += 1
 
             counts[status] = counts.get(status, 0) + 1
 
         by_kind[kind] = counts
+        attachments[kind] = attached
 
     with conn.cursor() as cur:
         cur.execute("DELETE FROM venue_amenity_status")
@@ -205,19 +356,24 @@ def build(conn, load_run_id: int) -> StatusOutcome:
         cur.executemany(
             """
             INSERT INTO venue_amenity_status
-                (venue_id, kind, load_run_id, status, basis,
+                (venue_id, kind, load_run_id, status, basis, source_id,
                  nearest_amenity_id, distance_m,
-                 within_250m, within_500m, within_1000m)
+                 within_250m, within_500m, within_1000m,
+                 alternative_amenity_id, alternative_distance_m,
+                 detail_amenity_id, detail_source_id, detail_distance_m)
             VALUES (
                 %s, %s::amenity_kind, %s,
-                %s::publication_status, %s::status_basis,
+                %s::publication_status, %s::status_basis, %s,
+                %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s
             )
             """,
             status_rows,
         )
 
-    chain_rows = _build_chain(conn, venues)
+    chain_rows = _build_chain(conn)
+
+    refresh_read_model(conn)
 
     return StatusOutcome(
         load_run_id=load_run_id,
@@ -225,15 +381,16 @@ def build(conn, load_run_id: int) -> StatusOutcome:
         status_rows=len(status_rows),
         chain_rows=chain_rows,
         by_kind=by_kind,
+        attachments=attachments,
     )
 
 
-def _build_chain(conn, venues: int) -> int:
-    """Build the five access chain rows for each venue."""
+def _build_chain(conn) -> int:
+    """Build the six access chain rows for each venue."""
 
     rows: list[tuple] = []
 
-    statuses: dict[Any, dict[str, Any]] = {}
+    statuses: dict[str, dict[str, Any]] = {}
 
     for r in conn.execute(
         """
@@ -245,75 +402,51 @@ def _build_chain(conn, venues: int) -> int:
           FROM venue_amenity_status
         """
     ).fetchall():
+
         statuses.setdefault(r["venue_id"], {})[r["kind"]] = r
 
     for venue_id in statuses:
-        for link, kinds in LINK_SOURCES.items():
-            if not kinds:
+
+        for link, kind in LINK_KIND.items():
+
+            if kind is None:
                 rows.append(
                     (
                         venue_id,
                         link,
+                        None,
                         NO_INFO,
                         "not_published",
-                        "No Australian open dataset publishes this at "
-                        "venue level. Recorded as unpublished rather than "
-                        "estimated.",
+                        UNPUBLISHED_DETAIL[link],
                     )
                 )
                 continue
 
-            candidates = [statuses[venue_id][k] for k in kinds if k in statuses[venue_id]]
+            record = statuses[venue_id].get(kind)
 
-            confirmed = [c for c in candidates if c["status"] == CONFIRMED]
-
-            if confirmed:
-                best = min(
-                    confirmed,
-                    key=lambda c: (
-                        c["basis"] != "publisher_attribute",
-                        c["distance_m"] or 0,
-                    ),
-                )
-
-                if best["basis"] == "publisher_attribute":
-                    detail = f"published at the venue ({best['kind'].replace('_', ' ')})"
-                else:
-                    detail = (
-                        f"nearest {best['kind'].replace('_', ' ')} {int(best['distance_m'])} m away"
-                    )
-
+            if record is None:
                 rows.append(
                     (
                         venue_id,
                         link,
-                        CONFIRMED,
-                        best["basis"],
-                        detail,
-                    )
-                )
-
-            elif any(c["status"] == NOT_AVAILABLE for c in candidates):
-                rows.append(
-                    (
-                        venue_id,
-                        link,
-                        NOT_AVAILABLE,
-                        "publisher_attribute",
-                        "the venue's own record states this is not available",
-                    )
-                )
-
-            else:
-                rows.append(
-                    (
-                        venue_id,
-                        link,
+                        kind,
                         NO_INFO,
-                        "spatial_proximity",
-                        "no source in the register answers this for this venue",
+                        "not_published",
+                        "No source in the register answers this for this venue.",
                     )
                 )
+                continue
+
+            rows.append(
+                (
+                    venue_id,
+                    link,
+                    kind,
+                    record["status"],
+                    record["basis"],
+                    _detail_for(record),
+                )
+            )
 
     with conn.cursor() as cur:
         cur.execute("DELETE FROM venue_access_chain")
@@ -321,10 +454,11 @@ def _build_chain(conn, venues: int) -> int:
         cur.executemany(
             """
             INSERT INTO venue_access_chain
-                (venue_id, link, status, basis, detail)
+                (venue_id, link, kind, status, basis, detail)
             VALUES (
                 %s,
                 %s::access_link,
+                %s::amenity_kind,
                 %s::publication_status,
                 %s::status_basis,
                 %s
@@ -334,3 +468,59 @@ def _build_chain(conn, venues: int) -> int:
         )
 
     return len(rows)
+
+
+def _detail_for(record: dict[str, Any]) -> str:
+    """Create a short description of where the status came from."""
+
+    facility = record["kind"].replace("accessible_", "").replace("_", " ")
+
+    if record["basis"] == "publisher_attribute":
+        if record["status"] == CONFIRMED:
+            return f"The venue's own record publishes {facility} on site."
+
+        if record["status"] == NOT_AVAILABLE:
+            return (
+                f"The venue's own record states there is no {facility} "
+                "on site."
+            )
+
+    if record["status"] == CONFIRMED and record["distance_m"] is not None:
+        return (
+            f"Nearest published {facility} is "
+            f"{int(record['distance_m'])} m away. It is a separate public "
+            "facility, not the venue's own."
+        )
+
+    if record["distance_m"] is not None:
+        return (
+            f"Nearest published {facility} is "
+            f"{int(record['distance_m'])} m away, beyond the "
+            f"{CONFIRM_WITHIN_M} m limit."
+        )
+
+    return "No source in the register answers this for this venue."
+
+
+def refresh_read_model(conn) -> None:
+    """Refresh the materialized views used by the API."""
+
+    for view in READ_MODEL_VIEWS:
+        try:
+            with conn.cursor() as cur:
+                cur.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view}")
+
+        except Exception as error:  # noqa: BLE001
+            LOG.warning(
+                "Concurrent refresh of %s failed (%s). Falling back to a "
+                "blocking refresh, which is expected on the first run after "
+                "the read model is created.",
+                view,
+                error,
+            )
+            conn.rollback()
+
+            with conn.cursor() as cur:
+                cur.execute(f"REFRESH MATERIALIZED VIEW {view}")
+
+        LOG.info("refreshed %s", view)
