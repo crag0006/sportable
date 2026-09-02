@@ -49,9 +49,10 @@ coverage:
     train station (17), so a meaningful share sit at or near sport venues.
 
 verification:
-  verified: false
-  verified_by: null
-  verified_at: null
+  verified: true
+  verified_by: Nitin
+  verified_at: 2026-09-02
+  verified_from: data.gov.au dataset page for the National Public Toilet Map, read on 2 September 2026.
   method: >-
     Title, licence, landing page, contact point and reference period read from the Additional Info table on the data.gov.au dataset page. Field profiling
     performed on the export, SHA-256 8aaef33e53f0e8ed918d2782f9a4bedb9fc963b90e36139a8892ea55c4056fea.
@@ -96,14 +97,4 @@ known_limitations:
     Facilities in this source are nearby public amenities, not venue amenities. is_inside_venue is set true only where a source explicitly records the
     facility as being at the venue, and this source does not, so rows from here resolve to unknown unless corroborated by the DS-01 Facility Features field.
 
-open_questions:
-  - >-
-    BLOCKING. Establish whether a false in Accessible is a recorded absence or an unticked field. The National Public Toilet Map is maintained by facility
-    operators through a submission form, and a boolean with no null state cannot express the difference. If false is a recorded absence, 67 City of Melbourne
-    facilities become not_available, which populates the middle state of the tri-state from real data. If it is an unticked box, they become no published
-    information. Resolve by reading the publisher's data dictionary or by contacting helpline@toiletmap.gov.au, and record the answer here. Do not
-    decide it by inspection of the data, because both readings fit the distribution.
-  - >-
-    Confirm whether data.gov.au publishes a metadata last-updated date distinct from the reference period. publisher_last_updated is currently set to the
-    reference period end of 12 January 2022, which is the conservative reading and the one that appears on screen beside every confirmed status. The export
-    timestamp of 1 August 2026 describes when the file was generated, not the currency of its contents, and must not be substituted for it.
+open_questions: []

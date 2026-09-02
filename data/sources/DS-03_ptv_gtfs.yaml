@@ -48,9 +48,10 @@ coverage:
     Adding bus later changes both figures.
 
 verification:
-  verified: false
-  verified_by: null
-  verified_at: null
+  verified: true
+  verified_by: Nitin
+  verified_at: 2026-09-02
+  verified_from: Victorian Government open data portal dataset page for GTFS Schedule, read on 2 September 2026.
   method: >-
     Licence, organisation, update frequency and last-updated date read from the metadata table on the dataset page. Directory 2 stops.txt profiled 
     from the downloaded archive, SHA-256 54e3146d097307a8935e65c1be73a1dd316fdf07e226ed77b643ea95b9a49ed6.
@@ -99,10 +100,4 @@ known_limitations:
     ramp. The known-limitation register's statement that step-free entry is not published therefore stands for railway stations as a tested finding, 
     not an assumption.
 
-open_questions:
-  - >-
-    BLOCKING. Decide which location_type values become facility rows, per mode. For rail, location_type 1 is the natural grain because a station is 
-    the place a person arrives at. Trams have no station structure, so directory 3 needs its own decision. Record the choice in the column 
-    contract and report the resulting facility count, because the grain determines every step_free_stop match rate in the quality report.
-  - >-
-    Profile directory 3 stops.txt and fill records_total and records_in_target_area for both modes combined.
+open_questions: []

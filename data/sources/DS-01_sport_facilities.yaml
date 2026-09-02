@@ -48,9 +48,10 @@ coverage:
     Both figures go in the quality report; the row count is the source record count, the venue count is what reaches the venue table.
 
 verification:
-  verified: false
-  verified_by: null
-  verified_at: null
+  verified: true
+  verified_by: Nitin
+  verified_at: 2026-09-02
+  verified_from: DataVic dataset page for the Sport and Recreational Facilities List, read on 2 September 2026.
   method: >-
     Licence, publisher and publisher last-updated read from the Additional Information table on the DataVic dataset page. 
     Coverage counted from the downloaded workbook, SHA-256 d7a3992688ab6f007c736ac0ee89928dc5b0fd7b075d1d9dcda49a854a42dc34.
