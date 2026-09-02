@@ -34,10 +34,15 @@ variable "source_dir" {
 variable "handler" {
   description = <<-EOT
     Entry point, as `module.function`. The module name is the .py file at the
-    ROOT of the zip — so `stub.handler` means stub.py, not handlers/stub.py.
+    ROOT of the zip — so `api.handler` means api.py, not handlers/api.py.
+
+    `api.handler` is Mangum wrapping the FastAPI application. It replaced
+    `stub.handler`, which served fixtures and needed no dependencies; the real
+    application needs its dependencies installed into the package first. See
+    the archive_file in main.tf.
   EOT
   type        = string
-  default     = "stub.handler"
+  default     = "api.handler"
 }
 
 variable "runtime" {

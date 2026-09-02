@@ -102,6 +102,25 @@ jobs:
           # which several steps below depend on.
           terraform_wrapper: false
 
+      # ------------------------------------------------------------------
+      # Build the Lambda package BEFORE Terraform looks at it
+      # ------------------------------------------------------------------
+      # Terraform's archive_file zips a directory; it cannot install anything.
+      # The real API imports FastAPI, SQLAlchemy, psycopg and Mangum, none of
+      # which the Lambda runtime provides, so they have to be installed into the
+      # package first — for x86_64-manylinux_2_28, not for this runner.
+      #
+      # This must run before `terraform plan`, because the plan hashes the zip
+      # to decide whether to publish a new version.
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Build the Lambda deployment package
+        run: bash backend/scripts/build_lambda.sh
+
       - name: Terraform init
         working-directory: ${{ env.TF_DIR }}
         run: terraform init -input=false

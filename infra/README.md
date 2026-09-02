@@ -19,7 +19,10 @@ Terraform 1.9+ (OpenTofu-compatible). Owner: Infra/Platform engineer.
 
 ## The one rule that matters most
 
-**Never provision a NAT Gateway.** Roughly USD $40/month in `ap-southeast-2`
+**Never provision a NAT Gateway.** USD $43.07/month in `ap-southeast-2`
+($0.059/hour x 730, verified against the AWS Pricing API on 1 Sep 2026, plus
+$0.059/GB processed). Earlier drafts said ~$32 and ~$40 — both were US East
+rates. See [ADR-002](../docs/adr/ADR-002-gateway-endpoint-over-nat.md).
 before a byte of data crosses it — more than every other resource in this
 project combined. The S3 Gateway Endpoint in `modules/network` exists precisely
 so that no in-VPC Lambda ever needs one. It is a route-table entry, not a
