@@ -1,5 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ChevronDownIcon } from './Icons'
+
+function findMatches(options, typedText) {
+  if (typedText.trim().length < 1) {
+    return []
+  }
+
+  return options.filter((item) => item.toLowerCase().includes(typedText.trim().toLowerCase()))
+}
 
 function parseDistanceValue(label) {
   if (!label) return ''
@@ -14,14 +23,59 @@ function parseDistanceValue(label) {
   return String(Math.round(numericValue))
 }
 
+function getCurrentLocation() {
+  return new Promise((resolve, reject) => {
+    if (!('geolocation' in navigator)) {
+      reject(new Error('Current location is not available in this browser.'))
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        })
+      },
+      () => {
+        reject(new Error('Location access was blocked. Choose a suburb or postcode instead.'))
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 8000,
+      },
+    )
+  })
+}
+
 export default function StaticSearchPanel({ data }) {
   const navigate = useNavigate()
+  const [isOpen, setIsOpen] = useState(false)
   const [sport, setSport] = useState(data.sport)
-  const [suburb, setSuburb] = useState(data.suburbOrPostcode)
+  const [startPoint, setStartPoint] = useState(data.startPoint)
   const [selectedAmenities, setSelectedAmenities] = useState(
     data.defaultSelectedAmenities ?? data.amenityOptions ?? [],
   )
   const [activeDistance, setActiveDistance] = useState(data.activeDistance)
+  const [showStartPoints, setShowStartPoints] = useState(false)
+  const [formError, setFormError] = useState('')
+  const [previewStartPoint, setPreviewStartPoint] = useState(data.startPoint)
+
+  const startPointMatches = findMatches(data.startPointOptions ?? [], startPoint)
+
+  useEffect(() => {
+    setSport(data.sport)
+    setStartPoint(data.startPoint)
+    setSelectedAmenities(data.defaultSelectedAmenities ?? data.amenityOptions ?? [])
+    setActiveDistance(data.activeDistance)
+    setPreviewStartPoint(data.startPoint)
+  }, [
+    data.activeDistance,
+    data.amenityOptions,
+    data.defaultSelectedAmenities,
+    data.sport,
+    data.startPoint,
+  ])
 
   function toggleAmenity(amenity) {
     setSelectedAmenities((currentAmenities) =>
@@ -33,48 +87,103 @@ export default function StaticSearchPanel({ data }) {
 
   function handleClear() {
     setSport(data.sport)
-    setSuburb(data.suburbOrPostcode)
+    setStartPoint(data.startPoint)
     setSelectedAmenities(data.defaultSelectedAmenities ?? data.amenityOptions ?? [])
     setActiveDistance(data.activeDistance)
+    setShowStartPoints(false)
+    setFormError('')
+    setPreviewStartPoint(data.startPoint)
   }
 
-  function handleSearch(event) {
+  async function handleSearch(event) {
     event.preventDefault()
 
-    navigate('/', {
-      state: {
-        draftSearch: {
-          sport: sport.trim(),
-          suburb: suburb.trim(),
-          limit: parseDistanceValue(activeDistance),
-          selectedAmenities,
+    if (sport.trim() === '') {
+      setFormError('Choose a sport.')
+      return
+    }
+
+    if (startPoint.trim() === '') {
+      setFormError('Choose current location or enter a suburb/postcode.')
+      return
+    }
+
+    setFormError('')
+    setShowStartPoints(false)
+
+    try {
+      let fromValue = startPoint.trim()
+      let startLabel = startPoint.trim()
+
+      if (startPoint.trim() === 'Current location (test)') {
+        const currentLocation = await getCurrentLocation()
+        fromValue = `${currentLocation.latitude.toFixed(6)},${currentLocation.longitude.toFixed(6)}`
+        startLabel = 'Current location (test)'
+      }
+
+      setPreviewStartPoint(startLabel)
+      setIsOpen(false)
+
+      if (data.currentPath) {
+        const query = new URLSearchParams()
+        query.set('from', fromValue)
+        query.set('startLabel', startLabel)
+
+        const parsedDistance = parseDistanceValue(activeDistance)
+        if (parsedDistance) {
+          query.set('within', parsedDistance)
+        }
+
+        navigate(`${data.currentPath}?${query.toString()}`)
+        return
+      }
+
+      navigate('/', {
+        state: {
+          draftSearch: {
+            sport: sport.trim(),
+            suburb: startLabel,
+            limit: parseDistanceValue(activeDistance),
+            selectedAmenities,
+          },
+          autoSearch: true,
         },
-        autoSearch: true,
-      },
-    })
+      })
+    } catch (caughtError) {
+      setFormError(caughtError.message)
+    }
   }
 
   return (
-    <section className="drawer-card static-search-panel">
-      <div className="drawer-summary static-search-panel-summary">
+    <details className="drawer-card static-search-panel" open={isOpen}>
+      <summary
+        className="drawer-summary static-search-panel-summary"
+        onClick={(event) => {
+          event.preventDefault()
+          setIsOpen((currentValue) => !currentValue)
+        }}
+      >
         <div className="drawer-head">
           <div>
             <p className="drawer-title">{data.title}</p>
             <p className="drawer-subtitle">{data.subtitle}</p>
           </div>
+          <span className="drawer-chevron">
+            <ChevronDownIcon />
+          </span>
         </div>
 
         <div className="location-pills" aria-label="Route setup preview">
           <div className="location-line">
             <span>Start point</span>
-            <strong>{data.startPoint}</strong>
+            <strong>{previewStartPoint}</strong>
           </div>
           <div className="location-line">
             <span>Destination</span>
             <strong>{data.destination}</strong>
           </div>
         </div>
-      </div>
+      </summary>
 
       <div className="drawer-content static-search-panel-content">
         <form className="drawer-content-inner" onSubmit={handleSearch}>
@@ -96,19 +205,50 @@ export default function StaticSearchPanel({ data }) {
           </div>
 
           <div className="field-stack panel-field">
-            <label className="field-label panel-label" htmlFor="static-panel-suburb">
-              Suburb or postcode <span className="required">*</span>
+            <label className="field-label panel-label" htmlFor="static-panel-start-point">
+              Start point <span className="required">*</span>
             </label>
             <div className="panel-input-wrap">
               <input
-                id="static-panel-suburb"
+                id="static-panel-start-point"
                 type="text"
                 className="search-input panel-input"
-                placeholder="eg: North Melbourne or 3051"
+                placeholder="Current location (test) or postcode"
                 autoComplete="off"
-                value={suburb}
-                onChange={(event) => setSuburb(event.target.value)}
+                value={startPoint}
+                onFocus={() => setShowStartPoints(true)}
+                onBlur={() => {
+                  window.setTimeout(() => setShowStartPoints(false), 120)
+                }}
+                onChange={(event) => {
+                  setStartPoint(event.target.value)
+                  setShowStartPoints(true)
+                }}
               />
+
+              {showStartPoints && startPointMatches.length > 0 ? (
+                <ul className="suggestions">
+                  {startPointMatches.map((item) => (
+                    <li key={item}>
+                      <button
+                        type="button"
+                        onMouseDown={() => {
+                          setStartPoint(item)
+                          setShowStartPoints(false)
+                        }}
+                      >
+                        {item}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {showStartPoints &&
+              startPoint.trim().length >= 1 &&
+              startPointMatches.length === 0 ? (
+                <p className="no-match">Choose Current location (test) or enter a suburb/postcode.</p>
+              ) : null}
             </div>
           </div>
 
@@ -163,6 +303,6 @@ export default function StaticSearchPanel({ data }) {
           </div>
         </form>
       </div>
-    </section>
+    </details>
   )
 }

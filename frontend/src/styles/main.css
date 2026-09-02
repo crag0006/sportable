@@ -167,7 +167,7 @@ svg {
 }
 
 .static-search-panel-summary {
-  cursor: default;
+  cursor: pointer;
 }
 
 .static-search-panel-content {
@@ -789,7 +789,36 @@ svg {
 }
 
 .route-item {
-  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-columns: 34px 44px minmax(0, 1fr);
+  align-items: start;
+  position: relative;
+}
+
+.route-step-rail {
+  display: grid;
+  justify-items: center;
+  align-self: stretch;
+}
+
+.route-step-number {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #0c1c2d;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 8px 16px rgba(12, 28, 45, 0.12);
+}
+
+.route-step-line {
+  width: 2px;
+  min-height: 100%;
+  margin-top: 8px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #14507a 0%, #c9d7de 100%);
 }
 
 .facility-icon,
@@ -1096,6 +1125,10 @@ svg {
   margin-top: 12px;
 }
 
+.route-list {
+  gap: 16px;
+}
+
 .route-meta .meta {
   padding: 10px 11px;
 }
@@ -1183,6 +1216,14 @@ svg {
 
   .facility-card,
   .route-item {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .route-item-icon {
+    display: none;
+  }
+
+  .route-meta {
     grid-template-columns: 1fr;
   }
 

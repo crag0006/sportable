@@ -50,12 +50,44 @@ class FacilityRow:
     distance_m: float | None
     amenity_name: str | None = None
     amenity_address: str | None = None
+    amenity_lat: float | None = None
+    amenity_lon: float | None = None
     opening_hours: str | None = None
     key_required: bool | None = None
     is_inside_venue: bool | None = None
     source_name: str | None = None
     source_updated: date | None = None
     retrieved_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class CorridorFacilityRow:
+    """One amenity inside the straight-line corridor origin -> venue (ADR-003)."""
+
+    kind: str
+    name: str | None
+    address: str | None
+    lat: float
+    lon: float
+    distance_from_path_m: float
+    fraction: float  # 0..1 along the line - the travel order
+    opening_hours: str | None = None
+    key_required: bool | None = None
+    source_name: str | None = None
+    source_updated: date | None = None
+    retrieved_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class CorridorResult:
+    """Corridor rows plus how many amenities of each kind exist at all.
+
+    ``totals`` separates "nothing within the corridor" from "no dataset
+    loaded" - the two must never read the same (unknown is never a no).
+    """
+
+    facilities: tuple[CorridorFacilityRow, ...]
+    totals: dict[str, int]
 
 
 @dataclass(frozen=True)
@@ -95,3 +127,7 @@ class VenueRepository(Protocol):
     def search(self, sport: str, reference: ReferencePoint, radius_m: int) -> list[VenueRow]: ...
 
     def get_venue(self, venue_id: str) -> VenueRow | None: ...
+
+    def corridor(
+        self, origin: ReferencePoint, venue: VenueRow, within_m: int, kinds: list[str]
+    ) -> CorridorResult: ...

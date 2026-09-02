@@ -1,9 +1,24 @@
 import { useNavigate } from 'react-router-dom'
 import { FACILITY_INFO } from '../data/homepageVenues'
 
-export default function HomepageVenueCard({ venue, limit }) {
+export default function HomepageVenueCard({ venue, limit, from }) {
   const navigate = useNavigate()
   const facilityKeys = Object.keys(venue.amenities)
+
+  function buildDestination(pathname) {
+    const query = new URLSearchParams()
+
+    if (from) {
+      query.set('from', from)
+    }
+
+    if (limit) {
+      query.set('within', limit)
+    }
+
+    const queryString = query.toString()
+    return queryString ? `${pathname}?${queryString}` : pathname
+  }
 
   function getState(item) {
     if (!item || item.state === 'none') {
@@ -138,7 +153,7 @@ export default function HomepageVenueCard({ venue, limit }) {
         <button
           type="button"
           className="home-view-button"
-          onClick={() => navigate(`/venues/${venue.id}`)}
+          onClick={() => navigate(buildDestination(`/venues/${venue.id}`))}
         >
           View venue
         </button>
@@ -146,7 +161,7 @@ export default function HomepageVenueCard({ venue, limit }) {
         <button
           type="button"
           className="home-direction-button"
-          onClick={() => navigate(`/venues/${venue.id}/directions`)}
+          onClick={() => navigate(buildDestination(`/venues/${venue.id}/directions`))}
         >
           Get directions
         </button>

@@ -2,11 +2,21 @@
 
 import pytest
 from app.domain.facilities import AmenityView, classify, parse_needs, partition, to_view
+from app.domain.geo import haversine_m
 from app.repositories.protocols import FacilityRow, VenueRow
 
 
 def _row(status: str, basis: str, distance_m: float | None) -> FacilityRow:
     return FacilityRow(kind="accessible_toilet", status=status, basis=basis, distance_m=distance_m)
+
+
+# -------------------------------------------------------------- haversine
+def test_haversine_is_zero_for_the_same_point():
+    assert haversine_m(-37.8136, 144.9631, -37.8136, 144.9631) == 0.0
+
+
+def test_haversine_one_degree_of_latitude_is_about_111_km():
+    assert haversine_m(-37.0, 145.0, -38.0, 145.0) == pytest.approx(111_195, rel=1e-3)
 
 
 # ---------------------------------------------------------------- to_view

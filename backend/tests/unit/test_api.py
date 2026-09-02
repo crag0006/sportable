@@ -130,13 +130,17 @@ def test_venue_card(client: TestClient):
     assert toilet["mlak"] is True
     assert toilet["source"]["name"] == "National Public Toilet Map"
     assert toilet["source"]["published_at"] == "2026-07-14"
+    assert (toilet["lat"], toilet["lon"]) == (-37.7398, 145.0101)  # pin for the map
     parking = body["amenities"]["parking"]
     assert parking["state"] == "confirmed"
     assert parking["location"] == "at_venue"
     assert "distance" not in parking
     assert "name" not in parking and "opening_hours" not in parking  # the nearby bay's, not ours
+    assert "lat" not in parking and "lon" not in parking  # likewise: not the venue's position
     assert parking["source"]["name"] == "Sport and Recreation Victoria facilities list"
     assert body["amenities"]["stop"] == {"state": "none"}
+    change = body["amenities"]["change"]
+    assert change["state"] == "recorded" and "lat" not in change  # no position recorded
 
 
 def test_venue_card_always_names_what_it_cannot_tell_you(client: TestClient):
@@ -154,3 +158,107 @@ def test_missing_venue_is_404(client: TestClient):
     response = client.get("/api/v1/venues/does-not-exist")
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "venue_not_found"
+
+
+# ------------------------------------------------------- venue card ?from=
+def test_venue_card_without_from_has_no_distance(client: TestClient):
+    body = client.get("/api/v1/venues/10432").json()
+    assert "distance" not in body and "reference_point" not in body
+
+
+def test_venue_card_distance_from_a_place(client: TestClient):
+    body = client.get("/api/v1/venues/10432", params={"from": "Preston 3072"}).json()
+    assert body["reference_point"]["label"] == "the centre of Preston 3072"
+    assert body["distance"] == 0.8  # ~775 m from the fake's Preston point
+
+
+def test_venue_card_distance_from_coordinates(client: TestClient):
+    # The venue's own position: a lat,lon pair is used as-is, no lookup.
+    body = client.get("/api/v1/venues/10432", params={"from": "-37.7401,145.0093"}).json()
+    assert body["distance"] == 0.0
+    assert body["reference_point"]["label"] == "your starting point"
+
+
+def test_venue_card_rejects_an_unknown_starting_point(client: TestClient):
+    response = client.get("/api/v1/venues/10432", params={"from": "Hobart 7000"})
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "unknown_place"
+
+
+def test_venue_card_rejects_impossible_coordinates(client: TestClient):
+    response = client.get("/api/v1/venues/10432", params={"from": "-97.0,145.0"})
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"
+
+
+# ---------------------------------------------------------------- corridor
+CORRIDOR = "/api/v1/venues/10432/corridor"
+
+
+def test_corridor_requires_a_starting_point(client: TestClient):
+    response = client.get(CORRIDOR)
+    assert response.status_code == 422
+    body = response.json()["error"]
+    assert body["code"] == "validation_error"
+    assert "from" in body["message"]
+
+
+def test_corridor_lists_facilities_in_travel_order(client: TestClient):
+    body = client.get(CORRIDOR, params={"from": "Preston 3072", "within": "500"}).json()
+    assert body["venue"]["id"] == "10432"
+    assert body["origin"]["label"] == "the centre of Preston 3072"
+    assert body["path"]["kind"] == "straight_line"
+    assert body["path"]["within_m"] == 500
+    assert len(body["path"]["coordinates"]) == 2
+    assert [f["seq"] for f in body["facilities"]] == [1, 2]
+    assert [f["type"] for f in body["facilities"]] == ["toilet", "parking"]  # by fraction
+    first = body["facilities"][0]
+    assert first["distance_from_path_m"] == 90
+    assert first["along_path_m"] == round(0.2 * body["path"]["length_m"])
+    assert first["mlak"] is False
+    assert first["source"]["name"] == "National Public Toilet Map"
+
+
+def test_corridor_widening_the_band_reveals_the_far_toilet(client: TestClient):
+    body = client.get(CORRIDOR, params={"from": "Preston 3072", "within": "1000"}).json()
+    names = [f["name"] for f in body["facilities"]]
+    assert names == ["Gower St toilets", "High St bay", "Northland"]
+    toilet = next(t for t in body["types"] if t["type"] == "toilet")
+    assert toilet == {
+        "type": "toilet",
+        "label": "Accessible toilets",
+        "count": 2,
+        "status": "found",
+    }
+
+
+def test_corridor_separates_none_within_from_no_data(client: TestClient):
+    body = client.get(CORRIDOR, params={"from": "3072", "types": "change,stop"}).json()
+    statuses = {t["type"]: t["status"] for t in body["types"]}
+    assert statuses == {"change": "none_within", "stop": "no_data"}
+    assert body["facilities"] == []
+    # change was checked (a dataset exists); stops were not (no dataset loaded)
+    assert any("change" in sentence.lower() for sentence in body["checked"])
+    assert any("transport stops" in sentence for sentence in body["not_checked"])
+
+
+def test_corridor_defaults_and_never_claims_a_route(client: TestClient):
+    body = client.get(CORRIDOR, params={"from": "Preston 3072"}).json()
+    assert body["path"]["within_m"] == 500  # config default
+    statuses = {t["type"]: t["status"] for t in body["types"]}
+    assert set(statuses) == {"toilet", "parking", "stop"}  # default types
+    assert statuses["stop"] == "no_data"  # GTFS pending - never "none found"
+    assert len(body["not_checked"]) == 3  # step-free + stops + opening hours
+    joined = " ".join(body["checked"] + body["not_checked"]).lower()
+    assert "route" not in joined  # AC2.3.4: never described as a route
+
+
+def test_corridor_unknown_venue_is_404(client: TestClient):
+    response = client.get("/api/v1/venues/nope/corridor", params={"from": "3072"})
+    assert response.status_code == 404
+
+
+def test_corridor_rejects_a_band_outside_the_config(client: TestClient):
+    response = client.get(CORRIDOR, params={"from": "3072", "within": "300"})
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_distance_band"

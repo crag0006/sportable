@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { getConfig, getSports, getSuburbs, getVenue } from '../api/venues'
 import AppShell from '../components/AppShell'
 import FacilityCard from '../components/FacilityCard'
@@ -269,21 +269,35 @@ function buildFallbackHero(venue) {
 
 export default function VenueDetailPage() {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
   const [venue, setVenue] = useState(null)
   const [config, setConfig] = useState(null)
   const [sports, setSports] = useState([])
   const [suburbs, setSuburbs] = useState([])
   const [error, setError] = useState('')
+  const fromQuery = (searchParams.get('from') || '').trim()
+  const startLabelQuery = (searchParams.get('startLabel') || '').trim()
+  const withinQuery = (searchParams.get('within') || '').trim()
   const fallbackVenue = useMemo(
     () => HOME_VENUES.find((item) => String(item.id) === String(id)) ?? null,
     [id],
   )
   const displayVenue = venue ?? fallbackVenue
+  const sharedQuery = useMemo(() => {
+    const query = new URLSearchParams()
+    if (fromQuery) query.set('from', fromQuery)
+    if (startLabelQuery) query.set('startLabel', startLabelQuery)
+    if (withinQuery) query.set('within', withinQuery)
+    const queryString = query.toString()
+    return queryString ? `?${queryString}` : ''
+  }, [fromQuery, startLabelQuery, withinQuery])
+
+  const displayStartLabel = startLabelQuery || fromQuery || searchPanelData.startPoint
 
   useEffect(() => {
     let isMounted = true
 
-    Promise.all([getVenue(id), getConfig(), getSports(), getSuburbs()])
+    Promise.all([getVenue(id, { from: fromQuery || undefined }), getConfig(), getSports(), getSuburbs()])
       .then(([venueBody, configBody, sportsBody, suburbsBody]) => {
         if (!isMounted) return
         setVenue(venueBody)
@@ -300,7 +314,7 @@ export default function VenueDetailPage() {
     return () => {
       isMounted = false
     }
-  }, [id])
+  }, [fromQuery, id])
 
   const sidebarData = useMemo(() => {
     const defaultDistance = config?.default_distance_m
@@ -318,8 +332,11 @@ export default function VenueDetailPage() {
         config?.distance_bands_m?.map((value) => formatBandLabel(value)) ?? searchPanelData.distanceOptions,
       activeDistance: defaultDistance ? formatBandLabel(defaultDistance) : searchPanelData.activeDistance,
       destination: displayVenue?.name ?? searchPanelData.destination,
+      startPoint: displayStartLabel,
+      startPointOptions: ['Current location (test)', ...(suburbs.length > 0 ? suburbs : searchPanelData.suburbOptions)],
+      currentPath: `/venues/${id}`,
     }
-  }, [config, displayVenue, sports, suburbs])
+  }, [config, displayStartLabel, displayVenue, id, sports, suburbs])
 
   const heroData = useMemo(() => {
     if (!venue) {
@@ -345,6 +362,36 @@ export default function VenueDetailPage() {
     [config, displayVenue],
   )
 
+  const miniMapData = useMemo(() => {
+    if (!venue?.lat || !venue?.lon || !venue?.reference_point) {
+      return null
+    }
+
+    return {
+      coordinates: [
+        [venue.reference_point.latitude, venue.reference_point.longitude],
+        [venue.lat, venue.lon],
+      ],
+      facilityPoints: Object.values(venue.amenities ?? {})
+        .filter((item) => item?.lat && item?.lon)
+        .slice(0, 3)
+        .map((item, index) => ({
+          seq: index + 1,
+          type: item.location === 'public_nearby' ? 'toilet' : 'parking',
+          lat: item.lat,
+          lon: item.lon,
+        })),
+    }
+  }, [venue])
+
+  const mapPreviewCaption = useMemo(() => {
+    if (venue?.reference_point?.label && venue?.distance) {
+      return `${venue.distance} km from ${venue.reference_point.label}. Open the directions page for the full corridor view.`
+    }
+
+    return venueDetailData.mapPreview.caption
+  }, [venue])
+
   return (
     <AppShell
       backTo={venueDetailData.backTo}
@@ -355,9 +402,10 @@ export default function VenueDetailPage() {
           <StaticSearchPanel data={sidebarData} />
           <MiniMapLinkCard
             label={venueDetailData.mapPreview.label}
-            caption={venueDetailData.mapPreview.caption}
+            caption={mapPreviewCaption}
             linkLabel={venueDetailData.mapPreview.linkLabel}
-            to={`/venues/${id}/directions`}
+            to={`/venues/${id}/directions${sharedQuery}`}
+            mapData={miniMapData}
           />
         </>
       }

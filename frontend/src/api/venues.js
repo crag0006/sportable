@@ -28,8 +28,41 @@ async function getJSON(path) {
   return body
 }
 
-export function getVenue(id) {
-  return getJSON(`/venues/${encodeURIComponent(id)}`)
+function buildQuery(params) {
+  const query = new URLSearchParams()
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return
+
+    if (Array.isArray(value)) {
+      if (value.length === 0) return
+      query.set(key, value.join(','))
+      return
+    }
+
+    query.set(key, String(value))
+  })
+
+  const queryString = query.toString()
+  return queryString ? `?${queryString}` : ''
+}
+
+export function getVenue(id, options = {}) {
+  const suffix = buildQuery({
+    from: options.from,
+  })
+
+  return getJSON(`/venues/${encodeURIComponent(id)}${suffix}`)
+}
+
+export function getVenueCorridor(id, options = {}) {
+  const suffix = buildQuery({
+    from: options.from,
+    within: options.within,
+    types: options.types,
+  })
+
+  return getJSON(`/venues/${encodeURIComponent(id)}/corridor${suffix}`)
 }
 
 export function getConfig() {

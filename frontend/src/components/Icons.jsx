@@ -61,6 +61,8 @@ export function FacilityEmoji({ icon }) {
     change: '♿',
     ramp: '♿',
     hoist: '♿',
+    start: '📍',
+    destination: '🏁',
   }
 
   return <span className="facility-emoji" aria-hidden="true">{emojiByIcon[icon] ?? '•'}</span>

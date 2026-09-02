@@ -1,12 +1,17 @@
 import { FacilityEmoji } from './Icons'
 
-export default function DirectionsFacilityItem({ item }) {
+export default function DirectionsFacilityItem({ item, stepNumber, isLast = false }) {
   const metaItems = (item.meta ?? []).filter(
     (metaItem) => metaItem && metaItem.label && metaItem.value,
   )
 
   return (
     <article className="route-item">
+      <div className="route-step-rail" aria-hidden="true">
+        <div className="route-step-number">{stepNumber}</div>
+        {!isLast ? <div className="route-step-line" /> : null}
+      </div>
+
       <div className="route-item-icon">
         <FacilityEmoji icon={item.icon} />
       </div>
