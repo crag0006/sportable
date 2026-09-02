@@ -510,7 +510,7 @@ def refresh_read_model(conn) -> None:
             with conn.cursor() as cur:
                 cur.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view}")
 
-        except Exception as error:  # noqa: BLE001
+        except Exception as error:
             LOG.warning(
                 "Concurrent refresh of %s failed (%s). Falling back to a "
                 "blocking refresh, which is expected on the first run after "

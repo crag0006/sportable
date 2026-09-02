@@ -32,7 +32,6 @@ import yaml
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
-
 LOG = logging.getLogger()
 LOG.setLevel(logging.INFO)
 

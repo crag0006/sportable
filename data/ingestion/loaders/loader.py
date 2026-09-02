@@ -17,14 +17,14 @@ from __future__ import annotations
 
 import json
 import logging
-from contextlib import contextmanager
+from collections.abc import Iterable, Sequence
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 import pandas as pd
 import psycopg
 from psycopg.rows import dict_row
-
 
 LOG = logging.getLogger("sportable.loader")
 
@@ -57,7 +57,7 @@ MAX_QUARANTINE_RATE_BY_SOURCE = {
 }
 
 
-class LoadAborted(RuntimeError):
+class LoadAbortedError(RuntimeError):
     """Raised when a load exceeds the quarantine threshold."""
 
 
@@ -297,11 +297,7 @@ def _upsert(
             reordered.append(keep)
 
         rows = reordered
-
-        values_expression = ", ".join(
-            parts
-            + [f"ST_SetSRID(ST_MakePoint(%s, %s), {SRID})"]
-        )
+        values_expression = ", ".join([*parts,f"ST_SetSRID(ST_MakePoint(%s, %s), {SRID})",])
 
     updates = ", ".join(
         f"{c} = EXCLUDED.{c}"
@@ -460,20 +456,15 @@ def _tuples(
         for c in columns:
             value = row.get(c)
 
-            if isinstance(value, float) and pd.isna(value):
-                value = None
-
-            elif value is pd.NaT:
+            if (isinstance(value, float) and pd.isna(value)) or value is pd.NaT:
                 value = None
 
             elif hasattr(value, "item") and not isinstance(
                 value,
                 (str, bytes),
             ):
-                try:
+                with suppress(Exception):
                     value = value.item()
-                except Exception:
-                    pass
 
             record.append(value)
 
