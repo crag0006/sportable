@@ -18,8 +18,9 @@ The venue card takes an optional starting point in the same spirit:
 """
 
 import re
+from typing import Annotated
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 
 from app.api.deps import Repo, SettingsDep
 from app.core.config import SearchConfig
@@ -150,7 +151,35 @@ def _parse_facilities(request: Request) -> list[FrontendKey]:
 
 @router.get("/search", response_model=SearchOut, response_model_exclude_none=True)
 @router.get("/venues/search", response_model=SearchOut, response_model_exclude_none=True)
-def search(request: Request, repo: Repo, settings: SettingsDep) -> SearchOut:
+def search(
+    request: Request,
+    repo: Repo,
+    settings: SettingsDep,
+    sport: Annotated[str, Query(description="A sport name from /sports.", examples=["Basketball"])],
+    suburb: Annotated[
+        str | None,
+        Query(description='Suburb, with or without a postcode: "Preston 3072". Alias: place.'),
+    ] = None,
+    postcode: Annotated[
+        str | None,
+        Query(description="Four-digit postcode. Give either suburb or postcode."),
+    ] = None,
+    needs: Annotated[
+        list[str] | None,
+        Query(
+            description="Facility filters: comma list of toilet, parking, stop, change. "
+            "Aliases: types, amenities, facilities, or flag style toilet=true."
+        ),
+    ] = None,
+    limit: Annotated[
+        int | None,
+        Query(
+            description="Facility distance limit in metres, one of the bands in /config. "
+            "Default 500. Aliases: within, distance_m.",
+            examples=[500],
+        ),
+    ] = None,
+) -> SearchOut:
     q = request.query_params
     cfg = settings.search
 
@@ -162,8 +191,8 @@ def search(request: Request, repo: Repo, settings: SettingsDep) -> SearchOut:
     if not suburb and not postcode:
         raise ApiError(422, "validation_error", "suburb or postcode is required")
 
-    needs = _parse_facilities(request)
-    limit = _parse_limit(q.get("limit") or q.get("within") or q.get("distance_m"), cfg)
+    need_keys = _parse_facilities(request)
+    limit_m = _parse_limit(q.get("limit") or q.get("within") or q.get("distance_m"), cfg)
 
     reference = repo.resolve_reference(suburb, postcode)
     if reference is None:
@@ -171,7 +200,7 @@ def search(request: Request, repo: Repo, settings: SettingsDep) -> SearchOut:
         raise ApiError(422, "unknown_place", f"No suburb or postcode matching {typed!r}.")
 
     venues = repo.search(sport, reference, cfg.search_radius_m)
-    parts = partition(venues, needs, limit)
+    parts = partition(venues, need_keys, limit_m)
 
     return SearchOut(
         place=" ".join(p for p in (suburb, postcode) if p),
@@ -183,13 +212,25 @@ def search(request: Request, repo: Repo, settings: SettingsDep) -> SearchOut:
             latitude=reference.latitude,
             longitude=reference.longitude,
         ),
-        distance_limit_m=limit,
+        distance_limit_m=limit_m,
         not_available=parts.not_available,
     )
 
 
 @router.get("/venues/{venue_id}", response_model=VenueCardOut, response_model_exclude_none=True)
-def venue(venue_id: str, request: Request, repo: Repo) -> VenueCardOut:
+def venue(
+    venue_id: str,
+    request: Request,
+    repo: Repo,
+    from_: Annotated[
+        str | None,
+        Query(
+            alias="from",
+            description='Optional starting point: "Preston 3072", "3072" or "lat,lon". '
+            "Adds distance (km) and reference_point to the card.",
+        ),
+    ] = None,
+) -> VenueCardOut:
     row = repo.get_venue(venue_id)
     if row is None:
         raise ApiError(404, "venue_not_found", f"No venue with id {venue_id!r}.")
@@ -202,7 +243,32 @@ def venue(venue_id: str, request: Request, repo: Repo) -> VenueCardOut:
     response_model=CorridorOut,
     response_model_exclude_none=True,
 )
-def corridor(venue_id: str, request: Request, repo: Repo, settings: SettingsDep) -> CorridorOut:
+def corridor(
+    venue_id: str,
+    request: Request,
+    repo: Repo,
+    settings: SettingsDep,
+    from_: Annotated[
+        str,
+        Query(
+            alias="from",
+            description='Starting point: "Preston 3072", "3072" or "lat,lon". '
+            "Required, there is no default origin (AC2.2.1).",
+        ),
+    ],
+    within: Annotated[
+        int | None,
+        Query(
+            description="Corridor half-width in metres, one of the bands in /config. Default 500."
+        ),
+    ] = None,
+    types: Annotated[
+        str | None,
+        Query(
+            description="Comma list of toilet, parking, stop, change. Default: toilet,parking,stop."
+        ),
+    ] = None,
+) -> CorridorOut:
     """US2.2 / US2.3 - the straight-line corridor (ADR-003). Not a route."""
     row = repo.get_venue(venue_id)
     if row is None:
