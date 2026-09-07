@@ -33,6 +33,11 @@ on:
   # For re-publishing a submitted iteration without an empty commit — after a
   # cache problem, or to confirm the URL still serves after a DNS change.
   workflow_dispatch:
+    inputs:
+      skip_smoke_test:
+        description: "Skip the smoke test — the deploy will NOT be verified"
+        type: boolean
+        default: false
 
 # One release at a time. cancel-in-progress is false for the same reason as the
 # staging deploy: a cancelled upload can leave a bucket half old and half new.
@@ -173,7 +178,25 @@ jobs:
       # Without this the smoke test receives 401 from the edge function and
       # fails a deploy that actually succeeded — which is how a pipeline stops
       # being read.
+      # SKIPPED WHEN `SKIP_SMOKE_TEST` IS SET
+      #
+      # Off by default, and it should stay that way. This test has caught two
+      # real failures in this project: a CloudFront error-response bug that
+      # turned API 404s into HTML and passed every pre-merge check, and the
+      # rollback drill it correctly failed. It is also the only automated thing
+      # that notices when the database is stopped and every search returns 500.
+      #
+      # Two ways to skip, both deliberate:
+      #   · Run the workflow manually and tick "Skip the smoke test"
+      #   · Set a repository VARIABLE (not a secret) SKIP_SMOKE_TEST to "true"
+      #     — this is what takes effect on an ordinary push to a release branch
+      #
+      # A skipped run publishes the bundle without verifying that anything
+      # serves. Check the URL by hand afterwards.
       - name: Smoke test
+        if: >-
+          github.event.inputs.skip_smoke_test != 'true' &&
+          vars.SKIP_SMOKE_TEST != 'true'
         env:
           BASIC_AUTH: ${{ secrets.ITERATION_BASIC_AUTH }}
         run: |
@@ -264,4 +287,9 @@ jobs:
             echo "| Environment | \`${{ steps.env.outputs.dir }}\` |"
             echo "| Bucket | \`${{ steps.tf.outputs.site_bucket }}\` |"
             echo "| Commit | \`${{ github.sha }}\` |"
+            if [ "${{ github.event.inputs.skip_smoke_test }}" = "true" ] || [ "${{ vars.SKIP_SMOKE_TEST }}" = "true" ]; then
+              echo "| Verified | **No — smoke test skipped** |"
+            else
+              echo "| Verified | Smoke test passed |"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
