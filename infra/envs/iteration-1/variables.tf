@@ -60,3 +60,19 @@ variable "api_origin_domain" {
   type        = string
   default     = "w9kjh1cuye.execute-api.ap-southeast-2.amazonaws.com"
 }
+
+variable "basic_auth_credentials" {
+  description = <<-EOT
+    "user:password" protecting this iteration site, or null to make it public.
+
+    Supplied from the environment, never committed:
+        export TF_VAR_basic_auth_credentials='user:password'
+
+    Record the same credentials in the Team Information document. The PGP
+    guidelines require "Link to each version of iteration build and its
+    credentials", and mentors run acceptance testing against this URL.
+  EOT
+  type        = string
+  default     = null
+  sensitive   = true
+}
