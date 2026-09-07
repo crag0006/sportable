@@ -113,9 +113,16 @@ resource "aws_cloudfront_origin_access_control" "site" {
 resource "aws_cloudfront_function" "spa_rewrite" {
   name    = "${var.name_prefix}-spa-rewrite"
   runtime = "cloudfront-js-2.0"
-  comment = "Rewrites extensionless paths to /index.html for the SPA router"
+  comment = "SPA routing${var.basic_auth_credentials == null ? "" : " + basic auth"}"
   publish = true
-  code    = file("${path.module}/functions/spa-rewrite.js")
+
+  # templatefile, not file: the basic-auth credential is injected from a
+  # variable so it is never committed. With no credential supplied the auth
+  # block is omitted entirely and the function is pure SPA routing.
+  code = templatefile("${path.module}/functions/spa-rewrite.js.tftpl", {
+    basic_auth_b64   = var.basic_auth_credentials == null ? "" : base64encode(var.basic_auth_credentials)
+    basic_auth_realm = var.name_prefix
+  })
 }
 
 # --------------------------------------------------------------- distribution
