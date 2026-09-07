@@ -45,7 +45,7 @@ export const weatherData = {
 export const venueDetailData = {
   sidebarHeadline: 'Venue Information',
   backLabel: 'Back to search results',
-  backTo: '/',
+  backTo: '/venues',
   hero: {
     eyebrow: 'Venue detail',
     title: 'North Melbourne Recreation Centre',
