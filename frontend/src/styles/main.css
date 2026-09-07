@@ -1,3 +1,4 @@
+
 * {
   box-sizing: border-box;
 }
@@ -30,10 +31,15 @@ svg {
   display: block;
 }
 
+/* Shows where you are when moving through the page with the keyboard */
 :focus-visible {
   outline: 3px solid #2b8c69;
   outline-offset: 2px;
 }
+
+/* --------------------------------------------------------------------------
+   Shared page furniture
+   -------------------------------------------------------------------------- */
 
 .app-layout {
   display: grid;
@@ -72,6 +78,10 @@ svg {
   gap: 18px;
 }
 
+/* --------------------------------------------------------------------------
+   Brand
+   -------------------------------------------------------------------------- */
+
 .brand {
   display: flex;
   align-items: center;
@@ -85,7 +95,11 @@ svg {
   border-radius: 16px;
   display: grid;
   place-items: center;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12),
+    rgba(255, 255, 255, 0.04)
+  );
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
@@ -154,13 +168,17 @@ svg {
   letter-spacing: -0.04em;
 }
 
+/* --------------------------------------------------------------------------
+   Cards
+   FIXED: a comment had been dropped inside this selector list, which closed
+   the rule early. .hero-card and .section-card were left with only a top
+   border and no background at all.
+   -------------------------------------------------------------------------- */
+
 .drawer-card,
 .mini-note-card,
 .hero-card,
-/* A teal accent stripe across the top of each section */
-.section-card {
-  border-top: 4px solid #0f4f59;
-}
+.section-card,
 .map-card,
 .disclaimer-card {
   background: var(--surface-alt);
@@ -168,6 +186,11 @@ svg {
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(8px);
+}
+
+/* A teal accent stripe across the top of each section */
+.section-card {
+  border-top: 4px solid #14507a;
 }
 
 .drawer-card,
@@ -305,14 +328,16 @@ svg {
   background: linear-gradient(180deg, #ffffff 0%, #fbfdfe 100%);
 }
 
+/* --------------------------------------------------------------------------
+   Form controls
+   -------------------------------------------------------------------------- */
+
 .panel-field {
   position: relative;
 }
 
 .field-label,
-.side-label {
-  color: #58707e;
-}
+.side-label,
 .eyebrow {
   color: #58707e;
 }
@@ -336,47 +361,6 @@ svg {
 
 .panel-input {
   padding: 0 14px;
-}
-
-.required {
-  color: #96231f;
-}
-
-.suggestions {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: 10;
-  width: 100%;
-  max-height: 180px;
-  overflow-y: auto;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  background: #fff;
-  border: 1px solid #c4cbd2;
-  border-radius: 6px;
-  box-shadow: 0 10px 24px rgba(12, 28, 45, 0.08);
-}
-
-.suggestions button {
-  width: 100%;
-  padding: 10px 12px;
-  border: none;
-  background: #fff;
-  color: #1b2d39;
-  text-align: left;
-  cursor: pointer;
-}
-
-.suggestions button:hover {
-  background: #eef4f9;
-}
-
-.no-match {
-  margin: 6px 0 0;
-  color: #96231f;
-  font-size: 12px;
 }
 
 .amenity-checks {
@@ -435,44 +419,8 @@ svg {
   box-shadow: 0 2px 6px rgba(20, 80, 122, 0.08);
 }
 
-.distance-options {
-  display: flex;
-  gap: 8px;
-}
-
-.distance-option {
-  flex: 1;
-  padding: 9px 5px;
-  border-radius: 10px;
-  border: 1px solid #d0d7dd;
-  background: #f4f6f8;
-  color: #607380;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.distance-option input {
-  display: none;
-}
-
-.selected-distance {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
-
-.form-error {
-  margin: 0;
-  padding: 10px 12px;
-  border: 1px solid #e3b5b3;
-  border-radius: 8px;
-  background: #fdf3f2;
-  color: #96231f;
-  font-size: 13px;
-}
-
+/* FIXED: this used to be "display: none", which removed the radio from the
+   tab order entirely, so nobody using a keyboard could pick a distance.
 .drawer-actions {
   display: flex;
   gap: 10px;
@@ -503,6 +451,10 @@ svg {
   color: #fff;
 }
 
+/* --------------------------------------------------------------------------
+   Small map preview
+   -------------------------------------------------------------------------- */
+
 .mini-note-card {
   padding: 16px 18px;
 }
@@ -518,8 +470,11 @@ svg {
   min-height: 178px;
   overflow: hidden;
   border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(117, 178, 218, 0.28), rgba(255, 255, 255, 0.02)),
+  background: linear-gradient(
+      180deg,
+      rgba(117, 178, 218, 0.28),
+      rgba(255, 255, 255, 0.02)
+    ),
     linear-gradient(
       135deg,
       #d9e8dd 0%,
@@ -544,9 +499,14 @@ svg {
 }
 
 .mini-map-grid {
-  background:
-    linear-gradient(90deg, rgba(20, 80, 122, 0.06) 1px, transparent 1px) 0 0 / 42px 42px,
-    linear-gradient(rgba(20, 80, 122, 0.06) 1px, transparent 1px) 0 0 / 42px 42px;
+  background: linear-gradient(
+        90deg,
+        rgba(20, 80, 122, 0.06) 1px,
+        transparent 1px
+      )
+      0 0 / 42px 42px,
+    linear-gradient(rgba(20, 80, 122, 0.06) 1px, transparent 1px) 0 0 / 42px
+      42px;
 }
 
 .mini-road,
@@ -641,6 +601,10 @@ svg {
   white-space: nowrap;
 }
 
+/* --------------------------------------------------------------------------
+   Weather panel
+   -------------------------------------------------------------------------- */
+
 .weather-top,
 .hero-top,
 .section-head,
@@ -689,6 +653,10 @@ svg {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
+
+/* --------------------------------------------------------------------------
+   Venue hero
+   -------------------------------------------------------------------------- */
 
 .hero-card,
 .section-card,
@@ -748,8 +716,9 @@ svg {
   border-radius: 14px;
   background: #f2f9f8;
   border: 1px solid #cfe7e3;
-  border-left: 4px solid #0f4f59;
+  border-left: 4px solid #14507a;
 }
+
 .hero-panel span {
   display: block;
   margin-bottom: 6px;
@@ -778,15 +747,15 @@ svg {
   display: inline-block;
   padding: 12px 28px;
   border-radius: 999px;
-  background: #0f4f59;
-  color: white;
+  background: #14507a;
+  color: #fff;
   font-weight: 600;
   text-decoration: none;
-  box-shadow: 0 2px 8px rgba(15, 79, 89, 0.25);
+  box-shadow: 0 2px 8px rgba(20, 80, 122, 0.25);
 }
 
 .get-directions-button:hover {
-  background: #0c3e46;
+  background: #0f3d5e;
 }
 
 .hero-top-actions {
@@ -796,6 +765,7 @@ svg {
   gap: 8px;
 }
 
+/* Sport chips, matching the search results page */
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -806,12 +776,18 @@ svg {
 .chip {
   padding: 8px 12px;
   border-radius: 999px;
-  background: #e0f2f1;
-  color: #0f4f59;
-  border: 1px solid #b2dfdb;
+  background: #eaf2f8;
+  color: #14507a;
+  border: 1px solid #c3d9e8;
   font-size: 13px;
   font-weight: 700;
 }
+
+/* --------------------------------------------------------------------------
+   Facility cards
+   Each state has a colour AND a symbol, because colour alone is not enough
+   for people who cannot tell the colours apart.
+   -------------------------------------------------------------------------- */
 
 .facility-card,
 .route-item {
@@ -827,8 +803,6 @@ svg {
   grid-template-columns: 46px minmax(0, 1fr);
 }
 
-/* Color-code each facility card by status, same green/red/grey system
-   used on the search results page */
 .facility-within,
 .facility-at_venue {
   background: #e2f5ec;
@@ -864,17 +838,6 @@ svg {
   background: #e6e9e9;
   border-color: #a8b1b3;
   color: #55636a;
-}
-
-/* Sport chip colour, matching the search results page */
-.chip {
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: #e0f2f1;
-  color: #0f4f59;
-  border: 1px solid #b2dfdb;
-  font-size: 13px;
-  font-weight: 700;
 }
 
 .route-item {
@@ -936,8 +899,10 @@ svg {
   white-space: nowrap;
 }
 
-/* Simple full-width layout for the venue detail page — replaces the
-   old two-column layout that left a big empty box on the left. */
+/* --------------------------------------------------------------------------
+   Venue detail page
+   -------------------------------------------------------------------------- */
+
 .venue-page {
   min-height: 100vh;
   background: linear-gradient(180deg, #eaf4f2 0%, #f6f8f7 45%, #eef5f4 100%);
@@ -945,8 +910,11 @@ svg {
 
 .venue-topbar {
   position: relative;
-  background:
-    linear-gradient(120deg, rgba(12, 28, 45, 0.92), rgba(12, 28, 45, 0.86)),
+  background: linear-gradient(
+      120deg,
+      rgba(12, 28, 45, 0.92),
+      rgba(12, 28, 45, 0.86)
+    ),
     url('../assets/home-access.jpg') center center / cover no-repeat;
   padding: 1rem 2rem;
 }
@@ -1019,7 +987,11 @@ svg {
   display: flex;
   align-items: flex-end;
   padding: 20px;
-  background: linear-gradient(180deg, rgba(12, 28, 45, 0) 45%, rgba(12, 28, 45, 0.78) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(12, 28, 45, 0) 45%,
+    rgba(12, 28, 45, 0.78) 100%
+  );
 }
 
 .venue-banner-text {
@@ -1029,18 +1001,6 @@ svg {
   font-size: 1.1rem;
 }
 
-@media (max-width: 640px) {
-  .venue-topbar-inner {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .venue-content {
-    padding: 1.25rem 1rem 2.5rem;
-  }
-}
-
 .meta-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1048,13 +1008,20 @@ svg {
   margin-top: 14px;
 }
 
+/* --------------------------------------------------------------------------
+   Directions map
+   -------------------------------------------------------------------------- */
+
 .map-panel {
   position: relative;
   min-height: 480px;
   overflow: hidden;
   border-radius: 22px;
-  background:
-    radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.55), transparent 16%),
+  background: radial-gradient(
+      circle at 16% 14%,
+      rgba(255, 255, 255, 0.55),
+      transparent 16%
+    ),
     linear-gradient(180deg, #f3f7f7 0%, #e6efee 100%);
   border: 1px solid #dde5e3;
 }
@@ -1067,9 +1034,14 @@ svg {
 }
 
 .map-grid {
-  background:
-    linear-gradient(90deg, rgba(20, 80, 122, 0.06) 1px, transparent 1px) 0 0 / 64px 64px,
-    linear-gradient(rgba(20, 80, 122, 0.06) 1px, transparent 1px) 0 0 / 64px 64px;
+  background: linear-gradient(
+        90deg,
+        rgba(20, 80, 122, 0.06) 1px,
+        transparent 1px
+      )
+      0 0 / 64px 64px,
+    linear-gradient(rgba(20, 80, 122, 0.06) 1px, transparent 1px) 0 0 / 64px
+      64px;
 }
 
 .map-controls {
@@ -1185,8 +1157,7 @@ svg {
 }
 
 .marker.is-located {
-  box-shadow:
-    0 0 0 5px rgba(20, 80, 122, 0.12),
+  box-shadow: 0 0 0 5px rgba(20, 80, 122, 0.12),
     0 0 0 12px rgba(20, 80, 122, 0.08);
 }
 
@@ -1304,730 +1275,6 @@ svg {
   color: #213945;
 }
 
-.item-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 7px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.item-tag--good {
-  background: var(--success-bg);
-  color: var(--success-text);
-  border: 1px solid var(--success-border);
-}
-
-.item-tag--alert {
-  background: var(--warning-bg);
-  color: var(--warning-text);
-  border: 1px solid var(--warning-border);
-}
-
-.disclaimer-card {
-  background: #fff7e8;
-  border-color: #f0d7a3;
-}
-
-.disclaimer-card h3 {
-  color: #6e4b00;
-}
-
-.disclaimer-card p {
-  color: #7a622d;
-}
-
-@media (max-width: 1180px) {
-  .app-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .app-sidebar-inner {
-    position: static;
-  }
-
-  .hero-top,
-  .section-head,
-  .facility-top,
-  .route-item-top {
-    flex-direction: column;
-  }
-
-  .hero-summary {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 860px) {
-  .app-sidebar,
-  .app-content {
-    padding: 20px 16px 24px;
-  }
-
-  .amenity-checks,
-  .meta-grid,
-  .map-summary,
-  .route-meta,
-  .weather-grid,
-  .selector {
-    grid-template-columns: 1fr;
-  }
-
-  .facility-card,
-  .route-item {
-    grid-template-columns: 1fr;
-  }
-
-  .mini-map-caption,
-  .drawer-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .distance-options {
-    flex-direction: column;
-  }
-
-  .drawer-btn,
-  .mini-map-link {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .map-panel {
-    min-height: 380px;
-  }
-}
-
-.home-split {
-  display: grid;
-  grid-template-columns: 480px 1fr;
-  min-height: 100vh;
-}
-
-.home-split-left {
-  background-color: #0c1c2d;
-  padding: 1.75rem 2rem;
-  max-height: 100vh;
-  overflow-y: auto;
-}
-
-.home-split-right {
-  background-color: #f3f6f5;
-  max-height: 100vh;
-  overflow-y: auto;
-}
-
-.home-photo {
-  width: 100%;
-  min-height: 100vh;
-  background:
-    linear-gradient(140deg, rgba(12, 28, 45, 0.22), rgba(20, 80, 122, 0.08)),
-    url('../assets/home-access.jpg') center center / cover no-repeat;
-}
-
-.home-hero-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  color: #fff;
-  margin-bottom: 1.5rem;
-}
-
-.home-hero-name {
-  font-size: 1.6rem;
-  font-weight: 700;
-}
-
-.home-hero-tagline {
-  font-size: 0.9rem;
-  color: #b9c6d3;
-}
-
-.home-hero-headline {
-  color: #fff;
-  font-size: 1.6rem;
-  font-weight: 700;
-  margin: 0 0 1.5rem 0;
-  border-left: 4px solid #ffbf47;
-  padding-left: 0.9rem;
-}
-
-.home-panel {
-  background-color: #fff;
-  padding: 1.25rem;
-  border-radius: 10px;
-}
-
-.home-field {
-  position: relative;
-}
-
-.home-second-field {
-  margin-top: 0.8rem;
-}
-
-.home-panel label {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #1a2733;
-  margin-bottom: 0.3rem;
-}
-
-.home-input {
-  width: 100%;
-  height: 42px;
-  padding: 0 0.7rem;
-  font-size: 0.95rem;
-  background-color: #fff;
-  border: 1px solid #87919a;
-  border-radius: 6px;
-}
-
-.home-input:focus {
-  border-color: #14507a;
-}
-
-.home-suggestions {
-  position: absolute;
-  width: 100%;
-  z-index: 10;
-  list-style: none;
-  padding: 0;
-  margin: 4px 0 0 0;
-  background-color: #fff;
-  border: 1px solid #c4cbd2;
-  border-radius: 6px;
-  max-height: 180px;
-  overflow-y: auto;
-}
-
-.home-suggestions button {
-  width: 100%;
-  padding: 10px;
-  text-align: left;
-  background-color: #fff;
-  border: none;
-  cursor: pointer;
-}
-
-.home-suggestions button:hover {
-  background-color: #eef4f9;
-}
-
-.home-no-match {
-  color: #96231f;
-  font-size: 0.8rem;
-  margin-top: 5px;
-}
-
-.home-section-title {
-  font-size: 0.95rem;
-  color: #0c1c2d;
-  margin: 1rem 0 0.6rem;
-  padding-top: 0.9rem;
-  border-top: 1px solid #e6eaee;
-}
-
-.home-checks {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.6rem;
-}
-
-.home-check {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 0.85rem;
-  font-weight: 400;
-  margin: 0;
-}
-
-.home-check input {
-  width: 17px;
-  height: 17px;
-  margin: 0;
-  accent-color: #14507a;
-}
-
-.home-distance-options {
-  display: flex;
-  gap: 8px;
-}
-
-.home-distance-option {
-  flex: 1;
-  padding: 9px 5px;
-  text-align: center;
-  font-size: 0.85rem;
-  background-color: #f4f6f8;
-  border: 1px solid #d0d7dd;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.home-distance-option input {
-  display: none;
-}
-
-.home-selected-distance {
-  color: #fff;
-  background-color: #14507a;
-  border-color: #14507a;
-}
-
-.home-form-error {
-  color: #96231f;
-  background-color: #fdf3f2;
-  border: 1px solid #e3b5b3;
-  border-radius: 6px;
-  padding: 10px;
-  margin-top: 1rem;
-  font-size: 0.85rem;
-}
-
-.home-required {
-  color: #96231f;
-}
-
-.home-buttons {
-  display: flex;
-  gap: 10px;
-  margin-top: 1.2rem;
-}
-
-.home-search-button,
-.home-clear-button,
-.home-view-button,
-.home-direction-button {
-  font-size: 0.9rem;
-  font-weight: 600;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.home-search-button,
-.home-clear-button {
-  height: 44px;
-  padding: 0 18px;
-}
-
-.home-search-button {
-  color: #fff;
-  background-color: #14507a;
-  border: 1px solid #14507a;
-}
-
-.home-clear-button {
-  color: #14507a;
-  background-color: #fff;
-  border: 1px solid #14507a;
-}
-
-.home-results {
-  max-width: 1100px;
-  padding: 2rem;
-  margin: auto;
-}
-
-.home-results-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 1.3rem;
-  border-bottom: 3px solid #0c1c2d;
-  padding-bottom: 1rem;
-}
-
-.home-results-heading h2 {
-  margin: 0;
-  font-size: 1.45rem;
-  font-weight: 700;
-  color: #0c1c2d;
-}
-
-.home-results-heading p {
-  margin: 5px 0 0 0;
-  font-size: 0.9rem;
-  color: #63717a;
-}
-
-.home-filter-badge {
-  padding: 7px 12px;
-  background-color: #e2f5ec;
-  color: #17603f;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.home-empty-card,
-.home-missing-section,
-.home-venue-card {
-  background-color: #fff;
-  border: 1px solid #d8e0dd;
-  border-radius: 10px;
-}
-
-.home-empty-card {
-  padding: 1.5rem;
-}
-
-.home-venue-card {
-  padding: 1.4rem;
-  margin-bottom: 1.2rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.home-venue-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 20px;
-}
-
-.home-venue-name {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #102d32;
-}
-
-.home-venue-location {
-  margin: 5px 0 0 0;
-  font-size: 0.88rem;
-  color: #66777a;
-}
-
-.home-venue-distance {
-  min-width: 120px;
-  padding: 8px 12px;
-  background-color: #e7f3f1;
-  border-radius: 8px;
-  text-align: center;
-  color: #0c4e58;
-}
-
-.home-distance-label {
-  display: block;
-  margin-bottom: 2px;
-  font-size: 0.68rem;
-  color: #66777a;
-}
-
-.home-venue-distance strong {
-  display: block;
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.home-sport-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 1rem;
-}
-
-.home-sport-chip {
-  padding: 5px 10px;
-  background-color: #edf1f0;
-  color: #334b50;
-  border-radius: 20px;
-  font-size: 0.78rem;
-}
-
-.home-surface-text {
-  margin: 12px 0 0 0;
-  color: #617074;
-  font-size: 0.85rem;
-}
-
-.home-access-heading {
-  margin: 1.2rem 0 0.7rem 0;
-  color: #102d32;
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-}
-
-.home-amenity-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-}
-
-.home-amenity-box {
-  min-height: 86px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  border-radius: 7px;
-}
-
-.home-facility-icon {
-  width: 32px;
-  text-align: center;
-  font-size: 1.4rem;
-  flex-shrink: 0;
-}
-
-.home-amenity-content {
-  flex: 1;
-}
-
-.home-amenity-box strong {
-  font-size: 0.83rem;
-  color: #19373b;
-}
-
-.home-amenity-box p {
-  margin: 4px 0 0 0;
-  font-size: 0.76rem;
-  line-height: 1.35;
-  color: #536368;
-}
-
-.home-amenity-within {
-  background-color: #e2f5ec;
-  border: 1px solid #9bd6bb;
-}
-
-.home-amenity-beyond,
-.home-amenity-absent {
-  background-color: #fde9e8;
-  border: 1px solid #e0aaa6;
-}
-
-.home-amenity-unknown {
-  background-color: #ecefef;
-  border: 1px dashed #a8b1b3;
-}
-
-.home-status-symbol {
-  width: 25px;
-  height: 25px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  font-weight: 700;
-  flex-shrink: 0;
-  background-color: #fff;
-}
-
-.home-status-within {
-  color: #17603f;
-}
-
-.home-status-beyond,
-.home-status-absent {
-  color: #a52b26;
-}
-
-.home-status-unknown {
-  color: #687477;
-}
-
-.home-facility-message {
-  margin: 12px 0 0 0;
-  padding: 9px 12px;
-  background-color: #f5f6f6;
-  border-left: 3px solid #8a9699;
-  border-radius: 4px;
-  color: #536368;
-  font-size: 0.8rem;
-  line-height: 1.5;
-}
-
-.home-unavailable-message {
-  background-color: #fdf0ef;
-  border-left-color: #b23a34;
-}
-
-.home-card-buttons {
-  display: flex;
-  gap: 10px;
-  margin-top: 1.2rem;
-}
-
-.home-view-button,
-.home-direction-button {
-  padding: 10px 18px;
-}
-
-.home-view-button {
-  color: #fff;
-  background-color: #0f4f59;
-  border: 1px solid #0f4f59;
-}
-
-.home-direction-button {
-  color: #0f4f59;
-  background-color: #fff;
-  border: 1px solid #0f4f59;
-}
-
-.home-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #d6dfdc;
-}
-
-.home-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: #607074;
-  font-size: 0.78rem;
-}
-
-.home-legend-box {
-  width: 20px;
-  height: 14px;
-  border-radius: 3px;
-}
-
-.home-available-box {
-  background-color: #e2f5ec;
-  border: 1px solid #9bd6bb;
-}
-
-.home-problem-box {
-  background-color: #fde9e8;
-  border: 1px solid #e0aaa6;
-}
-
-.home-unknown-box {
-  background-color: #ecefef;
-  border: 1px dashed #a8b1b3;
-}
-
-.home-missing-section {
-  margin-top: 1.5rem;
-  padding: 1.2rem;
-  border-style: dashed;
-}
-
-.home-missing-section h3 {
-  margin: 0 0 10px 0;
-  font-size: 1rem;
-}
-
-.home-missing-venue {
-  padding: 10px 0;
-  font-size: 0.85rem;
-  border-top: 1px solid #edf0ef;
-}
-
-.home-missing-venue:first-of-type {
-  border-top: none;
-}
-
-.home-missing-venue p {
-  margin: 5px 0 0 0;
-  color: #66777a;
-  line-height: 1.5;
-}
-
-@media (max-width: 1100px) {
-  .home-amenity-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 900px) {
-  .home-split {
-    grid-template-columns: 1fr;
-  }
-
-  .home-split-left,
-  .home-split-right {
-    max-height: none;
-    overflow-y: visible;
-  }
-
-  .home-photo {
-    min-height: 300px;
-  }
-
-  .home-results {
-    padding: 1.3rem;
-  }
-
-  .home-results-heading {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-@media (max-width: 600px) {
-  .home-checks,
-  .home-amenity-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .home-distance-options,
-  .home-buttons,
-  .home-card-buttons {
-    flex-direction: column;
-  }
-
-  .home-search-button,
-  .home-clear-button,
-  .home-view-button,
-  .home-direction-button {
-    width: 100%;
-  }
-}
-
-.types-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.type-summary-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: #f2f9f8;
-  border: 1px solid #cfe7e3;
-}
-
-.type-summary-card span {
-  font-size: 0.85rem;
-  color: #33474f;
-}
-
-.type-summary-card strong {
-  font-size: 1.4rem;
-  color: #0f4f59;
-}
-
-.type-summary-card--no_data {
-  background: #f5f5f5;
-  border-color: #ddd;
-}
-
-.type-summary-card--no_data strong {
-  color: #777;
-  font-size: 1rem;
-}
-
 .corridor-map {
   margin-top: 12px;
 }
@@ -2079,23 +1326,158 @@ svg {
   padding: 8px 16px;
   border-radius: 8px;
   border: none;
-  background: #0f4f59;
-  color: white;
+  background: #14507a;
+  color: #fff;
   font-weight: 600;
   cursor: pointer;
 }
 
-.view-more-button {
-  margin-top: 14px;
-  padding: 8px 18px;
-  border-radius: 8px;
-  border: 1px solid #0f4f59;
-  background: white;
-  color: #0f4f59;
-  font-weight: 600;
-  cursor: pointer;
+/* --------------------------------------------------------------------------
+   Tags, summaries and notices
+   -------------------------------------------------------------------------- */
+
+.item-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
-.view-more-button:hover {
+.item-tag--good {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+
+.item-tag--alert {
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border: 1px solid var(--warning-border);
+}
+
+.disclaimer-card {
+  background: #fff7e8;
+  border-color: #f0d7a3;
+}
+
+.disclaimer-card h3 {
+  color: #6e4b00;
+}
+
+.disclaimer-card p {
+  color: #7a622d;
+}
+
+.types-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.type-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 12px;
   background: #f2f9f8;
+  border: 1px solid #cfe7e3;
+}
+
+.type-summary-card span {
+  font-size: 0.85rem;
+  color: #33474f;
+}
+
+.type-summary-card strong {
+  font-size: 1.4rem;
+  color: #14507a;
+}
+
+.type-summary-card--no_data {
+  background: #f5f5f5;
+  border-color: #ddd;
+}
+
+.type-summary-card--no_data strong {
+  color: #777;
+  font-size: 1rem;
+}
+
+/* --------------------------------------------------------------------------
+   Smaller screens
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 1180px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .app-sidebar-inner {
+    position: static;
+  }
+
+  .hero-top,
+  .section-head,
+  .facility-top,
+  .route-item-top {
+    flex-direction: column;
+  }
+
+  .hero-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .app-sidebar,
+  .app-content {
+    padding: 20px 16px 24px;
+  }
+
+  .amenity-checks,
+  .meta-grid,
+  .map-summary,
+  .route-meta,
+  .weather-grid,
+  .selector {
+    grid-template-columns: 1fr;
+  }
+
+  .facility-card,
+  .route-item {
+    grid-template-columns: 1fr;
+  }
+
+  .mini-map-caption,
+  .drawer-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .drawer-btn,
+  .mini-map-link {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .map-panel {
+    min-height: 380px;
+  }
+}
+
+@media (max-width: 640px) {
+  .venue-topbar-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .venue-content {
+    padding: 1.25rem 1rem 2.5rem;
+  }
 }
