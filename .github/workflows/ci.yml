@@ -171,9 +171,29 @@ jobs:
       # Unit tests only. Loader tests that need a real PostGIS container are
       # marked `integration` and excluded here — they get their own job once the
       # first loader exists.
+      # pytest exits with code 5 — a FAILURE — when it collects no tests at all.
+      # That is the expected state for a while here: the Data team will commit
+      # modules before they commit tests for them, and a red build on their
+      # first ever pull request, caused by the absence of something they have
+      # not written yet, is how a team learns to ignore CI.
+      #
+      # So exit 5 passes, loudly. Every other non-zero code still fails.
+      #
+      # This is deliberately NOT applied to the backend job. That code is on the
+      # critical path and its tests already exist; silence there would be a
+      # regression, not a starting condition.
       - name: Unit tests
         if: steps.guard.outputs.found == 'true'
-        run: uv run pytest -q -m "not integration"
+        run: |
+          set +e
+          uv run pytest -q -m "not integration"
+          code=$?
+          set -e
+          if [ "$code" -eq 5 ]; then
+            echo "::warning::data/ has Python modules but no tests yet. This step passed, but it is not testing anything."
+            exit 0
+          fi
+          exit "$code"
 
   # ---------------------------------------------------------------- terraform
   # Owner: Infra/Platform engineer. Four checks, increasing in depth:

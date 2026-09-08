@@ -25,6 +25,7 @@ dev = [
     "testcontainers[postgres]>=4.8",
     "ruff>=0.7",
     "mypy>=1.13",
+    "uvicorn[standard]>=0.52.4",
 ]
 
 # Ruff configuration lives in the repository root (../ruff.toml) so that

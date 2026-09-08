@@ -127,6 +127,24 @@ resource "aws_instance" "bastion" {
     # The attribute matters at launch and not afterwards, so ignore it. If the
     # instance ever needs to stop being public, change it here and taint the
     # instance deliberately.
-    ignore_changes = [associate_public_ip_address]
+    #
+    # `ami` is ignored for a related but separate reason, and this one cost us
+    # something before it was noticed. The AMI comes from AWS's "latest"
+    # public SSM parameter, so its value CHANGES whenever AWS publishes a new
+    # Amazon Linux image. `ami` can only change by replacement, so the next
+    # apply — whatever it was actually for — silently destroyed the bastion and
+    # built a new one.
+    #
+    # Observed 1 Sep 2026: a deploy of a FRONTEND change replaced the bastion
+    # (i-0960d1df… became i-0571788b…) and left it RUNNING. Three consequences,
+    # none of them obvious from the plan's summary line:
+    #   - it runs, and bills, until somebody notices
+    #   - its public IP changes, so every saved tunnel command breaks
+    #   - it happened during a deploy that had nothing to do with it
+    #
+    # A jump host does not need the newest image mid-iteration. To rebuild it
+    # deliberately, on purpose, when you actually want a fresh image:
+    #   terraform apply -replace='module.bastion.aws_instance.bastion'
+    ignore_changes = [associate_public_ip_address, ami]
   }
 }

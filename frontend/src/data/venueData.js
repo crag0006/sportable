@@ -44,8 +44,8 @@ export const weatherData = {
 
 export const venueDetailData = {
   sidebarHeadline: 'Venue Information',
-  backLabel: 'Back to venue home',
-  backTo: '/',
+  backLabel: 'Back to search results',
+  backTo: '/venues',
   hero: {
     eyebrow: 'Venue detail',
     title: 'North Melbourne Recreation Centre',
@@ -132,7 +132,7 @@ export const venueFacilities = [
 
 export const directionsPageData = {
   sidebarHeadline: 'Directions',
-  backLabel: 'Back to venue home',
+  backLabel: 'Back to venue',
   backTo: '/venues/1',
   hero: {
     eyebrow: 'Directions',

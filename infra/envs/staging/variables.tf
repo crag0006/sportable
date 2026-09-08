@@ -48,3 +48,15 @@ variable "lambda_execution_role_arn" {
   type        = string
   default     = "arn:aws:iam::725699850301:role/sportable-lambda-api"
 }
+
+variable "alert_emails" {
+  description = <<-EOT
+    Who receives CloudWatch alarm mail.
+
+    Every address must click the confirmation link AWS sends, or it silently
+    receives nothing. Verify with the subscription_check_command output after
+    applying — a pending subscription is indistinguishable from a working one
+    in `terraform show`.
+  EOT
+  type        = list(string)
+}

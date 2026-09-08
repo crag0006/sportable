@@ -1,0 +1,295 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Description: >-
+  SportAble Melbourne - stages 1 and 2 of the ingestion pipeline.
+  Extract outside the VPC, land in an immutable raw zone.
+  Transform, validate and load are added in stage 3 and are not in this template.
+
+Parameters:
+
+  ProjectName:
+    Type: String
+    Default: sportable
+    Description: Prefix for every resource name.
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, prod]
+
+  AlarmEmail:
+    Type: String
+    Description: >-
+      Address that receives fetch failure alarms. AWS sends a confirmation
+      email; the subscription does nothing until it is confirmed.
+
+  RawRetentionDays:
+    Type: Number
+    Default: 90
+    Description: Days before a raw payload moves to Glacier Instant Retrieval.
+
+Resources:
+
+  # 2 - Land (immutable raw zone)
+
+  RawBucket:
+    Type: AWS::S3::Bucket
+    # A bad deploy must not be able to delete the archive. Removing the stack
+    # leaves the bucket standing and that is the intended behaviour.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "${ProjectName}-raw-${Environment}-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+            BucketKeyEnabled: true
+      VersioningConfiguration:
+        # This is what makes the zone immutable in practice. An overwrite or a
+        # delete leaves the previous bytes recoverable, so a bad publish can be
+        # rolled back without re-fetching from a publisher who may have moved on.
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: RawPayloadsToGlacierIR
+            Status: Enabled
+            TagFilters:
+              - Key: zone
+                Value: raw
+            Transitions:
+              - StorageClass: GLACIER_IR
+                TransitionInDays: !Ref RawRetentionDays
+          - Id: OldVersionsToGlacierIR
+            Status: Enabled
+            NoncurrentVersionTransitions:
+              - StorageClass: GLACIER_IR
+                TransitionInDays: !Ref RawRetentionDays
+          - Id: AbortIncompleteUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+
+  RawBucketTlsOnlyPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref RawBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt RawBucket.Arn
+              - !Sub "${RawBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+  # 1 - Extract (Lambda outside the VPC)
+
+  FetchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-fetch-${Environment}"
+      Description: Fetches registered sources and lands them in the raw zone.
+      # No VpcConfig. The fetch talks to publisher websites and needs plain
+      # internet egress; putting it in the VPC would mean a NAT gateway and a
+      # monthly bill for nothing.
+      CodeUri: ../build/fetch/
+      Handler: handler.handler
+      Runtime: python3.12
+      Architectures: [arm64]
+      # Three attempts at a 120 s socket timeout plus backoff is the worst case,
+      # and the ABS boundary zips are the slow ones.
+      Timeout: 900
+      # The payload is held in memory to hash it before it is written. The GTFS
+      # zip is the largest source. Memory also buys CPU, which is what the
+      # SHA-256 pass actually uses.
+      MemorySize: 2048
+      Environment:
+        Variables:
+          RAW_BUCKET: !Ref RawBucket
+          REGISTER_DIR: /var/task/sources
+          MAX_ATTEMPTS: "3"
+          SSE_ALGORITHM: AES256
+      Policies:
+        - Statement:
+            - Sid: WriteRawZone
+              Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:PutObjectTagging
+              Resource: !Sub "${RawBucket.Arn}/*"
+            - Sid: ReadLatestManifest
+              Effect: Allow
+              Action:
+                - s3:GetObject
+              # Only the manifests are read back. The function has no reason to
+              # read a payload it has already written, and it cannot list.
+              Resource: !Sub "${RawBucket.Arn}/_manifests/*"
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt AlertsTopic.TopicName
+      EventInvokeConfig:
+        # A 429 from a publisher is monthly quota exhaustion, not a transient
+        # fault. Lambda's own async retries would burn the remaining quota and
+        # delay the alarm, so they are turned off and the failure is routed once.
+        MaximumRetryAttempts: 0
+        MaximumEventAgeInSeconds: 3600
+        DestinationConfig:
+          OnFailure:
+            Type: SNS
+            Destination: !Ref AlertsTopic
+      Events:
+
+        WeeklyReference:
+          Type: ScheduleV2
+          Properties:
+            Name: !Sub "${ProjectName}-weekly-reference-${Environment}"
+            Description: DS-01 and DS-02, weekly reference tier.
+            ScheduleExpression: cron(0 3 ? * MON *)
+            ScheduleExpressionTimezone: Australia/Melbourne
+            RetryPolicy:
+              MaximumRetryAttempts: 0
+            Input: '{"source_ids": ["DS-01", "DS-02"]}'
+
+        WeeklyTransit:
+          Type: ScheduleV2
+          Properties:
+            Name: !Sub "${ProjectName}-weekly-transit-${Environment}"
+            Description: DS-03 GTFS, reissued on every publication.
+            ScheduleExpression: cron(30 3 ? * MON *)
+            ScheduleExpressionTimezone: Australia/Melbourne
+            RetryPolicy:
+              MaximumRetryAttempts: 0
+            Input: '{"source_ids": ["DS-03"]}'
+
+        MonthlyCouncil:
+          Type: ScheduleV2
+          Properties:
+            Name: !Sub "${ProjectName}-monthly-council-${Environment}"
+            Description: >-
+              DS-04, City of Melbourne. Monthly because the portal quota is
+              monthly and a 429 costs the rest of the month.
+            ScheduleExpression: cron(0 4 1 * ? *)
+            ScheduleExpressionTimezone: Australia/Melbourne
+            RetryPolicy:
+              MaximumRetryAttempts: 0
+            Input: '{"source_ids": ["DS-04"]}'
+
+        QuarterlyBoundaries:
+          Type: ScheduleV2
+          Properties:
+            Name: !Sub "${ProjectName}-quarterly-boundaries-${Environment}"
+            Description: >-
+              DS-07 and DS-08, ABS boundaries. Released on an ASGS cycle, so a
+              quarterly poll is honest rather than lazy.
+            ScheduleExpression: cron(0 5 1 JAN,APR,JUL,OCT ? *)
+            ScheduleExpressionTimezone: Australia/Melbourne
+            RetryPolicy:
+              MaximumRetryAttempts: 0
+            Input: '{"source_ids": ["DS-07", "DS-08"]}'
+
+        # DS-06 (openrouteservice) has no schedule. It is tier: live, it is
+        # queried at request time, and the handler raises NotFetchable for it.
+
+  FetchLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-fetch-${Environment}"
+      RetentionInDays: 30
+
+  # Alarms
+
+  AlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${ProjectName}-alerts-${Environment}"
+      DisplayName: SportAble pipeline alerts
+
+  AlertsSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      Endpoint: !Ref AlarmEmail
+      TopicArn: !Ref AlertsTopic
+
+  FetchErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-fetch-errors-${Environment}"
+      AlarmDescription: >-
+        The fetch function failed. With async retries off, one error is one
+        genuinely failed run, so the threshold is one.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref FetchFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+  HashPinMismatchMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref FetchLogGroup
+      FilterPattern: '{ $.event = "HASH_PIN_MISMATCH" }'
+      MetricTransformations:
+        - MetricNamespace: !Sub "${ProjectName}/Fetch"
+          MetricName: HashPinMismatch
+          MetricValue: "1"
+          DefaultValue: 0
+
+  HashPinMismatchAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${ProjectName}-hash-pin-mismatch-${Environment}"
+      AlarmDescription: >-
+        A payload no longer matches the hash recorded in its source card. Either
+        the publisher reissued the file or the card is stale. Both need a human.
+      Namespace: !Sub "${ProjectName}/Fetch"
+      MetricName: HashPinMismatch
+      Statistic: Sum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlertsTopic
+
+Outputs:
+
+  RawBucketName:
+    Description: Raw zone bucket. Point the profiling notebooks at this.
+    Value: !Ref RawBucket
+    Export:
+      Name: !Sub "${ProjectName}-raw-bucket-${Environment}"
+
+  RawBucketArn:
+    Value: !GetAtt RawBucket.Arn
+    Export:
+      Name: !Sub "${ProjectName}-raw-bucket-arn-${Environment}"
+
+  FetchFunctionName:
+    Description: Invoke this by name to force a fetch outside the schedule.
+    Value: !Ref FetchFunction
+
+  AlertsTopicArn:
+    Value: !Ref AlertsTopic
+    Export:
+      Name: !Sub "${ProjectName}-alerts-topic-${Environment}"

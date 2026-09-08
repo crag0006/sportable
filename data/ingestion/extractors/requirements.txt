@@ -1,0 +1,4 @@
+# boto3 and botocore ship with the Lambda Python runtime and are deliberately
+# not pinned here: bundling a second copy inflates the artefact and drifts from
+# whatever the runtime is actually patched to.
+PyYAML==6.0.2

@@ -1,0 +1,90 @@
+source_id: DS-08
+name: ASGS Postal Areas
+publisher: Australian Bureau of Statistics
+description: >-
+  Postal Area boundaries from the Australian Statistical Geography Standard, Edition 3, 2021. One job: resolving a postcode typed into the search box to
+  the point that distances are measured from. The search accepts a suburb or a postcode, and DS-07 Suburbs and Localities publishes no postcode field, so
+  before this source nothing in the register could turn "3000" into a coordinate. It supplies no facility, no attribute and no status.
+
+tier: static
+cadence: on_release
+
+licence:
+  name: Creative Commons Attribution
+  version: 4.0 International
+  url: https://creativecommons.org/licenses/by/4.0/
+  attribution_text: >-
+    Australian Statistical Geography Standard (ASGS) Edition 3 Postal Areas, Australian Bureau of Statistics. Copyright Commonwealth of Australia
+    administered by the ABS.
+  share_alike: false
+  restricts_caching: false
+  restricts_redistribution: false
+  restricts_derived_works: false
+  notes: >-
+    The same instrument as DS-01, DS-03, DS-06 and DS-07, and a different one from the CC BY 3.0 Australia carried by DS-02. The Sources and licences view
+    groups by instrument, so it must not be lumped in with DS-02.
+
+retrieval:
+  landing_page: https://www.abs.gov.au/statistics/standards/australian-statistical-geography-standard-asgs/edition-3-july-2021-june-2026/access-and-downloads/digital-boundary-files
+  download_url: https://www.abs.gov.au/statistics/standards/australian-statistical-geography-standard-asgs/edition-3-july-2021-june-2026/access-and-downloads/digital-boundary-files/POA_2021_AUST_GDA2020_SHP.zip
+  format: zip
+  raw_prefix: postal_areas
+  requires_auth: false
+  expected_sha256: null
+  notes: >-
+    ESRI shapefile in a zip, GDA2020. Take GDA2020 rather than GDA94 for the same reason as DS-06 and DS-07: storage is EPSG:7844, so GDA94 would add a
+    transform and a 1.8 metre offset for nothing. Fields are POA_CODE21, POA_NAME21, AUS_CODE21, AUS_NAME21 and AREASQKM21. Only a 2021 vintage exists.
+    expected_sha256 is null until the first fetch lands and the hash is backfilled, which is the same position DS-01, DS-02, DS-04 and DS-07 are in.
+
+coverage:
+  publisher_scope: national
+  records_total: null
+  records_in_target_area: null
+  basis: >-
+    PENDING PROFILE. Count POA polygons nationally, then count those intersecting the union of the 31 Greater Melbourne councils from DS-06. Take the
+    counts from the file rather than from the publisher's summary.
+  notes: >-
+    Postal areas outside Greater Melbourne are loaded rather than clipped. AC1.1.4 requires a recognised location outside the covered area to be told
+    apart from a location that was not recognised at all, and that distinction cannot be made from a table that only holds the covered area. The
+    in_greater_melbourne flag on the search_location read model carries the separation instead.
+
+verification:
+  verified: true
+  verified_by: Nitin
+  verified_at: 2026-09-01
+  method: >-
+    Licence, custodian, publication date and field definitions read from the Digital boundary files page of ASGS Edition 3, the same page DS-06 and DS-07
+    are established from.
+
+publisher_last_updated: 2021-07-20
+
+supplies_venues: false
+supplies_facility_types: []
+supplies_boundaries: true
+
+iteration_1: true
+government_published: true
+depends_on:
+  - DS-06
+
+known_limitations:
+  - >-
+    ABS Postal Areas are approximations of Australia Post postcodes built from Mesh Blocks. They are not the postcodes themselves and the ABS states they
+    should not be used for mail delivery or for any purpose requiring the actual postcode boundary. Resolving a typed postcode to a search point is well
+    within what an approximation supports; any claim about which postcode an address belongs to is not.
+  - >-
+    Not every Australia Post postcode has a corresponding postal area. Post office box and large-volume-receiver postcodes have no geographic extent and
+    are absent from the layer. A user typing one of those gets the not-recognised path rather than the not-covered path, and the wording of the
+    not-recognised message has to be broad enough that this is not a lie.
+  - >-
+    The search point is ST_PointOnSurface of the polygon, not its centroid. A postal area can be crescent-shaped or multipart, and its centroid can fall
+    outside it or in a neighbouring suburb. The point is a representative point inside the area, and the interface names it as such rather than implying
+    the user's actual position, which AC1.1.3 requires.
+  - >-
+    A postal area is an area. Every distance measured from it is measured from one representative point inside it, so two venues equidistant from that
+    point can be very different distances from where the user actually is. This is stated on screen and is the reason AC1.1.3 exists.
+  - >-
+    Only a 2021 vintage exists, unlike LGA which is revised annually. The postal area boundaries are therefore five years older than the LGA layer they
+    are intersected against, and a boundary that has moved since 2021 will disagree at the margin.
+
+open_questions: []

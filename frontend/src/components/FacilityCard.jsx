@@ -1,41 +1,30 @@
-import { FacilityIconGlyph } from './Icons'
+import { FacilityIconGlyph } from "./Icons";
 
-export default function FacilityCard({ facility }) {
+function FacilityCard({ facility }) {
+  // "state" decides the colour: green = good news, red = bad news,
+  // grey = nothing published. 
+  const state = facility.state || "unknown";
+
   return (
-    <article className="facility-card">
+    <article className={`facility-card facility-${state}`}>
       <div className="facility-icon">
         <FacilityIconGlyph icon={facility.icon} />
       </div>
 
-      <div>
+      <div className="facility-body">
         <div className="facility-top">
           <div>
             <h3>{facility.title}</h3>
             <p>{facility.description}</p>
           </div>
 
-          <div className="distance-pill">{facility.distance}</div>
-        </div>
-
-        <div className="meta-grid">
-          <div className="meta">
-            <span>Source</span>
-            <strong>{facility.source}</strong>
-          </div>
-          <div className="meta">
-            <span>Updated</span>
-            <strong>{facility.updated}</strong>
-          </div>
-          <div className="meta">
-            <span>{facility.thirdLabel}</span>
-            <strong>{facility.thirdValue}</strong>
-          </div>
-          <div className="meta">
-            <span>{facility.locationLabel ?? 'Location'}</span>
-            <strong>{facility.location}</strong>
+          <div className={`distance-pill distance-pill--${state}`}>
+            {facility.pillText || facility.distance || "—"}
           </div>
         </div>
       </div>
     </article>
-  )
+  );
 }
+
+export default FacilityCard;

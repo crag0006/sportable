@@ -1,0 +1,103 @@
+source_id: DS-03
+name: GTFS Schedule
+publisher: Department of Transport and Planning
+description: >-
+  General Transit Feed Specification schedule for the Victorian public transport network, published as one archive containing 
+  a separate feed per transport mode. Supplies stop locations and the wheelchair_boarding attribute, which is
+  the step-free stop link of the access chain. Iteration 1 uses metropolitan train and metropolitan tram only.
+
+tier: transit
+cadence: weekly
+
+licence:
+  name: Creative Commons Attribution
+  version: 4.0 International
+  url: https://creativecommons.org/licenses/by/4.0/
+  attribution_text: >-
+    GTFS Schedule, Department of Transport and Planning, State Government of Victoria, via Victorian Government Open Data.
+  share_alike: false
+  restricts_caching: false
+  restricts_redistribution: false
+  restricts_derived_works: false
+  notes: >-
+    No required attribution wording is stated on the dataset page, so the string above is generated from the dataset title and publishing organisation. 
+    It is rendered from this register into the Sources and licences view, never hand-written into a template.
+
+retrieval:
+  landing_page: https://opendata.transport.vic.gov.au/dataset/gtfs-schedule
+  download_url: https://opendata.transport.vic.gov.au/dataset/3f4e292e-7f8a-4ffe-831f-1953be0fe448/resource/fb152201-859f-4882-9206-b768060b50ad/download/gtfs.zip
+  format: zip
+  raw_prefix: ptv_gtfs
+  requires_auth: false
+  notes: >-
+    Nested archive. gtfs.zip contains numbered directories 1 to 11, one per mode (1 Regional Train, 2 Metropolitan Train, 3 Metropolitan Tram, 4 Myki Bus,
+    5 Regional Coach, 6 Regional Bus, 10 Interstate, 11 SkyBus). Each directory holds a google_transit.zip with the standard GTFS text files. 
+    Iteration 1 reads directories 2 and 3 only. The Fetch Lambda lands the outer archive unmodified; unpacking and mode selection happen in Transform, 
+    never in the raw zone, so a later decision to add bus is a Transform change and not a re-fetch.
+
+coverage:
+  publisher_scope: statewide
+  records_total: null
+  records_in_target_area: null
+  basis: >-
+    PENDING. Directory 2 (Metropolitan Train) stops.txt has been profiled: 2859 rows statewide, of which 226 are location_type 1 stations, 22 of those
+    inside a rough City of Melbourne bounding box. Directory 3 (Metropolitan Tram) has not yet been profiled, and the final counts must be taken against
+    the DS-07 boundary rather than a bounding box, so both fields stay null until the grain decision below is settled and both modes are counted.
+  notes: >-
+    Record the counts at the grain that reaches the facility table, not the raw stops.txt row count, and state which mode directories were read. 
+    Adding bus later changes both figures.
+
+verification:
+  verified: true
+  verified_by: Nitin
+  verified_at: 2026-09-02
+  verified_from: Victorian Government open data portal dataset page for GTFS Schedule, read on 2 September 2026.
+  method: >-
+    Licence, organisation, update frequency and last-updated date read from the metadata table on the dataset page. Directory 2 stops.txt profiled 
+    from the downloaded archive, SHA-256 54e3146d097307a8935e65c1be73a1dd316fdf07e226ed77b643ea95b9a49ed6.
+
+publisher_last_updated: 2026-08-29
+
+supplies_venues: false
+supplies_facility_types:
+  - step_free_stop
+supplies_boundaries: false
+
+iteration_1: true
+government_published: true
+depends_on:
+  - DS-06
+
+known_limitations:
+  - >-
+    wheelchair_boarding is three-valued and maps directly onto the product tri-state. 1 is confirmed, 2 is not_available, and 0 or empty is
+    no_published_information. Never collapse 0 or empty to a no.
+  - >-
+    The field confirms almost everything it touches. In directory 2, 225 of 226 stations carry 1, and only 10 rows in the entire file carry 2. Inside the
+    City of Melbourne, all 22 stations carry 1. The filter is therefore weakly discriminating for rail, and the interface must not imply it is narrowing
+    results when it is not.
+  - >-
+    stops.txt mixes four row kinds under location_type: 1 station, 2 entrance or exit, 3 generic node, and blank or 0 platform. Directory 2 holds 226, 
+    746, 1112 and 775 of each. Loading every row as a facility would stack four step_free_stop points on one station and inflate every match rate.
+  - >-
+    location_type 3 rows carry no wheelchair_boarding value at all. All 1112 are blank, so they can only ever be no_published_information.
+  - >-
+    A stop recorded as step free says nothing about whether the service calling at it is accessible, nor about the path between the stop and the venue. 
+    The corridor query measures proximity; it does not verify a traversable route.
+  - >-
+    Tram accessibility is recorded at the stop, and the feed does not distinguish a raised platform stop from a kerbside stop with no platform. These are
+    materially different situations for a wheelchair user and the source cannot tell them apart.
+  - >-
+    The archive contains pathways.txt and levels.txt. Both were assessed and both are out of Iteration 1 scope. levels.txt is a seven-row global floor
+    index from Level -4 to Level 2 with every level_name blank; it carries no accessibility attribute. pathways.txt is a genuine station topology graph,
+    3850 edges across 224 stations, distinguishing walkway (2794), stairs (454), elevator (299), escalator (120), fare gate (106) and exit gate (77).
+  - >-
+    pathways.txt cannot support a step-free entry claim, and this was tested rather than assumed. The GTFS optional columns that would describe a walkway
+    as level (max_slope, min_width, stair_count) are absent from this feed, so pathway_mode 1 means walkway, not step-free walkway. Building the graph,
+    keeping only the modes a wheelchair user can traverse, and testing entrance to platform reachability returns a step-free path at 24 of 24 City of
+    Melbourne stations. It discriminates no better than wheelchair_boarding, which confirms 22 of 22. Richmond passes with zero elevators and twelve
+    stairs edges, because its platforms carry parallel walkway and stairs connections and nothing in the feed distinguishes a level walkway from a
+    ramp. The known-limitation register's statement that step-free entry is not published therefore stands for railway stations as a tested finding, 
+    not an assumption.
+
+open_questions: []

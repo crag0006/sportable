@@ -1,0 +1,107 @@
+source_id: DS-01
+name: Sport and Recreational Facilities List
+publisher: The Department of Jobs, Skills, Industry and Regions (DJSIR)
+description: >-
+  Statewide Victorian register of sport and recreational facilities giving location, sports played, surface type, condition and recorded facility features.
+  This is the venue spine of the product: every venue_id in the canonical model originates here. 
+  It also supplies on-site accessible toilet and on-site accessible parking, from the Facility Features field.
+
+tier: reference
+cadence: weekly
+publication_cadence: as_needed
+
+licence:
+  name: Creative Commons Attribution
+  version: 4.0 International
+  url: https://creativecommons.org/licenses/by/4.0/
+  attribution_text: >-
+    Sport and Recreational Facilities List, The Department of Jobs, Skills, Industry and Regions (DJSIR), State Government of Victoria, via DataVic.
+  share_alike: false
+  restricts_caching: false
+  restricts_redistribution: false
+  restricts_derived_works: false
+  notes: >-
+    The DataVic page states no required attribution wording, so the string above is generated from the dataset title and publisher. 
+    It is rendered from this register into the Sources and licences view, never hand-written into a template, so a dataset swap cannot leave a stale credit behind.
+
+retrieval:
+  landing_page: https://discover.data.vic.gov.au/dataset/sport-and-recreational-facilities-list
+  download_url: https://discover.data.vic.gov.au/dataset/e6db797e-3801-4cfa-bf02-82350d0f722d/resource/bfff5fff-9c74-4671-8396-43f793613b70/download/srv_ifmd_all-facilities.xlsx
+  format: xlsx
+  raw_prefix: sport_facilities
+  requires_auth: false
+  notes: >-
+    Four sheets. Read wholeIFMD only; the other three are a publisher-side alphabetised copy, a working count and an empty sheet, and they are not independent data. 
+    The Fetch Lambda lands the workbook byte for byte. Sheet selection, header handling and column mapping happen in Transform, never in the raw zone.
+
+coverage:
+  publisher_scope: statewide
+  snapshot_date: 2024-12-17
+  records_total: 9590
+  records_in_target_area: 129
+  basis: >-
+    Counted from sheet wholeIFMD of the 17 December 2024 publication. 
+    Filter is LGA Name equal to 'Melbourne City Council'; no other value in the column refers to the City of Melbourne.
+  notes: >-
+    File grain is one row per facility per sport, not one row per venue. 
+    The 129 in-area rows resolve to 52 distinct venues by name and full address, of which 38 carry coordinates. 
+    Both figures go in the quality report; the row count is the source record count, the venue count is what reaches the venue table.
+
+verification:
+  verified: true
+  verified_by: Nitin
+  verified_at: 2026-09-02
+  verified_from: DataVic dataset page for the Sport and Recreational Facilities List, read on 2 September 2026.
+  method: >-
+    Licence, publisher and publisher last-updated read from the Additional Information table on the DataVic dataset page. 
+    Coverage counted from the downloaded workbook, SHA-256 d7a3992688ab6f007c736ac0ee89928dc5b0fd7b075d1d9dcda49a854a42dc34.
+
+publisher_last_updated: 2024-12-17
+
+supplies_venues: true
+supplies_facility_types:
+  - accessible_toilet
+  - accessible_parking
+supplies_boundaries: false
+
+iteration_1: true
+government_published: true
+depends_on:
+  - DS-06 
+
+known_limitations:
+  - >-
+    Facility Features is the only accessibility-bearing field. 
+    'Toilets (Disabled)' maps to accessible_toilet and 'Parking Bay(s) for the disabled' maps to accessible_parking, both with is_inside_venue 
+    true because the source records them at the venue. In the City of Melbourne 10 venues record the first and 4 record the second.
+  - >-
+    Facility Features is populated for 17 of the 52 City of Melbourne venues. Where it is blank, both facility types are no_published_information. 
+    Where it is populated but omits a feature, that is also no_published_information, not not_available: 
+    the field has not been established as an exhaustive checklist, so an omission is not a recorded absence.
+  - >-
+    Field/Surface Type records the type of playing surface at the facility. 
+    The dataset does not mention whether a particular surface is accessible to or suitable for wheelchair users, 
+    so it must not be interpreted as an accessibility indicator or included in the access chain. 
+    However, it is retained as a descriptive facility feature, allowing users to filter or choose a sport facility based on their preferred surface type.
+  - >-
+    Changerooms records Male, Female, Unisex and Umpire/Officials. It carries no accessibility attribute, so accessible change rooms 
+    are not derivable from this source.
+  - >-
+    Records no step-free entry, no accessible entrance location and no path to the playing surface. 
+    Two of the five access chain links are absent here and are reported as no published information, never estimated.
+  - >-
+    Venue coordinates are supplied for some rows and absent for others. Where a point is derived by geocoding the published street address, geom_basis
+    records that. For a wheelchair user the difference between a site centroid and an actual entrance can be a hundred metres and a flight of steps, 
+    so the venue card states that distances are measured to the venue location as published.
+  - >-
+    Eight rows statewide fail the Victorian coordinate bounding box: some have a misplaced decimal point and some have latitude and longitude transposed.
+    None fall in the City of Melbourne, where all 38 coordinate-bearing venues pass. The bounding box check in the column contract stays regardless, and
+    failures are quarantined with a reason code rather than dropped.
+  - >-
+    Published 17 December 2024. Under the 21-day stale rule for a weekly feed this source is stale on arrival, and every venue row drawn from it carries
+    the freshness note. This is expected and is not a defect. An old record of a facility is still a record; it is the confidence that ages, not the fact.
+  - >-
+    The publisher updates as needed rather than on a schedule. The weekly cadence above is a polling cadence, not a publication cadence. Expect long
+    stretches with an unchanged payload hash and a no-change run manifest.
+
+open_questions: []

@@ -87,6 +87,13 @@ output "api_function_name" {
   value = module.api.function_name
 }
 
+# The version the pipeline promotes onto the `live` alias. Terraform publishes
+# it; Terraform does not point traffic at it. That separation is what lets
+# migrations run between the two.
+output "api_function_version" {
+  value = module.api.function_version
+}
+
 output "api_alias_arn" {
   description = "API Gateway integrates with this, not the function itself."
   value       = module.api.alias_arn
@@ -100,4 +107,30 @@ output "api_invoke_test_command" {
 output "api_endpoint" {
   description = "Direct API Gateway URL — for debugging. The app uses the CloudFront path."
   value       = module.api.api_endpoint
+}
+
+# T5 --------------------------------------------------------------------------
+
+output "alerts_topic_arn" {
+  description = "T4's ingestion alarms should publish here too."
+  value       = module.observability.topic_arn
+}
+
+output "alarm_names" {
+  value = module.observability.alarm_names
+}
+
+output "subscription_check_command" {
+  description = "Run after every apply that changes alert_emails."
+  value       = module.observability.subscription_check_command
+}
+
+output "config_parameter_names" {
+  description = "The tree the API reads at cold start."
+  value       = module.app_config.parameter_names
+}
+
+output "lambda_ssm_permission_needed" {
+  description = "Paste this to the account holder if /api/v1/config returns defaults."
+  value       = module.app_config.read_policy_arn_hint
 }

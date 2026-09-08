@@ -113,9 +113,16 @@ resource "aws_cloudfront_origin_access_control" "site" {
 resource "aws_cloudfront_function" "spa_rewrite" {
   name    = "${var.name_prefix}-spa-rewrite"
   runtime = "cloudfront-js-2.0"
-  comment = "Rewrites extensionless paths to /index.html for the SPA router"
+  comment = "SPA routing${var.basic_auth_credentials == null ? "" : " + basic auth"}"
   publish = true
-  code    = file("${path.module}/functions/spa-rewrite.js")
+
+  # templatefile, not file: the basic-auth credential is injected from a
+  # variable so it is never committed. With no credential supplied the auth
+  # block is omitted entirely and the function is pure SPA routing.
+  code = templatefile("${path.module}/functions/spa-rewrite.js.tftpl", {
+    basic_auth_b64   = var.basic_auth_credentials == null ? "" : base64encode(var.basic_auth_credentials)
+    basic_auth_realm = var.name_prefix
+  })
 }
 
 # --------------------------------------------------------------- distribution
@@ -263,8 +270,26 @@ resource "aws_cloudfront_distribution" "site" {
     }
   }
 
+  # Custom domains, when this environment has them. Each iteration is served
+  # from its own distribution on its own domain, so the URL for a submitted
+  # iteration keeps showing that iteration after dev has moved on.
+  aliases = var.aliases
+
   viewer_certificate {
-    cloudfront_default_certificate = true
+    # Exactly one of these two paths applies. With no certificate the
+    # distribution keeps the free *.cloudfront.net one, which is what staging
+    # uses; with a certificate it serves the aliases above.
+    cloudfront_default_certificate = var.acm_certificate_arn == null
+    acm_certificate_arn            = var.acm_certificate_arn
+
+    # sni-only, not vip. `vip` dedicates an IP per distribution and costs about
+    # USD $600/month; sni-only is free and supported by every browser this
+    # project targets.
+    ssl_support_method = var.acm_certificate_arn == null ? null : "sni-only"
+
+    # The default when a certificate is attached is TLSv1, which is long
+    # obsolete. Set it explicitly rather than inheriting it.
+    minimum_protocol_version = var.acm_certificate_arn == null ? null : "TLSv1.2_2021"
   }
 
   tags = { Name = "${var.name_prefix}-cdn" }
@@ -305,7 +330,7 @@ resource "aws_s3_bucket_policy" "site" {
 
 # ------------------------------------------------------------- placeholder page
 # So the URL serves something the moment this applies, before the Frontend team
-# has built anything. `aws s3 sync` will overwrite it on the first real deploy.
+# has built anything. The deploy pipeline overwrites it on the first real deploy.
 resource "aws_s3_object" "placeholder" {
   bucket       = aws_s3_bucket.site.id
   key          = "index.html"
@@ -330,7 +355,20 @@ resource "aws_s3_object" "placeholder" {
   # The deploy pipeline replaces this file with the real build. Without this,
   # every `terraform plan` after a deploy would want to put the placeholder
   # back, and eventually someone would let it.
+  #
+  # `cache_control` is in this list for a sharper reason than the others, found
+  # on 1 Sep 2026 by reading a plan that should have been empty:
+  #
+  #     ~ cache_control = "no-cache,must-revalidate" -> null
+  #
+  # The pipeline uploads index.html with that header deliberately. It is what
+  # stops a browser serving last week's index.html — the one file that must
+  # never be cached, because it is the file that names the hashed asset bundles.
+  # Terraform does not set it here, so it wanted to REMOVE it, and applying that
+  # would have left every returning visitor on a stale build with no error
+  # anywhere to explain why.
   lifecycle {
-    ignore_changes = [content, etag, content_type, metadata, tags]
+    ignore_changes = [content, etag, content_type, cache_control, metadata, tags]
   }
+
 }

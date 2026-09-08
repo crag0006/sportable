@@ -125,3 +125,83 @@ def test_every_response_is_marked_as_a_fixture():
     """So nobody mistakes fabricated data for a working backend."""
     for path in ("/api/v1/venues/search", "/api/v1/venues/vsr-10432"):
         assert _body(path)["_fixture"] is True
+
+
+# -------------------------------------------------------------------- config
+# /api/v1/config is not a fixture. It carries the live values the interface
+# renders for AC1.2.4, so these tests pin the shape the Frontend depends on.
+def test_config_returns_200():
+    assert _call("/api/v1/config")["statusCode"] == 200
+
+
+def test_config_carries_the_three_bands_ac124():
+    """AC1.2.4 — the user chooses 250 m, 500 m or 1 km."""
+    assert _body("/api/v1/config")["distance_bands_m"] == [250, 500, 1000]
+
+
+def test_config_default_is_one_of_the_offered_bands():
+    """A default outside the bands shows a result set no click can reproduce.
+
+    Terraform enforces this too, as a precondition on the SSM parameter. Both
+    guards are cheap and they fail at different times — this one at test time,
+    that one at plan time.
+    """
+    body = _body("/api/v1/config")
+    assert body["default_distance_m"] in body["distance_bands_m"]
+
+
+def test_config_degrades_to_defaults_without_the_env_var():
+    """SEARCH_CONFIG is unset under pytest, so this exercises the fallback.
+
+    The endpoint must answer rather than raise. `source` makes the degradation
+    visible instead of letting the handler pretend the values are live.
+    """
+    assert _body("/api/v1/config")["source"] == "fallback"
+
+
+def test_config_parses_the_terraform_supplied_values(monkeypatch):
+    """Terraform passes Parameter Store values as JSON, all of them strings.
+
+    Parameter Store has no numeric type — even the StringList arrives as
+    "250,500,1000" — so the handler must coerce rather than trust the types.
+    """
+    import handlers.stub as stub
+
+    monkeypatch.setattr(stub, "_config_cache", None)
+    monkeypatch.setenv(
+        "SEARCH_CONFIG",
+        json.dumps(
+            {
+                "distance_bands_m": "250,500,750,1000",
+                "default_distance_m": "750",
+                "max_results": "50",
+            }
+        ),
+    )
+    body = json.loads(stub.handler({"rawPath": "/api/v1/config"}, None)["body"])
+    stub._config_cache = None  # do not leak the cache into other tests
+
+    assert body["distance_bands_m"] == [250, 500, 750, 1000]
+    assert body["default_distance_m"] == 750
+    assert body["max_results"] == 50
+    assert body["source"] == "terraform"
+
+
+def test_config_survives_an_unparseable_env_var(monkeypatch):
+    """A malformed variable must degrade, not 500. This endpoint sits on the
+    critical path for the search page — it has to answer something."""
+    import handlers.stub as stub
+
+    monkeypatch.setattr(stub, "_config_cache", None)
+    monkeypatch.setenv("SEARCH_CONFIG", "{not json")
+    body = json.loads(stub.handler({"rawPath": "/api/v1/config"}, None)["body"])
+    stub._config_cache = None
+
+    assert body["source"] == "fallback"
+    assert body["distance_bands_m"] == [250, 500, 1000]
+
+
+def test_config_is_not_marked_as_a_fixture():
+    """Fixtures carry _fixture: true. Real config must not, or the Frontend's
+    check for fabricated data would flag it once the real API lands."""
+    assert "_fixture" not in _body("/api/v1/config")

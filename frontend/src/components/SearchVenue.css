@@ -1,0 +1,252 @@
+/* Venue search result card */
+.venue-card {
+  background-color: white;
+  border: 1px solid #d8e0dd;
+  border-radius: 10px;
+  padding: 1.4rem;
+  margin-bottom: 1.2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Venue name and location */
+.venue-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.venue-name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #102d32;
+}
+
+.venue-location {
+  margin: 5px 0 0 0;
+  font-size: 0.88rem;
+  color: #66777a;
+}
+
+/* Sports */
+.sport-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 0;
+}
+
+.sport-chip {
+  padding: 5px 12px;
+  background-color: #e0f2f1;
+  color: #0f4f59;
+  border: 1px solid #b2dfdb;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* Heading above the sport chips */
+.sports-heading {
+  margin: 14px 0 6px 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #536368;  
+}
+
+/* Surface information */
+.surface-text {
+  margin: 12px 0 0 0;
+  color: #617074;
+  font-size: 0.85rem;
+}
+
+/* Accessibility heading */
+.access-heading {
+  margin: 1.2rem 0 0.7rem 0;
+  color: #102d32;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* Facility cards */
+.amenity-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.amenity-box {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 7px;
+}
+
+.facility-icon {
+  width: 26px;
+  text-align: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.amenity-content {
+  flex: 1;
+}
+
+.amenity-box strong {
+  font-size: 0.76rem;
+  color: #19373b;
+}
+
+.amenity-box p {
+  margin: 2px 0 0 0;
+  font-size: 0.7rem;
+  line-height: 1.3;
+  color: #536368;
+}
+
+/* Green - within selected distance */
+.amenity-within {
+  background-color: #e2f5ec;
+  border: 1px solid #9bd6bb;
+}
+
+/* Green - confirmed at the venue itself, no distance to measure */
+.amenity-at-venue {
+  background-color: #e2f5ec;
+  border: 1px solid #9bd6bb;
+}
+
+/* Red - outside selected distance */
+.amenity-beyond {
+  background-color: #fde9e8;
+  border: 1px solid #e0aaa6;
+}
+
+/* Red - recorded as unavailable */
+.amenity-absent {
+  background-color: #fde9e8;
+  border: 1px solid #e0aaa6;
+}
+
+/* Grey - no published information */
+.amenity-unknown {
+  background-color: #ecefef;
+  border: 1px dashed #a8b1b3;
+}
+
+/* Status symbol */
+.status-symbol {
+  width: 25px;
+  height: 25px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.status-within,
+.status-at-venue {
+  color: #17603f;
+  background-color: white;
+}
+
+.status-beyond,
+.status-absent {
+  color: #a52b26;
+  background-color: white;
+}
+
+.status-unknown {
+  color: #687477;
+  background-color: white;
+}
+
+/* Facility message */
+.facility-message {
+  margin: 12px 0 0 0;
+  padding: 9px 12px;
+  background-color: #f5f6f6;
+  border-left: 3px solid #8a9699;
+  border-radius: 4px;
+  color: #536368;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.unavailable-message {
+  background-color: #fdf0ef;
+  border-left-color: #b23a34;
+}
+
+/* Venue buttons */
+.card-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 1.2rem;
+}
+
+.view-button,
+.direction-button {
+  padding: 10px 18px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.view-button {
+  color: white;
+  background-color: #0f4f59;
+  border: 1px solid #0f4f59;
+}
+
+.view-button:hover {
+  background-color: #0b3d45;
+}
+
+.direction-button {
+  color: #0f4f59;
+  background-color: white;
+  border: 1px solid #0f4f59;
+}
+
+.direction-button:hover {
+  background-color: #eef5f4;
+}
+
+/* Tablet */
+@media (max-width: 1100px) {
+  .amenity-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .venue-top {
+    gap: 12px;
+  }
+
+  .amenity-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card-buttons {
+    flex-direction: column;
+  }
+
+  .view-button,
+  .direction-button {
+    width: 100%;
+  }
+}
