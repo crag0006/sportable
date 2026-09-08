@@ -1,0 +1,232 @@
+# ==============================================================================
+# Deploy — production
+# ==============================================================================
+#
+# WHAT THIS IS
+#   sportablemelbourne.me, deployed from `main`. This is the address the product
+#   is advertised at, and the one that must keep working.
+#
+# THE THREE ENVIRONMENTS
+#   dev                  ->  envs/staging      d1nsbukoi7bexf.cloudfront.net
+#   release-iteration-N  ->  envs/iteration-N  sportablemelbourne-iterationN.me
+#   main                 ->  envs/prod         sportablemelbourne.me
+#
+#   `main` moves only when a release is promoted, so this deploys far less often
+#   than staging. That is the point: it is the address people are given.
+#
+# HOW IT DIFFERS FROM deploy-staging.yml
+#   FRONTEND ONLY. No terraform apply, no Lambda publish, no alias shift, no
+#   migrations. The API and the database are shared with staging, so a
+#   production deploy must not touch them — its job is to publish a bundle.
+#
+#   Production infrastructure is applied deliberately, by hand, when it is set
+#   up or changed. It is not something a push should be able to alter.
+#
+# THE SMOKE TEST IS NOT SKIPPABLE HERE
+#   The release workflow allows skipping it, because an iteration site is behind
+#   a password and marked once. This is the public product: if it is broken,
+#   the people it was built for find out. There is no switch.
+# ==============================================================================
+
+name: Deploy — production
+
+on:
+  push:
+    branches: [main]
+
+  # For re-publishing without an empty commit — after a cache problem, or to
+  # confirm the site still serves following a DNS change.
+  workflow_dispatch:
+
+# One production deploy at a time. cancel-in-progress is false: a cancelled
+# upload can leave the bucket half old and half new, and this is the live site.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-southeast-2
+  ROLE_ARN: arn:aws:iam::725699850301:role/sportable-github-deploy
+  TF_DIR: infra/envs/prod
+  TF_VERSION: 1.16.0
+
+jobs:
+  deploy:
+    name: Publish to sportablemelbourne.me
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Assume the deploy role
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: prod-${{ github.run_id }}
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          # The wrapper decorates stdout and breaks `terraform output -raw`.
+          terraform_wrapper: false
+
+      # init and READ only. Production infrastructure is applied by hand; this
+      # workflow needs to know where to put files, nothing more.
+      - name: Read the environment's outputs
+        id: tf
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          set -euo pipefail
+          terraform init -input=false
+          {
+            echo "site_bucket=$(terraform output -raw site_bucket)"
+            echo "distribution_id=$(terraform output -raw distribution_id)"
+            echo "site_url=$(terraform output -raw site_url)"
+            echo "cloudfront_url=https://$(terraform output -raw cloudfront_domain)"
+          } >> "$GITHUB_OUTPUT"
+          echo "Publishing to $(terraform output -raw site_url)"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build the frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      # Two uploads, because the right cache policy differs by file.
+      #
+      # Hashed assets are immutable — the name changes when the content does —
+      # so they are cached for a year. index.html is NOT hashed: it is the file
+      # that names the current assets, so it must never be cached, or a
+      # returning visitor keeps loading an old bundle indefinitely.
+      - name: Upload to S3
+        run: |
+          set -euo pipefail
+          aws s3 sync frontend/dist "s3://${{ steps.tf.outputs.site_bucket }}/" \
+            --delete \
+            --exclude "index.html" \
+            --cache-control "public,max-age=31536000,immutable"
+          aws s3 cp frontend/dist/index.html "s3://${{ steps.tf.outputs.site_bucket }}/index.html" \
+            --cache-control "no-cache,must-revalidate"
+
+      - name: Invalidate the CloudFront cache
+        run: |
+          set -euo pipefail
+          ID=$(aws cloudfront create-invalidation \
+                 --distribution-id "${{ steps.tf.outputs.distribution_id }}" \
+                 --paths "/*" --query 'Invalidation.Id' --output text)
+          echo "Invalidation $ID — waiting."
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "${{ steps.tf.outputs.distribution_id }}" --id "$ID"
+
+      # Tested against the CloudFront hostname, which this workflow controls.
+      # The custom domain depends on DNS records maintained at the registrar and
+      # is reported separately below rather than gating the deploy.
+      #
+      # No skip switch. See the header.
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          URL="${{ steps.tf.outputs.cloudfront_url }}"
+          echo "Testing $URL"
+
+          fail() { echo "::error::$1"; exit 1; }
+
+          for attempt in 1 2 3 4 5; do
+            CODE=$(curl -s -o /tmp/root.html -w '%{http_code}' "$URL/") || CODE="unreachable"
+            [ "$CODE" = "200" ] && break
+            echo "attempt $attempt: HTTP $CODE — retrying in 5s"
+            sleep 5
+          done
+          [ "$CODE" = "200" ] || fail "site root returned HTTP $CODE"
+
+          grep -qi '<div id="root"' /tmp/root.html \
+            || fail "index.html does not look like the built SPA"
+
+          # A deep link must fall back to index.html rather than 404 — this is
+          # what makes /venues/<id> survive a refresh.
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' "$URL/venues/does-not-exist")
+          [ "$CODE" = "200" ] || fail "SPA fallback returned HTTP $CODE"
+
+          # The API is shared with staging and reached through this
+          # distribution. A failure here means the bundle is fine but every
+          # search on the live site returns an error.
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/v1/health")
+          [ "$CODE" = "200" ] || fail "API not reachable through this distribution (HTTP $CODE)"
+
+          echo "Smoke test passed."
+
+      # A search exercises the database, which the checks above do not. The
+      # database is stopped outside working hours to control cost, so on the
+      # public site this is the difference between "the page loads" and "the
+      # product works". Reported, not enforced — a stopped database is an
+      # operational state, not a bad deploy.
+      - name: Does search actually return data?
+        if: always()
+        run: |
+          set -uo pipefail
+          URL="${{ steps.tf.outputs.cloudfront_url }}"
+          BODY=$(curl -s --max-time 20 \
+            "$URL/api/v1/search?sport=Cricket&suburb=Carlton&postcode=3053" || echo "")
+
+          if echo "$BODY" | grep -q '"total"'; then
+            N=$(echo "$BODY" | sed -n 's/.*"total":\([0-9]*\).*/\1/p')
+            echo "::notice::Search returned $N venues — the database is up."
+          else
+            echo "::warning::Search did not return data. Is RDS running?"
+            echo "::warning::  aws rds start-db-instance --db-instance-identifier sportable-staging-db"
+          fi
+
+      # Reported, never enforced. Pointing the domain is a manual step at the
+      # registrar; until it is done this says so rather than failing a deploy
+      # that did everything asked of it.
+      - name: Is the custom domain live?
+        if: always()
+        run: |
+          set -uo pipefail
+          URL="${{ steps.tf.outputs.site_url }}"
+          CF="${{ steps.tf.outputs.cloudfront_url }}"
+
+          if [ "$URL" = "$CF" ]; then
+            echo "::notice::No custom domain configured for this environment."
+            exit 0
+          fi
+
+          # Branch on curl's EXIT STATUS: it prints 000 and exits non-zero when
+          # it cannot connect, so `|| echo 000` would append a second one.
+          if CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$URL/"); then
+            if [ "$CODE" = "200" ]; then
+              echo "::notice::$URL is live."
+            else
+              echo "::warning::$URL resolved but returned HTTP $CODE. Check the aliases and certificate."
+            fi
+          else
+            echo "::warning::$URL does not resolve yet. Add these at the registrar:"
+            echo "::warning::  ALIAS  @    -> ${CF#https://}"
+            echo "::warning::  CNAME  www  -> ${CF#https://}"
+            echo "The bundle is published and serving at $CF."
+          fi
+
+      - name: Summary
+        run: |
+          {
+            echo "### Deployed to production"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| URL | ${{ steps.tf.outputs.site_url }} |"
+            echo "| Distribution | ${{ steps.tf.outputs.cloudfront_url }} |"
+            echo "| Bucket | \`${{ steps.tf.outputs.site_bucket }}\` |"
+            echo "| Commit | \`${{ github.sha }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
