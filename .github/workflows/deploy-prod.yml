@@ -84,9 +84,23 @@ jobs:
         run: |
           set -euo pipefail
           terraform init -input=false
+
+          BUCKET=$(terraform output -raw site_bucket 2>/dev/null || true)
+          DIST=$(terraform output -raw distribution_id 2>/dev/null || true)
+
+          # Production infrastructure is applied by hand, deliberately — this
+          # workflow only publishes a bundle into it. If it has not been applied
+          # the outputs are empty, and without this guard the next step runs
+          # `aws s3 cp ... s3:///index.html` and fails with a bucket-name regex
+          # error that says nothing about the real cause.
+          if [ -z "$BUCKET" ] || [ -z "$DIST" ]; then
+            echo "::error::Production infrastructure has not been applied. Run: cd ${TF_DIR} && terraform apply"
+            exit 1
+          fi
+
           {
-            echo "site_bucket=$(terraform output -raw site_bucket)"
-            echo "distribution_id=$(terraform output -raw distribution_id)"
+            echo "site_bucket=$BUCKET"
+            echo "distribution_id=$DIST"
             echo "site_url=$(terraform output -raw site_url)"
             echo "cloudfront_url=https://$(terraform output -raw cloudfront_domain)"
           } >> "$GITHUB_OUTPUT"
