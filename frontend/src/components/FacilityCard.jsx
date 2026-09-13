@@ -1,14 +1,18 @@
-import { FacilityIconGlyph } from "./Icons";
+const ICON_EMOJI = {
+  toilet: "🚻",
+  parking: "🅿",
+  transport: "🚋",
+};
 
 function FacilityCard({ facility }) {
   // "state" decides the colour: green = good news, red = bad news,
-  // grey = nothing published. 
+  // grey = nothing published.
   const state = facility.state || "unknown";
 
   return (
     <article className={`facility-card facility-${state}`}>
       <div className="facility-icon">
-        <FacilityIconGlyph icon={facility.icon} />
+        {ICON_EMOJI[facility.icon] || "📍"}
       </div>
 
       <div className="facility-body">
