@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import "./PasswordGate.css";
+import "./Passwordgate.css";
 
 const SITE_PASSWORD = "1234";
 
