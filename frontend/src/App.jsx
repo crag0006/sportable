@@ -3,9 +3,11 @@ import Landing from "./pages/LandingPage";
 import DirectionsPage from './pages/DirectionsPage'
 import HomePage from './pages/Home'
 import VenueDetailPage from './pages/VenueDetailPage'
+import Passwordgate from './pages/Passwordgate'
 
 export default function App() {
   return (
+    <Passwordgate>
     <BrowserRouter>
       <Routes>
         {/* Landing page with information about the app */}
@@ -19,5 +21,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+    </Passwordgate>
   )
 }
