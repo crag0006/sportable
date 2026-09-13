@@ -20,3 +20,5 @@ ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPZ5OcQLeUyiYDt7LQW7rGMpHs
 # alarm mail gets filtered, and a filtered alarm is the same as no alarm.
 # Each new address must click the confirmation link before it receives anything.
 alert_emails = ["crag0006@student.monash.edu"]
+
+lambda_pipeline_role_arn = "arn:aws:iam::725699850301:role/sportable-lambda-pipeline"

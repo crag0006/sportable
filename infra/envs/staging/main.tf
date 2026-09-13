@@ -138,3 +138,27 @@ module "observability" {
   api_id                   = module.api.api_id
   db_instance_identifier   = module.database.instance_identifier
 }
+
+module "ingestion" {
+  source = "../../modules/ingestion"
+
+  name_prefix = local.name_prefix
+  account_id  = var.expected_account_id
+
+  execution_role_arn = var.lambda_pipeline_role_arn
+
+  subnet_ids        = [module.network.private_subnet_ids[0]]
+  security_group_id = module.network.lambda_security_group_id
+
+  ssm_db_url_parameter = module.database.ssm_url_parameter
+
+  fetch_source_dir  = "${path.root}/../../../data/build/fetch"
+  load_source_dir   = "${path.root}/../../../data/build/load"
+  derive_source_dir = "${path.root}/../../../data/build/derive"
+
+  tags = {
+    Project     = "sportable"
+    Environment = "staging"
+    ManagedBy   = "terraform"
+  }
+}
