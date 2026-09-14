@@ -17,8 +17,11 @@ from app.repositories.protocols import (
     CorridorFacilityRow,
     CorridorResult,
     FacilityRow,
+    LocationMatch,
+    LocationSuggestion,
     PlaceRow,
     ReferencePoint,
+    SourceRow,
     SportEntry,
     SportRow,
     VenueRow,
@@ -89,6 +92,12 @@ VENUES: list[VenueRow] = [
                 amenity_lat=-37.7412,
                 amenity_lon=145.0080,
                 opening_hours="24 hours",
+                source_id="DS-01",
+                detail_amenity_id="DS-04:bay-7",
+                detail_source_id="DS-04",
+                detail_source_name="Accessible Parking Locations, City of Melbourne",
+                detail_source_updated=date(2026, 6, 30),
+                detail_distance_m=18.0,
             ),
             _row(
                 "accessible_transport_stop", "no_published_information", "not_published", None, None
@@ -137,7 +146,24 @@ VENUES: list[VenueRow] = [
         distance_m=2940.0,
         sports=(SportEntry("Basketball", None),),
         facilities=(
-            _row("accessible_toilet", "not_available", "publisher_attribute", None, FACILITIES),
+            _row(
+                "accessible_toilet",
+                "not_available",
+                "publisher_attribute",
+                None,
+                FACILITIES,
+                source_id="DS-01",
+                alternative_amenity_id="DS-02:9981:toilet",
+                alternative_name="Edwardes Lake Park toilets",
+                alternative_distance_m=158.0,
+                alternative_lat=-37.7150,
+                alternative_lon=145.0050,
+                alternative_opening_hours="24 hours",
+                alternative_key_required=False,
+                alternative_source_id="DS-02",
+                alternative_source_name=TOILET_MAP[0],
+                alternative_source_updated=TOILET_MAP[1],
+            ),
             _row("accessible_parking", "no_published_information", "spatial_proximity", None),
             _row("accessible_transport_stop", "confirmed", "spatial_proximity", 540.0),
             _row(
@@ -202,17 +228,92 @@ CORRIDOR_ROWS: list[CorridorFacilityRow] = [
 ]
 
 
+SOURCES: list[SourceRow] = [
+    SourceRow(
+        source_id="DS-01",
+        name=FACILITIES[0],
+        publisher="Sport and Recreation Victoria",
+        licence_name="Creative Commons Attribution 4.0 International",
+        licence_url="https://creativecommons.org/licenses/by/4.0/",
+        attribution_text="Sport and Recreational Facilities List, Sport and Recreation Victoria",
+        landing_page="https://discover.data.vic.gov.au/dataset/sport-and-recreational-facilities-list",
+        publisher_scope="statewide",
+        publisher_last_updated=FACILITIES[1],
+        retrieved_at=RETRIEVED,
+        rows_loaded=2153,
+        outcome="landed",
+    ),
+    SourceRow(
+        source_id="DS-02",
+        name=TOILET_MAP[0],
+        publisher="Australian Government Department of Health",
+        licence_name="Creative Commons Attribution 3.0 Australia",
+        licence_url="https://creativecommons.org/licenses/by/3.0/au/",
+        attribution_text="National Public Toilet Map",
+        landing_page="https://toiletmap.gov.au/",
+        publisher_scope="national",
+        publisher_last_updated=date(2022, 1, 12),
+        retrieved_at=RETRIEVED,
+        rows_loaded=3718,
+        outcome="landed",
+    ),
+    SourceRow(
+        source_id="DS-05",
+        name="openrouteservice",
+        publisher="HeiGIT",
+        licence_name="Creative Commons Attribution-ShareAlike 4.0 International",
+        licence_url="https://creativecommons.org/licenses/by-sa/4.0/",
+        attribution_text="Routing by openrouteservice, OpenStreetMap contributors",
+        landing_page="https://openrouteservice.org/",
+        publisher_scope="global",
+        publisher_last_updated=None,
+    ),
+]
+
+
 class FakeRepository:
-    def list_sports(self) -> list[SportRow]:
-        return [SportRow("Basketball", 3), SportRow("Netball", 1), SportRow("Swimming", 1)]
+    def list_sports(self, q: str | None = None) -> list[SportRow]:
+        rows = [SportRow("Basketball", 3), SportRow("Netball", 1), SportRow("Swimming", 1)]
+        if q:
+            rows = [r for r in rows if q.lower() in r.name.lower()]
+        return rows
+
+    def resolve_location(self, suburb: str | None, postcode: str | None) -> LocationMatch:
+        name = (suburb or "").lower()
+        if name == "preston" or (not suburb and postcode == "3072"):
+            if not suburb:
+                reference = ReferencePoint(
+                    "the centre of postcode 3072",
+                    PRESTON.latitude,
+                    PRESTON.longitude,
+                    kind="postcode",
+                    code="3072",
+                )
+            else:
+                label = (
+                    "the centre of Preston 3072" if postcode == "3072" else "the centre of Preston"
+                )
+                reference = ReferencePoint(
+                    label, PRESTON.latitude, PRESTON.longitude, kind="suburb", code="SAL21713"
+                )
+            return LocationMatch("resolved", reference, "Preston", reference.kind)
+        if name == "hobart":
+            return LocationMatch("outside_coverage", None, "Hobart", "suburb")
+        if name.startswith("prest"):
+            return LocationMatch(
+                "unresolved",
+                suggestions=(LocationSuggestion("Preston 3072", "suburb", "SAL21713"),),
+            )
+        return LocationMatch("unresolved")
+
+    def list_sources(self) -> list[SourceRow]:
+        return SOURCES
 
     def list_places(self) -> list[PlaceRow]:
         return [PlaceRow("Northcote", "3070", 1), PlaceRow("Preston", "3072", 1)]
 
     def resolve_reference(self, suburb: str | None, postcode: str | None) -> ReferencePoint | None:
-        if (suburb or "").lower() == "preston" or postcode == "3072":
-            return PRESTON
-        return None
+        return self.resolve_location(suburb, postcode).reference
 
     def search(self, sport: str, reference: ReferencePoint, radius_m: int) -> list[VenueRow]:
         return [v for v in VENUES if any(s.sport.lower() == sport.lower() for s in v.sports)]
