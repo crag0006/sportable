@@ -14,11 +14,17 @@ from typing import Protocol
 
 @dataclass(frozen=True)
 class ReferencePoint:
-    """Where every venue distance is measured from. AC1.1.3: it must be named."""
+    """Where every venue distance is measured from. AC1.1.3: it must be named.
+
+    ``kind`` is ``suburb``, ``postcode`` or ``point`` (a lat,lon the user gave);
+    ``code`` is the ABS code when the point came from the gazetteer.
+    """
 
     label: str
     latitude: float
     longitude: float
+    kind: str = "suburb"
+    code: str | None = None
 
 
 @dataclass(frozen=True)
@@ -58,6 +64,44 @@ class FacilityRow:
     source_name: str | None = None
     source_updated: date | None = None
     retrieved_at: datetime | None = None
+
+    # v0.2 - the columns of ``venue_facility_detail`` (data/sql/005 + 007).
+    # Every one of these has a default so the v0.1 rows above keep working.
+    source_id: str | None = None
+    stale_after_days: int | None = None
+    within_250m: bool | None = None
+    within_500m: bool | None = None
+    within_1000m: bool | None = None
+    location_relative_to_venue: str | None = None
+    opening_hours_unrecorded: bool | None = None
+    key_requirement_unrecorded: bool | None = None
+    mlak_24h: bool | None = None
+    payment_required: bool | None = None
+    access_note: str | None = None
+    changing_places: bool | None = None
+    has_shower: bool | None = None
+    ambulant: bool | None = None
+    left_hand_transfer: bool | None = None
+    right_hand_transfer: bool | None = None
+    transport_mode: str | None = None
+    # A separately published description attached to a publisher-confirmed
+    # status (migration 007). Its source is not the status's source.
+    detail_amenity_id: str | None = None
+    detail_source_id: str | None = None
+    detail_source_name: str | None = None
+    detail_source_updated: date | None = None
+    detail_distance_m: float | None = None
+    # The nearby public alternative to a published absence (migration 007).
+    alternative_amenity_id: str | None = None
+    alternative_name: str | None = None
+    alternative_distance_m: float | None = None
+    alternative_lat: float | None = None
+    alternative_lon: float | None = None
+    alternative_opening_hours: str | None = None
+    alternative_key_required: bool | None = None
+    alternative_source_id: str | None = None
+    alternative_source_name: str | None = None
+    alternative_source_updated: date | None = None
 
 
 @dataclass(frozen=True)
