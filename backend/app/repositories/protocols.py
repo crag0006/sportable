@@ -31,6 +31,49 @@ class ReferencePoint:
 class SportRow:
     name: str
     venue_count: int
+    event_count: int = 0
+
+
+@dataclass(frozen=True)
+class SourceRow:
+    """One row of the source register plus its latest load run (v0.2 §3.5)."""
+
+    source_id: str
+    name: str
+    publisher: str | None
+    licence_name: str | None
+    licence_url: str | None
+    attribution_text: str | None
+    landing_page: str | None
+    publisher_scope: str | None
+    publisher_last_updated: date | None
+    stale_after_days: int | None = None
+    retrieved_at: datetime | None = None
+    rows_loaded: int | None = None
+    outcome: str | None = None
+
+
+@dataclass(frozen=True)
+class LocationSuggestion:
+    label: str
+    kind: str
+    code: str | None = None
+
+
+@dataclass(frozen=True)
+class LocationMatch:
+    """What the gazetteer said about a typed place (v0.2 §3.4).
+
+    ``outcome`` is ``resolved``, ``outside_coverage`` or ``unresolved``; an
+    empty answer on its own is forbidden (AC1.1.4), so ``unresolved`` always
+    carries suggestions when the gazetteer has anything similar.
+    """
+
+    outcome: str
+    reference: ReferencePoint | None = None
+    matched_label: str | None = None
+    matched_kind: str | None = None
+    suggestions: tuple[LocationSuggestion, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -157,16 +200,26 @@ class VenueRow:
     facilities: tuple[FacilityRow, ...]
     chain: tuple[ChainRow, ...] = ()
     retrieved_at: datetime | None = None
+    # v0.2 - carried from venue_card for the venue page.
+    surface_types: tuple[str, ...] = ()
+    ownership: str | None = None
+    purpose: str | None = None
+    changeroom_description: str | None = None
+    lga_code: str | None = None
 
 
 class VenueRepository(Protocol):
-    def list_sports(self) -> list[SportRow]: ...
+    def list_sports(self, q: str | None = None) -> list[SportRow]: ...
 
     def list_places(self) -> list[PlaceRow]: ...
 
     def resolve_reference(
         self, suburb: str | None, postcode: str | None
     ) -> ReferencePoint | None: ...
+
+    def resolve_location(self, suburb: str | None, postcode: str | None) -> LocationMatch: ...
+
+    def list_sources(self) -> list[SourceRow]: ...
 
     def search(self, sport: str, reference: ReferencePoint, radius_m: int) -> list[VenueRow]: ...
 

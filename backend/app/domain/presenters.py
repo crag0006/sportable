@@ -66,6 +66,8 @@ def _sports(venue: VenueRow) -> list[str]:
 
 
 def _surface(venue: VenueRow) -> str | None:
+    if venue.surface_types:
+        return " / ".join(venue.surface_types)
     surfaces: list[str] = []
     for entry in venue.sports:
         if entry.surface_type and entry.surface_type not in surfaces:

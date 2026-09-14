@@ -14,7 +14,7 @@ The pool is opened on first use, not at import, so importing the app (tests,
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from psycopg import Connection
+from psycopg import Connection, errors
 from psycopg.rows import DictRow, dict_row
 from psycopg_pool import ConnectionPool
 
@@ -42,5 +42,21 @@ def get_pool() -> ConnectionPool[Connection[DictRow]]:
 
 @contextmanager
 def connection() -> Iterator[Connection[DictRow]]:
-    with get_pool().connection() as conn:
-        yield conn
+    """A pooled connection. Two database states become one honest 503:
+
+    - the materialised read model exists but has never been refreshed (a fresh
+      ``schema_current.sql`` leaves it unpopulated and PostgreSQL raises on
+      read rather than returning zero rows), and
+    - the database cannot be reached at all.
+    """
+    try:
+        with get_pool().connection() as conn:
+            yield conn
+    except errors.ObjectNotInPrerequisiteState as exc:
+        raise ApiError(
+            503,
+            "database_unavailable",
+            "The read model has not been refreshed yet; try again after the next pipeline run.",
+        ) from exc
+    except errors.OperationalError as exc:
+        raise ApiError(503, "database_unavailable", "The database is not reachable.") from exc
