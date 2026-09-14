@@ -1,0 +1,203 @@
+source_id: DS-09
+name: AAA Play activity finder
+publisher: Reclink Australia
+description: >-
+  Register of accessible sport and recreation programs across Victoria, published by Reclink Australia under the Access for All Abilities program with
+  Victorian Government funding. Supplies the events epic. Every listing is a program for people with disability, which is the stated purpose of the
+  service, so the register carries it as a programs source and not as a fixtures source: activities recur on a weekday at a time of day and have no
+  dates.
+
+tier: reference
+cadence: weekly
+
+licence:
+  name: No licence stated
+  version: null
+  url: https://aaaplay.org.au/
+  attribution_text: >-
+    Activity and facility listings from AAA Play, aaaplay.org.au, Reclink Australia, delivered under the Access for All Abilities program with Victorian
+    Government funding. Displayed to help people with disability find accessible sport and recreation in Victoria.
+  share_alike: false
+  restricts_caching: null
+  restricts_redistribution: null
+  restricts_derived_works: null
+  notes: >-
+    THIS IS THE ONE FIELD IN THIS CARD THAT IS NOT A FACT ABOUT THE DATA. The site publishes no licence instrument. It carries a disclaimer and a Reclink
+    privacy statement, and the footer asserts copyright in the State Government of Victoria. There is therefore no CC BY, no ODbL and no terms-of-use page
+    to cite, and licence.name must not be filled with one to make this card resemble DS-01 through DS-08.
+    "No licence stated" is the accurate value and it is written here deliberately. It is the register applying to itself the rule it applies to every
+    facility: an absence of published information is recorded as an absence, never inferred into a positive. A future reader of this card must be able to
+    see at a glance that this source differs from the other eight, because it does.
+    The three restricts_ flags are null rather than false for the same reason. False would assert that the publisher permits caching, redistribution and
+    derived works, which nobody has established. Null reads as not established, which is true. Nothing in the load path consumes these flags; they exist
+    to be read by a human before a reuse decision.
+    licence.url points at the site root rather than at a licence page, because there is no licence page. The source table declares licence_url NOT NULL and
+    the Sources and licences view renders it as a link, so an empty string would produce a dead link on a user-facing screen. The root resolves. Replace it
+    with the disclaimer page path once someone reads it off the footer, per the open question below.
+    The attribution string satisfies the project's attribution obligation as the team has scoped it, naming the publisher and stating the purpose of
+    display. See decision DS-09-D1 for the reasoning behind proceeding on that basis, and for what would reverse it.
+
+retrieval:
+  landing_page: https://aaaplay.org.au/find-activity/
+  download_url: https://aaaplay.org.au/wp-json/wp/v2/activity
+  format: api
+  raw_prefix: aaaplay
+  requires_auth: false
+  expected_sha256: null
+  notes: >-
+    WordPress REST API, open. The root at /wp-json/ reports "authentication": [], so no key, no signup, no header and no Parameter Store entry. This is the
+    only scheduled source in the register that is an API rather than a file download, and the fetch contract has to bend to accommodate it.
+    A full pull is fourteen requests across three post types plus four taxonomies: activity six pages, facility six pages, organisation two pages, then
+    activity_type, age_range, lga and region once each. Pagination is stock WordPress, per_page=100&page=N, with totals in the X-WP-Total and
+    X-WP-TotalPages response headers. Read the header rather than paging until a 400, because WordPress returns rest_post_invalid_page_number past the end
+    and that is an error response, not a terminator.
+    expected_sha256 is null and must stay null. The existing fetch handler hashes one downloaded body to decide whether anything changed; fourteen bodies
+    have no single hash, and WordPress emits no ETag or Last-Modified on these collection endpoints, so the conditional-GET path does not apply either.
+    Change detection instead uses modified_gmt, which every record carries: the fetch writes one newline-delimited JSON object per post type and records
+    max(modified_gmt) in the manifest. Unchanged max means no payload written, which means no ObjectCreated event, which means no load, preserving the
+    existing quiet-week behaviour rather than working around it.
+    Many registration_url and social URLs arrive wrapped in Outlook safelinks, kor01.safelinks.protection.outlook.com, with the real target percent-encoded
+    in the url query parameter. Unwrap at transform time and store the target. A safelink is not a stable URL and will not resolve for every visitor.
+
+coverage:
+  publisher_scope: statewide
+  records_total: 530
+  records_in_target_area: null
+  basis: >-
+    530 activity records, 552 facility records and 178 organisation records on the pull of 11 September 2026. The 530 is the figure reported here because
+    activities are what the events epic displays; facilities and organisations are supporting dimensions reached by integer key.
+    records_in_target_area stays null until the facility points are clipped against the DS-06 in-scope polygon. The publisher's own region taxonomy gives a
+    provisional Greater Melbourne cut of 317 activities against 337 facilities, but that is the publisher's regional grouping and not our scope boundary,
+    and the two must not be conflated in a figure that appears on screen.
+  notes: >-
+    514 of 530 activities carry a facility id. 15 carry neither a facility nor coordinates and quarantine as COORD_MISSING. Statewide reach means a
+    material share of facilities sit outside Greater Melbourne, led by Geelong, Bendigo and Ballarat; those are out of scope for Iteration 2, not bad data.
+
+verification:
+  verified: true
+  verified_by: Jiahe
+  verified_at: 2026-09-11
+  verified_from: >-
+    Full pull of the three post types and four taxonomies from the aaaplay.org.au WordPress REST API, 11 September 2026, 23:45 to 00:10 AEST. Raw JSON
+    retained in idea_Venkat/aaaplay-sample/, 18 files. Assessment written up in AAAPlay_Source_Assessment.
+  method: >-
+    Root capability document read for the authentication and namespace declaration. Every collection endpoint paged to exhaustion with the record count
+    cross-checked against X-WP-Total. Field coverage counted across all 530 activities and all 552 facilities rather than sampled. Facility points matched
+    against the 2,153 DS-01 venues in the local PostGIS copy of the full council load. Licence position established by reading the site footer and the
+    disclaimer, which is the absence of a finding rather than a finding.
+
+publisher_last_updated: 2026-09-10
+
+supplies_venues: false
+supplies_facility_types: []
+supplies_boundaries: false
+
+iteration_1: false
+government_published: false
+depends_on:
+  - DS-06
+
+known_limitations:
+  - >-
+    NOT A GOVERNMENT SOURCE. Reclink Australia is a not-for-profit delivering a Victorian Government funded program. Government funding is not government
+    publication, and government_published is false on that basis. The consequence is structural: the register's existing position is that government
+    records are the only thing that can produce a confirmed, so no attribute from this source may ever be written into venue.onsite_accessible_toilet,
+    venue.onsite_accessible_parking, venue_amenity_status or the access chain. AAA Play describes programs. It does not adjudicate facilities.
+  - >-
+    The 17 facility accessibility booleans have no null state, which is the DS-02 situation exactly. facility_wheelchair_accessible is true on 322 of 552
+    and false on 230, and a false cannot be distinguished from an unticked box on the data alone. The transform rule is fixed here rather than left to the
+    loader: true becomes a published yes, false becomes no published information, never not_available. Loaded naively this field would put a recorded
+    absence on 230 venues on the strength of nobody having filled in a form.
+  - >-
+    facility_changing_places is wrong and is not loaded. It reports true for 275 of 552 facilities. Changing Places is an accredited standard requiring
+    assessment against the Changing Places Design Specification and a Statement of Compliance, and accredited facilities must appear on the National Public
+    Toilet Map, which is DS-02, where the Victorian count is 163. A source cannot contain 275 of something the authoritative register counts 163 of
+    statewide. Providers are reading the field as "has a change room". The term is also a trade mark held by the State of Victoria, so publishing it against
+    unaccredited venues is not merely a data-quality error. DS-02 remains the only Changing Places evidence in the project.
+  - >-
+    activity_access_needs is populated on 251 of 530 activities and tagged wheelchair_accessible on only 70. It is a refinement of which access needs a
+    program caters for, NOT a gate on whether a listing is accessible, and it must never be used as the predicate that builds the events list. The
+    site's own PlayOn women's and girls' wheelchair basketball program carries an empty access-needs array. Empty is no published information. Nothing may
+    be inferred from a title, a description or a photograph.
+  - >-
+    Activities are recurring programs with a weekday and a time of day. There is no start date, end date or season anywhere in the post type. A date-range
+    filter cannot apply to them and must not be silently widened to look as though it did. The API contract answers this with kind and a recurrence block,
+    and states on the response which rule was applied.
+  - >-
+    The dated event post type exists on the site and is not registered for REST, returning 404 at /wp-json/wp/v2/event. The archive page carries roughly ten
+    items as HTML with no structured venue or time. It is not an API and is not ingested. Ten items do not justify a scraper whose selectors break on the
+    next theme update.
+  - >-
+    Many contact_email values are individual programme coordinators' personal addresses, including free webmail. These are personal information under the
+    Privacy Act 1988 (Cth) and the project stores no personal data by design. contact_email and contact_phone are read and discarded at transform time.
+    Only registration_url, unwrapped, and the organisation record are stored. This is a privacy control, independent of anything the licence question
+    resolves to.
+  - >-
+    Facility coordinates arrive with a Google place_id in facility_location, which indicates the publisher geocoded through Google Maps Platform. Google's
+    terms restrict storage and redistribution of that output independently of anything Reclink grants, and Reclink cannot waive them. See the open question;
+    the cheap resolution is to keep the publisher's address string and geocode it ourselves rather than persist their point.
+  - >-
+    Free text describing access appears throughout activity content, for example "free accessible parking is available on site" in the PlayOn record. It is
+    displayed as recorded provider text with attribution and is never parsed into a status. Prose is not a publication_status.
+  - >-
+    The lga taxonomy carries about 25 zero-count junk terms such as bare lowercase council names, and one combined term naming two councils. Terms are used
+    as a cross-check only; scope is decided by point-in-polygon against DS-06, as it is for every other source.
+
+decisions:
+  - id: DS-09-D1
+    title: Integrating a source that publishes no licence
+    status: resolved
+    decided_on: 2026-09-14
+    decided_by: Team lead, on the recommendation of the data engineering lead
+    question: >-
+      Constraint C2 as written in the Design and Architecture document states that every dataset carries an open licence and displayed attribution. AAA Play
+      publishes no licence instrument at all. Integrating it either requires the constraint to be read as an attribution obligation rather than a licence
+      obligation, or requires the source to be held until the publisher grants permission in writing.
+    decision: >-
+      Integrate, on the team's reading that C2's operative obligation is naming the publisher and stating the purpose of display. Attribution is rendered on
+      every listing and in the Sources and licences view, linking to the activity page on the publisher's own site. A notification is sent to Reclink
+      describing what is being displayed and why; delivery is not a precondition of shipping.
+    reasoning: >-
+      The service exists to help people with disability find accessible sport and recreation in Victoria, it is publicly funded for that purpose, and the
+      product displays the listings with attribution and links traffic back to the publisher's own pages. Displaying them serves the publisher's stated
+      objective rather than competing with it. No content is redistributed in bulk, no derived dataset is published, and the use is non-commercial student
+      work over a nine-week delivery.
+      This is recorded as a decision rather than as a satisfied requirement because it is the one source in the register that does not meet the C2 wording
+      as that wording currently stands. Section 2.2 of the Design and Architecture document should be amended so the constraint table and the register agree;
+      a build that contradicts its own submitted design document is a worse outcome than either reading of C2 on its own.
+    controls:
+      - >-
+        Attribution on every listing and in the Sources and licences view, naming Reclink Australia and the Access for All Abilities program, with the
+        Victorian Government funding stated and a link to the source activity page.
+      - >-
+        No bulk redistribution. No export, no public API re-serving these records, no downloadable extract.
+      - >-
+        No personal data stored. Coordinator emails and phone numbers discarded at transform; registration URL and organisation only.
+      - >-
+        No status derived. Nothing from this source writes to venue, venue_amenity_status or venue_access_chain, per the government_published limitation
+        above.
+      - >-
+        Notification sent to Reclink stating what is displayed, the purpose, and how to have it removed.
+    residual_risk: >-
+      Reuse rights are unestablished, not granted. In the absence of a licence the default position under Australian copyright law is that rights are
+      reserved, and the controls above reduce the scope and consequence of the use rather than making it authorised. Recorded here rather than described as
+      closed.
+    review_trigger: >-
+      Revisit if Reclink objects or responds with terms, if the project is continued commercially past submission, if any export or public re-serving of
+      these records is proposed, or if the facility points are persisted rather than re-geocoded.
+
+open_questions:
+  - >-
+    Read the disclaimer page path off the site footer and replace licence.url, which currently points at the site root so that the NOT NULL column resolves
+    to a live page. Record the date read in verification.method, as DS-05 does, because there is no version or revision date to cite.
+  - >-
+    Confirm who can grant reuse. The footer asserts copyright in the State Government of Victoria while Reclink operates the service, so the party able to
+    grant may not be the party being contacted. The project already holds a DJSIR relationship through DS-01. Ask in the same message rather than in a
+    second round trip.
+  - >-
+    Establish whether facility_location coordinates originate from Google Maps Platform, which the presence of place_id suggests. If they do, do not persist
+    the point: keep the publisher's address string and geocode it through a source whose terms permit storage, and record which one here.
+  - >-
+    Decide whether the 17 facility booleans are displayed at all. They describe attributes no other source in the register covers, including hydrotherapy
+    pools, pool hoists and staff training, but they are provider-entered and cannot produce a status. If displayed they sit in their own block on the venue
+    page under their own attribution, visibly separate from the four facility tiles. This is a product decision, not a loader decision.

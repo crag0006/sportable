@@ -65,3 +65,6 @@ infra/modules/*/.build/
 # payloads that are re-fetchable on demand and must never enter git history —
 # once committed, a 40 MB shapefile is in every clone forever.
 data/_raw/
+
+ssm-tunnel.json
+data/build/
