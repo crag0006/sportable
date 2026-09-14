@@ -29,6 +29,7 @@ WHERE IT RUNS
 from __future__ import annotations
 
 import argparse
+import io
 import os
 import re
 import sys
@@ -49,23 +50,41 @@ from derive import status_builder  # noqa: E402
 from ingestion.loaders import loader  # noqa: E402
 from ingestion.transformers import ds01_sport_facilities as ds01  # noqa: E402
 from ingestion.transformers import ds02_public_toilets as ds02  # noqa: E402
+from ingestion.transformers import ds03_ptv_gtfs as ds03  # noqa: E402
 from ingestion.transformers import ds04_accessible_parking as ds04  # noqa: E402
+from ingestion.transformers import ds08_postal_areas as ds08  # noqa: E402
 
 # ------------------------------------------------------------------ scope
 #
 # THE ONE JUDGEMENT CALL IN THIS FILE, MADE EXPLICIT SO IT CAN BE ARGUED WITH.
 #
-# The `lga` column is named `in_greater_melbourne`, which suggests the 31-council
-# ABS definition. Iteration 1 does not use that: DS-01's source card filters on
-# "LGA Name equal to 'Melbourne City Council'" and DS-06's card records
-# `records_in_target_area: 1`. So the shipped scope is ONE council.
+# Scope is the whole of Victoria. An EMPTY set means every Victorian council in
+# the DS-06 layer, which is why the default is empty rather than a list of
+# eighty names: a list would go stale the next time the ABS renames a council,
+# and it would go stale silently, by quietly dropping that council's venues.
+#
+# The `lga` column is still named `in_greater_melbourne`. That name is now a
+# misnomer and is kept deliberately: renaming it would change the read model,
+# the API and the frontend for no behavioural gain. Nothing reads the name; the
+# flag simply means "in scope".
 #
 # This matters more than it looks. Every other source is clipped against the
-# union of the flagged polygons, so widening this silently changes what "in
-# scope" means for toilets and parking as well as venues. Change it with
-# --scope, deliberately, not by editing a default.
+# union of the flagged polygons, so narrowing this silently changes what "in
+# scope" means for toilets and parking as well as venues. Narrow it with
+# --scope, deliberately, not by editing this default.
+#
+# One honest limitation of the wider scope: DS-04 accessible parking is
+# published by the City of Melbourne for its own area only. Venues elsewhere in
+# Victoria therefore carry no parking record at all, and the product shows that
+# as "no published information" rather than as an absence of parking.
+DEFAULT_SCOPE: set[str] = set()
+
+# Every function here receives the connection from connect(), which sets
+# row_factory=dict_row. Naming the parameterised type once keeps the signatures
+# honest: a bare psycopg.Connection means Connection[tuple[Any, ...]], and then
+# row["id"] is a type error even though it works perfectly at runtime.
 DictConnection = psycopg.Connection[dict[str, Any]]
-DEFAULT_SCOPE = {"melbourne"}
+
 
 _COUNCIL_WORDS = re.compile(r"\b(city|shire|rural|borough|council|of|the)\b", flags=re.IGNORECASE)
 
@@ -92,6 +111,31 @@ def connect() -> DictConnection:
     if "localhost" not in url and "127.0.0.1" not in url:
         print("  note: DATABASE_URL does not point at the tunnel; is that intended?")
     return psycopg.connect(url, row_factory=dict_row, autocommit=False, connect_timeout=10)
+
+
+def scope_from_database(conn: DictConnection) -> set[str]:
+    """The in-scope LGA names, read from the table rather than from a constant.
+
+    The `lga` table is the single definition of scope. Reading it here rather
+    than threading --scope through means DS-01 is filtered against what was
+    actually flagged when DS-06 was loaded, which may have been a different run
+    on a different day.
+
+    This matters because ds01.transform DROPS rows whose LGA is not in the set —
+    it does not quarantine them. An empty set silently produces an empty load,
+    and an empty load looks exactly like a source that published nothing.
+    """
+    rows = conn.execute("SELECT lga_name_normalised FROM lga WHERE in_greater_melbourne").fetchall()
+
+    scope = {row["lga_name_normalised"] for row in rows} - {None}
+
+    if not scope:
+        sys.exit(
+            "No LGA is flagged in scope, so every venue would be dropped.\n"
+            "Load DS-06 first: uv run python scripts/load_run.py DS-06"
+        )
+
+    return scope
 
 
 def latest_raw(raw_root: Path, prefix: str) -> tuple[Path, str, str]:
@@ -186,15 +230,22 @@ def load_boundaries(conn: DictConnection, raw_root: Path, scope: set[str]) -> in
     # 500-odd polygons of storage to answer a question about one state.
     vic = gdf[gdf["STE_CODE21"] == "2"].copy()
     vic["lga_name_normalised"] = vic["LGA_NAME25"].map(normalise_lga)
-    vic["in_greater_melbourne"] = vic["lga_name_normalised"].isin(scope)
+
+    # An empty scope flags every Victorian council. See DEFAULT_SCOPE: the
+    # default is the whole state, and --scope narrows it.
+    if scope:
+        vic["in_greater_melbourne"] = vic["lga_name_normalised"].isin(scope)
+    else:
+        vic["in_greater_melbourne"] = True
 
     if vic.crs is None or vic.crs.to_epsg() != 7844:
         vic = vic.to_crs(7844)
 
     flagged = int(vic["in_greater_melbourne"].sum())
     if flagged == 0:
+        scope_text = sorted(scope) if scope else "all Victoria"
         sys.exit(
-            f"Scope {sorted(scope)} matched no LGA. Nothing downstream would load.\n"
+            f"Scope {scope_text} matched no LGA. Nothing downstream would load.\n"
             f"Available (first 12): {sorted(vic['lga_name_normalised'].dropna())[:12]}"
         )
 
@@ -226,16 +277,147 @@ def load_boundaries(conn: DictConnection, raw_root: Path, scope: set[str]) -> in
             rows,
         )
     conn.commit()
-    print(f"  lga: {len(rows)} Victorian councils, {flagged} in scope {sorted(scope)}")
+    scope_text = sorted(scope) if scope else "all Victoria"
+    print(f"  lga: {len(rows)} Victorian councils, {flagged} in scope ({scope_text})")
     return len(rows)
 
 
+# ------------------------------------------------------------------ DS-07
+def load_suburbs(conn: DictConnection, raw_root: Path) -> int:
+    """Load the ASGS Suburbs and Localities layer.
+
+    Inline rather than a transformer, for the same reason DS-06 is: the work is
+    read a shapefile, keep Victoria, write four columns. There is no column
+    contract to enforce and no quarantine decision to make, so a transformer
+    module would be a file that only moved code somewhere else.
+
+    Unlike DS-06 this layer carries no scope flag. Suburbs are how the search
+    box resolves a typed place name, and a suburb outside scope still has to
+    resolve — the API answers "this area is not covered" rather than returning
+    nothing, which AC1.1.4 requires.
+    """
+    import geopandas as gpd
+
+    path, _, _ = latest_raw(raw_root, "suburb_boundaries")
+
+    with zipfile.ZipFile(path) as archive:
+        shp = next(n for n in archive.namelist() if n.endswith(".shp"))
+
+    gdf = gpd.read_file(f"zip://{path}!{shp}")
+
+    vic = gdf[gdf["STE_CODE21"] == "2"].copy()
+
+    if vic.crs is None or vic.crs.to_epsg() != 7844:
+        vic = vic.to_crs(7844)
+
+    rows = [
+        (
+            r["SAL_CODE21"],
+            r["SAL_NAME21"],
+            "DS-07",
+            r["geometry"].wkb,
+        )
+        for _, r in vic.iterrows()
+        if r["geometry"] is not None and r["SAL_NAME21"]
+    ]
+
+    with conn.cursor() as cur:
+        cur.executemany(
+            """
+            INSERT INTO suburb (suburb_code, suburb_name, source_id, geom)
+            VALUES (%s,%s,%s, ST_Multi(ST_SetSRID(ST_GeomFromWKB(%s), 7844)))
+            ON CONFLICT (suburb_code) DO UPDATE SET
+                suburb_name = EXCLUDED.suburb_name,
+                geom = EXCLUDED.geom
+            """,
+            rows,
+        )
+
+    conn.commit()
+    print(f"  suburb: {len(rows)} Victorian suburbs and localities")
+    return len(rows)
+
+
+# ------------------------------------------------------------------ DS-03
+#
+# The PTV archive is nested: gtfs.zip holds one numbered directory per mode,
+# each with its own google_transit.zip, each with its own stops.txt. The
+# transformer takes ONE frame with mode_id and mode already attached, because
+# the key is (mode_id, stop_id): 965 stop_id values repeat across feeds, and
+# parent_station references are only unique inside a single mode feed.
+PTV_MODES = {
+    "1": "Regional train",
+    "2": "Metropolitan train",
+    "3": "Metropolitan tram",
+    "4": "Metropolitan bus",
+    "5": "Regional coach",
+    "6": "Regional bus",
+    "7": "TeleBus",
+    "8": "Night bus",
+    "10": "Interstate train",
+    "11": "SkyBus",
+}
+
+
+def read_gtfs_stops(path: Path, modes: set[str] | None = None) -> pd.DataFrame:
+    """Concatenate stops.txt from every mode feed inside the outer archive.
+
+    `modes` narrows to a set of mode directory numbers. None reads all of them.
+    Narrowing is a real option rather than a convenience: the metropolitan bus
+    feed alone is larger than every other mode combined, and a rail-only run is
+    the fast way to check the transform after a change.
+    """
+    frames: list[pd.DataFrame] = []
+
+    with zipfile.ZipFile(path) as outer:
+        inner_names = sorted(
+            (n for n in outer.namelist() if n.lower().endswith("google_transit.zip")),
+            key=lambda n: int(n.split("/")[0]) if n.split("/")[0].isdigit() else 99,
+        )
+
+        if not inner_names:
+            sys.exit(f"No per-mode google_transit.zip inside {path}. Is this the PTV archive?")
+
+        for name in inner_names:
+            mode_id = name.split("/")[0]
+
+            if modes and mode_id not in modes:
+                continue
+
+            # Decompress the inner archive once. Reading members straight from
+            # the outer zip re-decompresses the whole thing on every call.
+            with outer.open(name) as handle:
+                inner = zipfile.ZipFile(io.BytesIO(handle.read()))
+
+            with inner.open("stops.txt") as stops_file:
+                frame = pd.read_csv(stops_file, dtype=str, low_memory=False)
+
+            frame["mode_id"] = mode_id
+            frame["mode"] = PTV_MODES.get(mode_id, f"Unknown mode {mode_id}")
+            frames.append(frame)
+
+            print(f"    mode {mode_id} {frame['mode'].iloc[0]:<22} {len(frame):,} stops")
+
+    if not frames:
+        sys.exit("No mode feeds matched. Check --gtfs-modes.")
+
+    return pd.concat(frames, ignore_index=True)
+
+
 # ------------------------------------------------------------------ DS-01/02/04
-def run_source(conn: DictConnection, source_id: str, raw_root: Path, scope: set[str]) -> None:
+def run_source(
+    conn: DictConnection,
+    source_id: str,
+    raw_root: Path,
+    scope: set[str],
+    gtfs_modes: set[str] | None = None,
+) -> None:
     prefix = {
         "DS-01": "sport_facilities",
         "DS-02": "public_toilets",
+        "DS-03": "ptv_gtfs",
         "DS-04": "accessible_parking",
+        "DS-08": "postal_areas",
     }[source_id]
     path, dt, key = latest_raw(raw_root, prefix)
     run_id = loader.open_load_run(conn, source_id, dt, key, sha_of(raw_root, key))
@@ -243,15 +425,47 @@ def run_source(conn: DictConnection, source_id: str, raw_root: Path, scope: set[
 
     if source_id == "DS-01":
         raw = pd.read_excel(path, sheet_name="wholeIFMD")
-        result = ds01.transform(raw, scope, normalise_lga, run_id, retrieved_at)
+        # A separate name per branch. Each transformer defines its own
+        # TransformResult with different fields, so one shared variable is
+        # narrowed to whichever type was assigned first and .amenities or
+        # .postal_areas then fails to type-check.
+        venue_result = ds01.transform(raw, scope, normalise_lga, run_id, retrieved_at)
         outcome = loader.load_venues(
             conn,
             run_id,
             source_id,
-            result.venues,
-            result.venue_sports,
-            result.quarantine,
-            int(result.stats.get("rows_read", len(raw))),
+            venue_result.venues,
+            venue_result.venue_sports,
+            venue_result.quarantine,
+            int(venue_result.stats.get("rows_read", len(raw))),
+        )
+    elif source_id == "DS-08":
+        import geopandas as gpd
+
+        with zipfile.ZipFile(path) as archive:
+            shp = next(n for n in archive.namelist() if n.endswith(".shp"))
+
+        raw = gpd.read_file(f"zip://{path}!{shp}")
+        postal_result = ds08.transform(raw, run_id, retrieved_at)
+        outcome = loader.load_postal_areas(
+            conn,
+            run_id,
+            source_id,
+            postal_result.postal_areas,
+            postal_result.quarantine,
+            int(postal_result.stats.get("features_read", len(raw))),
+        )
+
+    elif source_id == "DS-03":
+        raw = read_gtfs_stops(path, gtfs_modes)
+        transit_result = ds03.transform(raw, run_id, retrieved_at)
+        outcome = loader.load_amenities(
+            conn,
+            run_id,
+            source_id,
+            transit_result.amenities,
+            transit_result.quarantine,
+            int(transit_result.stats.get("rows_read", len(raw))),
         )
     else:
         mod = ds02 if source_id == "DS-02" else ds04
@@ -264,14 +478,21 @@ def run_source(conn: DictConnection, source_id: str, raw_root: Path, scope: set[
             import geopandas as gpd
 
             raw = gpd.read_file(path)
-        result = mod.transform(raw, run_id, retrieved_at)
+        amenity_result = mod.transform(raw, run_id, retrieved_at)
         # DS-02 reports "rows_read"; DS-04 reports "features_read" — it counts
         # KML features, not CSV rows. Reading only the first key silently
         # recorded 0 rows read for DS-04, which makes the quarantine rate and
         # the quality report meaningless for that source.
-        rows_read = int(result.stats.get("rows_read") or result.stats.get("features_read") or 0)
+        rows_read = int(
+            amenity_result.stats.get("rows_read") or amenity_result.stats.get("features_read") or 0
+        )
         outcome = loader.load_amenities(
-            conn, run_id, source_id, result.amenities, result.quarantine, rows_read
+            conn,
+            run_id,
+            source_id,
+            amenity_result.amenities,
+            amenity_result.quarantine,
+            rows_read,
         )
 
     loader.close_load_run(
@@ -315,7 +536,11 @@ def derive_status(conn: DictConnection) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("source_ids", nargs="*", help="DS-06 DS-01 DS-02 DS-04, in that order")
+    p.add_argument(
+        "source_ids",
+        nargs="*",
+        help="DS-06 DS-07 DS-08 DS-01 DS-02 DS-03 DS-04, in that order",
+    )
     p.add_argument("--raw", default=str(ROOT / "_raw"))
     p.add_argument("--seed-sources", action="store_true")
     p.add_argument(
@@ -327,21 +552,47 @@ def main() -> None:
         "--scope",
         nargs="*",
         default=sorted(DEFAULT_SCOPE),
-        help="normalised LGA names flagged in_greater_melbourne",
+        help=(
+            "normalised LGA names to flag as in scope. Omit for the whole of "
+            "Victoria, which is the default."
+        ),
+    )
+    p.add_argument(
+        "--gtfs-modes",
+        nargs="*",
+        help=(
+            "DS-03 only: mode directory numbers to read, e.g. 1 2 3 for rail and "
+            "tram. Omit to read every mode."
+        ),
     )
     a = p.parse_args()
 
     raw_root = Path(a.raw).resolve()
-    scope = {key for key in (normalise_lga(s) for s in a.scope) if key is not None}
+    # Subtracting {None} removes the value but not the type: mypy still sees
+    # set[str | None]. Filtering in the comprehension narrows it properly.
+    requested = {key for key in (normalise_lga(s) for s in a.scope) if key is not None}
 
     with connect() as conn:
         if a.seed_sources:
             seed_sources(conn)
         for sid in a.source_ids:
             if sid == "DS-06":
-                load_boundaries(conn, raw_root, scope)
+                # DS-06 SETS the flag, so it takes --scope directly. Empty means
+                # every Victorian council.
+                load_boundaries(conn, raw_root, requested)
+            elif sid == "DS-07":
+                load_suburbs(conn, raw_root)
             else:
-                run_source(conn, sid, raw_root, scope)
+                # Everything else READS the flag. Going through the database
+                # keeps one definition of scope, and means a load run cannot
+                # disagree with the boundaries already in the table.
+                run_source(
+                    conn,
+                    sid,
+                    raw_root,
+                    scope_from_database(conn),
+                    set(a.gtfs_modes) if a.gtfs_modes else None,
+                )
         if a.derive:
             derive_status(conn)
 

@@ -26,6 +26,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+# pandas is imported inside each function that needs it, so a notebook can load
+# this module without paying for the import. The annotations still reference it,
+# and `from __future__ import annotations` keeps them as strings at runtime —
+# mypy is the only reader that needs the name bound.
 if TYPE_CHECKING:
     import pandas as pd
 
@@ -64,22 +69,39 @@ LIVE_API_IDS = tuple(k for k, v in DATASET_DIRS.items() if v is None)
 
 # Reference constants
 
-# A rough Greater Melbourne bounding box.
+# A rough Victorian bounding box.
 # This is only used as an initial coordinate check.
 # The actual geographic filtering is done with the LGA boundary layer during
 # Transform, never with this box.
-# max_lon widened from 145.90 to 146.25 on 31 Aug 2026: the measured extent of the
-# 31-LGA union reaches 146.193, so the original box clipped eastern Yarra Ranges.
-GM_BBOX = {
-    "min_lon": 144.30,
-    "max_lon": 146.25,
-    "min_lat": -38.60,
-    "max_lat": -37.30,
+#
+# Widened from the 31-LGA Greater Melbourne extent to the whole state when scope
+# expanded to Victoria. The old box (144.30-146.25, -38.60 to -37.30) would have
+# reported every venue east of Yarra Ranges or west of Werribee as an
+# out-of-range coordinate, which reads as bad data rather than as a box that no
+# longer matches the scope.
+#
+# Corners are the state extremes: the SA border in the west, Cape Howe in the
+# east, Wilsons Promontory in the south, the Murray in the north.
+VIC_BBOX = {
+    "min_lon": 140.90,
+    "max_lon": 150.05,
+    "min_lat": -39.25,
+    "max_lat": -33.95,
 }
 
-# The 31 LGAs used for Greater Melbourne.
-# This is mainly used for checking names and reporting.
-# The boundary files are still used for the actual spatial filtering.
+# The notebooks import GM_BBOX by name. Kept as an alias so a scope change does
+# not break six notebooks at once; prefer VIC_BBOX in anything new.
+GM_BBOX = VIC_BBOX
+
+# The 31 LGAs of Greater Melbourne.
+#
+# NO LONGER THE SCOPE. Scope is the whole of Victoria — see DEFAULT_SCOPE in
+# scripts/load_run.py. This list is kept because it is still the useful cut for
+# a metropolitan-versus-regional comparison in a profiling report: coverage is
+# much denser inside these councils than outside them, and saying so is more
+# honest than a single state-wide percentage.
+#
+# Do not use it to filter a load. The boundary layer does the spatial work.
 GREATER_MELBOURNE_LGAS = [
     "Banyule", "Bayside", "Boroondara", "Brimbank", "Cardinia", "Casey",
     "Darebin", "Frankston", "Glen Eira", "Greater Dandenong", "Hobsons Bay",
