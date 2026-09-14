@@ -208,6 +208,87 @@ class VenueRow:
     lga_code: str | None = None
 
 
+@dataclass(frozen=True)
+class EventRow:
+    """One ``event`` row (data/sql/008) joined to its source and, when matched,
+    its venue with the four facility rows."""
+
+    event_id: str
+    source_id: str
+    kind: str  # fixture | program
+    title: str
+    status: str
+    external_url: str
+    retrieved_at: datetime
+    sport: str | None = None
+    sport_raw: str | None = None
+    competition: str | None = None
+    season: str | None = None
+    grade: str | None = None
+    round: str | None = None
+    home_team: str | None = None
+    away_team: str | None = None
+    description: str | None = None
+    organisation: str | None = None
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    timezone: str = "Australia/Melbourne"
+    weekdays: tuple[str, ...] = ()
+    time_of_day: tuple[str, ...] = ()
+    price: str | None = None
+    age_ranges: tuple[str, ...] = ()
+    access_needs: tuple[str, ...] = ()
+    registration_url: str | None = None
+    venue_external_id: str | None = None
+    venue_name: str | None = None
+    venue_address: str | None = None
+    venue_suburb: str | None = None
+    venue_postcode: str | None = None
+    venue_lat: float | None = None
+    venue_lon: float | None = None
+    venue_id: str | None = None
+    venue_match_basis: str = "none"
+    venue_match_distance_m: float | None = None
+    publisher_updated_at: datetime | None = None
+    source_name: str | None = None
+    source_attribution: str | None = None
+    source_publisher_last_updated: date | None = None
+    source_stale_after_days: int | None = None
+    distance_m: float | None = None
+    venue: VenueRow | None = None
+
+
+@dataclass(frozen=True)
+class EventFilters:
+    """What /events was asked for (contract v0.2 section 7.2)."""
+
+    date_from: date
+    date_to: date
+    now: datetime
+    sports: tuple[str, ...] = ()
+    reference: ReferencePoint | None = None
+    within_m: int = 10_000
+    venue_id: str | None = None
+    status: str = "listable"  # listable | all
+    include_past: bool = False
+    weekdays: tuple[str, ...] = ()
+    time_of_day: tuple[str, ...] = ()
+    price: str | None = None
+    limit: int = 1000
+
+
+@dataclass(frozen=True)
+class EventSportRow:
+    name: str
+    event_count: int
+
+
+@dataclass(frozen=True)
+class UpcomingRow:
+    count: int
+    next_starts_at: datetime | None
+
+
 class VenueRepository(Protocol):
     def list_sports(self, q: str | None = None) -> list[SportRow]: ...
 
@@ -220,6 +301,16 @@ class VenueRepository(Protocol):
     def resolve_location(self, suburb: str | None, postcode: str | None) -> LocationMatch: ...
 
     def list_sources(self) -> list[SourceRow]: ...
+
+    def list_events(self, filters: EventFilters) -> list[EventRow]: ...
+
+    def get_event(self, event_id: str) -> EventRow | None: ...
+
+    def event_sports(
+        self, date_from: date, date_to: date, now: datetime
+    ) -> list[EventSportRow]: ...
+
+    def upcoming_events(self, venue_id: str, now: datetime) -> UpcomingRow: ...
 
     def search(self, sport: str, reference: ReferencePoint, radius_m: int) -> list[VenueRow]: ...
 

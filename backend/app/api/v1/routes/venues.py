@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Request
 
-from app.api.deps import Repo, SettingsDep
+from app.api.deps import NowDep, Repo, SettingsDep
 from app.api.params import (
     first_of,
     parse_band,
@@ -16,7 +16,7 @@ from app.api.params import (
 from app.core.errors import ApiError
 from app.domain.facilities import KEY_TO_KIND, FrontendKey, group
 from app.domain.presenters import corridor_out, search_out, venue_card_out
-from app.schemas.venues import CorridorOut, SearchOut, VenueCardOut
+from app.schemas.venues import CorridorOut, SearchOut, UpcomingEventsOut, VenueCardOut
 
 router = APIRouter()
 
@@ -108,6 +108,7 @@ def venue(
     request: Request,
     repo: Repo,
     settings: SettingsDep,
+    now: NowDep,
     from_: Annotated[
         str | None,
         Query(
@@ -128,7 +129,18 @@ def venue(
     cfg = settings.search
     reference = parse_from(request.query_params.get("from"), repo)
     limit_m = parse_band(first_of(request, "distance_m", "limit"), cfg)
-    return venue_card_out(row, reference, limit_m, cfg.default_stale_after_days)
+    upcoming = repo.upcoming_events(venue_id, now)
+    return venue_card_out(
+        row,
+        reference,
+        limit_m,
+        cfg.default_stale_after_days,
+        UpcomingEventsOut(
+            count=upcoming.count,
+            next_starts_at=upcoming.next_starts_at.isoformat() if upcoming.next_starts_at else None,
+            href=f"/events?venue_id={venue_id}" if upcoming.count else None,
+        ),
+    )
 
 
 @router.get(

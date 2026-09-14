@@ -7,15 +7,19 @@ edge cases the Data team called out: a facility confirmed at the venue itself
 """
 
 from collections.abc import Iterator
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
-from app.api.deps import get_repository
+from app.api.deps import get_now, get_repository
 from app.main import app
 from app.repositories.protocols import (
     ChainRow,
     CorridorFacilityRow,
     CorridorResult,
+    EventFilters,
+    EventRow,
+    EventSportRow,
     FacilityRow,
     LocationMatch,
     LocationSuggestion,
@@ -24,6 +28,7 @@ from app.repositories.protocols import (
     SourceRow,
     SportEntry,
     SportRow,
+    UpcomingRow,
     VenueRow,
 )
 from fastapi.testclient import TestClient
@@ -271,7 +276,161 @@ SOURCES: list[SourceRow] = [
 ]
 
 
+def _venue(venue_id: str) -> VenueRow:
+    return next(v for v in VENUES if v.venue_id == venue_id)
+
+
+# Two fixtures and two programs. NEXT_SAT is relative to the fake's "now" so
+# the window logic is exercised against a real date rather than a frozen one.
+NOW = datetime(2026, 9, 14, 9, 0, tzinfo=UTC)
+NEXT_SAT = (NOW + timedelta(days=(5 - NOW.weekday()) % 7 or 7)).replace(hour=9, minute=30)
+EVENTS: list[EventRow] = [
+    EventRow(
+        event_id="fx-1",
+        source_id="DS-10",
+        kind="fixture",
+        title="Preston Bullets v Northcote Giants",
+        status="UPCOMING",
+        external_url="https://www.playhq.com/x/fx-1",
+        retrieved_at=NOW,
+        sport="Basketball",
+        competition="Big V Championship Men",
+        grade="Championship Men",
+        round="Round 12",
+        home_team="Preston Bullets",
+        away_team="Northcote Giants",
+        starts_at=NEXT_SAT,
+        venue_name="Preston City Oval",
+        venue_address="121 Cramer Street, Preston VIC 3072",
+        venue_lat=-37.7401,
+        venue_lon=145.0093,
+        venue_id="10432",
+        venue_match_basis="name_and_distance",
+        venue_match_distance_m=12.0,
+        source_name="PlayHQ",
+        source_attribution="Fixture data provided by PlayHQ",
+        source_stale_after_days=2,
+        distance_m=640.0,
+        venue=_venue("10432"),
+    ),
+    EventRow(
+        event_id="fx-cancelled",
+        source_id="DS-10",
+        kind="fixture",
+        title="Reservoir Rebels v Bundoora Bears",
+        status="CANCELLED",
+        external_url="https://www.playhq.com/x/fx-cancelled",
+        retrieved_at=NOW,
+        sport="Basketball",
+        starts_at=NEXT_SAT + timedelta(hours=2),
+        venue_name="Reservoir Leisure Centre",
+        venue_id="10088",
+        venue_match_basis="name_and_distance",
+        source_name="PlayHQ",
+        source_attribution="Fixture data provided by PlayHQ",
+        venue=_venue("10088"),
+    ),
+    EventRow(
+        event_id="aaaplay:25089",
+        source_id="DS-09",
+        kind="program",
+        title="PlayOn",
+        status="ACTIVE",
+        external_url="https://aaaplay.org.au/activity/playon/",
+        retrieved_at=NOW,
+        sport="Basketball",
+        sport_raw="Basketball",
+        organisation="PlayOn Victoria",
+        weekdays=("wednesday",),
+        time_of_day=("evening",),
+        price="free",
+        age_ranges=("Adults (26+)",),
+        access_needs=(),
+        registration_url="https://forms.example/playon",
+        venue_name="Northcote Aquatic and Recreation Centre",
+        venue_id="11876",
+        venue_match_basis="name_and_distance",
+        venue_match_distance_m=40.0,
+        source_name="AAA Play activity finder",
+        source_attribution="Activity and facility listings from AAA Play, Reclink Australia",
+        source_publisher_last_updated=date(2026, 9, 10),
+        distance_m=1820.0,
+        venue=_venue("11876"),
+    ),
+    EventRow(
+        event_id="aaaplay:25086",
+        source_id="DS-09",
+        kind="program",
+        title="Power 2 Pedal Program",
+        status="ACTIVE",
+        external_url="https://aaaplay.org.au/activity/power-2-pedal-program-geelong/",
+        retrieved_at=NOW,
+        sport=None,
+        sport_raw="Bike riding, BMX & cycling",
+        weekdays=(),
+        time_of_day=("afternoon",),
+        price="paid",
+        venue_name="Leisure Networks",
+        venue_address="Geelong VIC",
+        venue_lat=-38.1712,
+        venue_lon=144.3513,
+        venue_match_basis="none",
+        source_name="AAA Play activity finder",
+        source_attribution="Activity and facility listings from AAA Play, Reclink Australia",
+        source_publisher_last_updated=date(2026, 9, 10),
+        venue=None,
+    ),
+]
+
+
+def _listable(e: EventRow, f: EventFilters) -> bool:
+    if f.status == "all":
+        return True
+    if e.kind == "program":
+        return e.status == "ACTIVE"
+    return e.status in ("UPCOMING", "PENDING") and (
+        f.include_past or (e.starts_at or f.now) > f.now
+    )
+
+
 class FakeRepository:
+    def list_events(self, f: EventFilters) -> list[EventRow]:
+        out: list[EventRow] = []
+        for e in EVENTS:
+            if not _listable(e, f):
+                continue
+            if (
+                e.kind == "fixture"
+                and e.starts_at is not None
+                and not (f.date_from <= e.starts_at.date() <= f.date_to)
+            ):
+                continue
+            if f.sports and (e.sport or e.sport_raw or "").lower() not in {
+                s.lower() for s in f.sports
+            }:
+                continue
+            if f.venue_id and e.venue_id != f.venue_id:
+                continue
+            if f.weekdays and not (set(f.weekdays) & set(e.weekdays)):
+                continue
+            if f.price and e.price != f.price:
+                continue
+            if f.reference is not None and e.distance_m is None:
+                continue
+            out.append(e)
+        return out
+
+    def get_event(self, event_id: str) -> EventRow | None:
+        return next((e for e in EVENTS if e.event_id == event_id), None)
+
+    def event_sports(self, date_from: date, date_to: date, now: datetime) -> list[EventSportRow]:
+        return [EventSportRow("Basketball", 2), EventSportRow("Bike riding, BMX & cycling", 1)]
+
+    def upcoming_events(self, venue_id: str, now: datetime) -> UpcomingRow:
+        rows = [e for e in EVENTS if e.venue_id == venue_id and e.status in ("UPCOMING", "ACTIVE")]
+        nxt = min((e.starts_at for e in rows if e.starts_at is not None), default=None)
+        return UpcomingRow(len(rows), nxt)
+
     def list_sports(self, q: str | None = None) -> list[SportRow]:
         rows = [SportRow("Basketball", 3), SportRow("Netball", 1), SportRow("Swimming", 1)]
         if q:
@@ -342,6 +501,7 @@ def venues() -> list[VenueRow]:
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     app.dependency_overrides[get_repository] = FakeRepository
+    app.dependency_overrides[get_now] = lambda: NOW.astimezone(ZoneInfo("Australia/Melbourne"))
     try:
         yield TestClient(app)
     finally:

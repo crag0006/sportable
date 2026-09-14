@@ -198,7 +198,8 @@ def test_venue_card_v02_shape(client: TestClient):
     assert enter.get("facility_type") is None and enter["summary"] == "Not published."
     assert body["limits"]["heading"] == "What this page cannot tell you"
     assert len(body["limits"]["items"]) == 4
-    assert body["upcoming_events"] == {"count": 0}
+    assert body["upcoming_events"]["count"] == 1
+    assert body["upcoming_events"]["href"] == "/events?venue_id=10432"
     names = {s["name"] for s in body["sources"]}
     assert "National Public Toilet Map" in names
 

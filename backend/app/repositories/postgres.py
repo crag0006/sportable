@@ -28,6 +28,9 @@ from app.repositories.protocols import (
     ChainRow,
     CorridorFacilityRow,
     CorridorResult,
+    EventFilters,
+    EventRow,
+    EventSportRow,
     FacilityRow,
     LocationMatch,
     LocationSuggestion,
@@ -36,6 +39,7 @@ from app.repositories.protocols import (
     SourceRow,
     SportEntry,
     SportRow,
+    UpcomingRow,
     VenueRow,
 )
 
@@ -48,12 +52,17 @@ PLAIN_LABEL = r"regexp_replace(label, '\s*\([^)]*\)$', '')"
 
 # ------------------------------------------------------------------ sports
 SQL_SPORTS = """
-SELECT sport AS name, venue_count
-  FROM sport_vocabulary
+SELECT sv.sport AS name, sv.venue_count,
+       (SELECT count(*) FROM event e
+         WHERE lower(e.sport) = lower(sv.sport)
+           AND (e.kind = 'program' AND e.status = 'ACTIVE'
+                OR e.kind = 'fixture' AND e.status IN ('UPCOMING', 'PENDING')
+                    AND e.starts_at > now())) AS event_count
+  FROM sport_vocabulary sv
  WHERE %(q)s::text IS NULL
-    OR lower(sport) LIKE '%%' || lower(%(q)s) || '%%'
-    OR similarity(lower(sport), lower(%(q)s)) > 0.3
- ORDER BY sport
+    OR lower(sv.sport) LIKE '%%' || lower(%(q)s) || '%%'
+    OR similarity(lower(sv.sport), lower(%(q)s)) > 0.3
+ ORDER BY sv.sport
 """
 
 # ------------------------------------------------------------------ places
@@ -203,6 +212,7 @@ SELECT link::text AS link, status::text AS status, basis::text AS basis, detail
 SQL_SOURCES = """
 SELECT s.source_id, s.name, s.publisher, s.licence_name, s.licence_url,
        s.attribution_text, s.landing_page, s.publisher_scope, s.publisher_last_updated,
+       s.stale_after_days,
        r.completed_at AS retrieved_at, r.rows_loaded, r.outcome
   FROM source s
   LEFT JOIN LATERAL (
@@ -213,6 +223,89 @@ SELECT s.source_id, s.name, s.publisher, s.licence_name, s.licence_url,
        LIMIT 1
   ) r ON true
  ORDER BY s.source_id
+"""
+
+# ------------------------------------------------------------------ events
+# Listable: a program that is active, or a fixture that has not started and
+# is not cancelled or abandoned (AC5.1.3). ``status = all`` lifts the second
+# condition so a shared link to a cancelled game still resolves.
+EVENT_LISTABLE = """
+    (e.kind = 'program' AND e.status = 'ACTIVE')
+    OR (e.kind = 'fixture' AND e.status IN ('UPCOMING', 'PENDING')
+        AND (%(include_past)s OR e.starts_at > %(now)s))
+"""
+
+EVENT_COLUMNS = """
+       e.event_id, e.source_id, e.kind::text AS kind, e.title, e.sport, e.sport_raw,
+       e.competition, e.season, e.grade, e.round, e.home_team, e.away_team,
+       e.description, e.organisation, e.status, e.starts_at, e.ends_at, e.timezone,
+       e.weekdays, e.time_of_day, e.price, e.age_ranges, e.access_needs,
+       e.external_url, e.registration_url,
+       e.venue_external_id, e.venue_name, e.venue_address, e.venue_suburb, e.venue_postcode,
+       ST_Y(e.venue_geom) AS venue_lat, ST_X(e.venue_geom) AS venue_lon,
+       e.venue_id, e.venue_match_basis, e.venue_match_distance_m,
+       e.publisher_updated_at, e.retrieved_at,
+       s.name AS source_name, s.attribution_text AS source_attribution,
+       s.publisher_last_updated AS source_publisher_last_updated,
+       s.stale_after_days AS source_stale_after_days
+"""
+
+SQL_EVENTS = f"""
+WITH ref AS (
+    SELECT CASE WHEN %(lat)s::float IS NULL THEN NULL
+           ELSE ST_SetSRID(ST_MakePoint(%(lon)s, %(lat)s), {SRID})::geography END AS g
+)
+SELECT {EVENT_COLUMNS},
+       CASE WHEN ref.g IS NULL OR e.venue_geom IS NULL THEN NULL
+            ELSE ST_Distance(e.venue_geom::geography, ref.g) END AS distance_m
+  FROM event e
+  JOIN source s ON s.source_id = e.source_id
+ CROSS JOIN ref
+ WHERE (%(status_all)s OR ({EVENT_LISTABLE}))
+   AND (e.kind = 'program'
+        OR (e.starts_at AT TIME ZONE e.timezone)::date BETWEEN %(date_from)s AND %(date_to)s)
+   AND (%(sports)s::text[] IS NULL
+        OR lower(e.sport) = ANY(%(sports)s) OR lower(e.sport_raw) = ANY(%(sports)s))
+   AND (%(venue_id)s::text IS NULL OR e.venue_id = %(venue_id)s)
+   AND (ref.g IS NULL OR e.venue_geom IS NULL
+        OR ST_DWithin(e.venue_geom::geography, ref.g, %(within_m)s))
+   AND (%(weekdays)s::text[] IS NULL OR e.weekdays && %(weekdays)s)
+   AND (%(time_of_day)s::text[] IS NULL OR e.time_of_day && %(time_of_day)s)
+   AND (%(price)s::text IS NULL OR e.price = %(price)s)
+ ORDER BY (e.kind = 'fixture') DESC, e.starts_at NULLS LAST, distance_m NULLS LAST, e.title
+ LIMIT %(limit)s
+"""
+
+SQL_EVENT = f"""
+SELECT {EVENT_COLUMNS}, NULL::double precision AS distance_m
+  FROM event e
+  JOIN source s ON s.source_id = e.source_id
+ WHERE e.event_id = %(id)s
+"""
+
+SQL_EVENT_SPORTS = f"""
+SELECT coalesce(e.sport, e.sport_raw) AS name, count(*) AS event_count
+  FROM event e
+ WHERE ({EVENT_LISTABLE})
+   AND (e.kind = 'program'
+        OR (e.starts_at AT TIME ZONE e.timezone)::date BETWEEN %(date_from)s AND %(date_to)s)
+   AND coalesce(e.sport, e.sport_raw) IS NOT NULL
+ GROUP BY 1
+ ORDER BY 1
+"""
+
+SQL_UPCOMING_AT_VENUE = f"""
+SELECT count(*) AS n, min(e.starts_at) FILTER (WHERE e.kind = 'fixture') AS next_starts_at
+  FROM event e
+ WHERE e.venue_id = %(venue_id)s
+   AND ({EVENT_LISTABLE})
+"""
+
+SQL_VENUES_BY_ID = f"""
+SELECT {VENUE_COLUMNS},
+       NULL::double precision AS distance_m
+  FROM venue_card c
+ WHERE c.venue_id = ANY(%(ids)s)
 """
 
 # ------------------------------------------------------------------ corridor
@@ -312,6 +405,54 @@ def _facility(row: dict[str, Any]) -> FacilityRow:
     )
 
 
+def _event(row: dict[str, Any], venue: VenueRow | None) -> EventRow:
+    return EventRow(
+        event_id=row["event_id"],
+        source_id=row["source_id"],
+        kind=row["kind"],
+        title=row["title"],
+        status=row["status"],
+        external_url=row["external_url"],
+        retrieved_at=row["retrieved_at"],
+        sport=row["sport"],
+        sport_raw=row["sport_raw"],
+        competition=row["competition"],
+        season=row["season"],
+        grade=row["grade"],
+        round=row["round"],
+        home_team=row["home_team"],
+        away_team=row["away_team"],
+        description=row["description"],
+        organisation=row["organisation"],
+        starts_at=_datetime(row["starts_at"]),
+        ends_at=_datetime(row["ends_at"]),
+        timezone=row["timezone"] or "Australia/Melbourne",
+        weekdays=tuple(row["weekdays"] or ()),
+        time_of_day=tuple(row["time_of_day"] or ()),
+        price=row["price"],
+        age_ranges=tuple(row["age_ranges"] or ()),
+        access_needs=tuple(row["access_needs"] or ()),
+        registration_url=row["registration_url"],
+        venue_external_id=row["venue_external_id"],
+        venue_name=row["venue_name"],
+        venue_address=row["venue_address"],
+        venue_suburb=row["venue_suburb"],
+        venue_postcode=row["venue_postcode"],
+        venue_lat=_float(row["venue_lat"]),
+        venue_lon=_float(row["venue_lon"]),
+        venue_id=row["venue_id"],
+        venue_match_basis=row["venue_match_basis"] or "none",
+        venue_match_distance_m=_float(row["venue_match_distance_m"]),
+        publisher_updated_at=_datetime(row["publisher_updated_at"]),
+        source_name=row["source_name"],
+        source_attribution=row["source_attribution"],
+        source_publisher_last_updated=_date(row["source_publisher_last_updated"]),
+        source_stale_after_days=row["source_stale_after_days"],
+        distance_m=_float(row["distance_m"]),
+        venue=venue,
+    )
+
+
 def _reference(row: dict[str, Any]) -> ReferencePoint:
     kind = "postcode" if row["location_kind"] == "postcode" else "suburb"
     label = (
@@ -327,7 +468,14 @@ class PostgresVenueRepository:
     def list_sports(self, q: str | None = None) -> list[SportRow]:
         with connection() as conn:
             rows = conn.execute(SQL_SPORTS, {"q": q or None}).fetchall()
-        return [SportRow(name=r["name"], venue_count=int(r["venue_count"])) for r in rows]
+        return [
+            SportRow(
+                name=r["name"],
+                venue_count=int(r["venue_count"]),
+                event_count=int(r["event_count"] or 0),
+            )
+            for r in rows
+        ]
 
     def list_places(self) -> list[PlaceRow]:
         with connection() as conn:
@@ -430,12 +578,65 @@ class PostgresVenueRepository:
                 landing_page=r["landing_page"],
                 publisher_scope=r["publisher_scope"],
                 publisher_last_updated=_date(r["publisher_last_updated"]),
+                stale_after_days=r["stale_after_days"],
                 retrieved_at=_datetime(r["retrieved_at"]),
                 rows_loaded=r["rows_loaded"],
                 outcome=r["outcome"],
             )
             for r in rows
         ]
+
+    # --------------------------------------------------------------- events
+    def list_events(self, filters: EventFilters) -> list[EventRow]:
+        params = {
+            "lat": filters.reference.latitude if filters.reference else None,
+            "lon": filters.reference.longitude if filters.reference else None,
+            "within_m": filters.within_m,
+            "status_all": filters.status == "all",
+            "include_past": filters.include_past,
+            "now": filters.now,
+            "date_from": filters.date_from,
+            "date_to": filters.date_to,
+            "sports": [s.lower() for s in filters.sports] or None,
+            "venue_id": filters.venue_id,
+            "weekdays": list(filters.weekdays) or None,
+            "time_of_day": list(filters.time_of_day) or None,
+            "price": filters.price,
+            "limit": filters.limit,
+        }
+        with connection() as conn:
+            rows = conn.execute(SQL_EVENTS, params).fetchall()
+            venues = self._venues_by_id(conn, [r["venue_id"] for r in rows if r["venue_id"]])
+        return [_event(r, venues.get(r["venue_id"])) for r in rows]
+
+    def get_event(self, event_id: str) -> EventRow | None:
+        with connection() as conn:
+            row = conn.execute(SQL_EVENT, {"id": event_id}).fetchone()
+            if row is None:
+                return None
+            venues = self._venues_by_id(conn, [row["venue_id"]] if row["venue_id"] else [])
+        return _event(row, venues.get(row["venue_id"]))
+
+    def event_sports(self, date_from: date, date_to: date, now: datetime) -> list[EventSportRow]:
+        params = {"date_from": date_from, "date_to": date_to, "now": now, "include_past": False}
+        with connection() as conn:
+            rows = conn.execute(SQL_EVENT_SPORTS, params).fetchall()
+        return [EventSportRow(name=r["name"], event_count=int(r["event_count"])) for r in rows]
+
+    def upcoming_events(self, venue_id: str, now: datetime) -> UpcomingRow:
+        params = {"venue_id": venue_id, "now": now, "include_past": False}
+        with connection() as conn:
+            row = conn.execute(SQL_UPCOMING_AT_VENUE, params).fetchone()
+        if row is None:
+            return UpcomingRow(0, None)
+        return UpcomingRow(int(row["n"]), _datetime(row["next_starts_at"]))
+
+    def _venues_by_id(self, conn: Any, ids: list[str]) -> dict[str, VenueRow]:
+        unique = sorted(set(ids))
+        if not unique:
+            return {}
+        rows = conn.execute(SQL_VENUES_BY_ID, {"ids": unique}).fetchall()
+        return {v.venue_id: v for v in self._assemble(conn, rows, with_chain=False)}
 
     # --------------------------------------------------------------- venues
     def search(self, sport: str, reference: ReferencePoint, radius_m: int) -> list[VenueRow]:

@@ -12,11 +12,10 @@ different place twice: a cafe 5 m from a gym, and netball courts 16 m from a
 leisure centre they sit inside but are not. Both are honest neighbours and
 wrong answers. So a match needs the name to agree as well:
 
-    name_and_distance  within 150 m AND trigram similarity > 0.3   (the normal case)
-    distance_only      within 25 m                                  (same point, name differs:
-                                                                     "SportLink" vs "Sportlink Vermont South")
-    name_only          similarity >= 0.6 AND within 400 m           (same name, publisher placed the
-                                                                     pin on the car park)
+    name_and_distance  within 150 m AND trigram similarity > 0.3  (the normal case)
+    distance_only      within 25 m           (same point, names differ: "SportLink" vs
+                                              "Sportlink Vermont South")
+    name_only          similarity >= 0.6 AND within 400 m  (same name, pin on the car park)
     none               everything else; the event is still listed
 
 Thresholds are recorded on the row (``venue_match_basis``) so they can be
