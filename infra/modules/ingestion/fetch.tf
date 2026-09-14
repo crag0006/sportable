@@ -20,12 +20,41 @@ data "archive_file" "fetch" {
 }
 
 resource "aws_lambda_function" "fetch" {
+  # checkov:skip=CKV_AWS_272:Code signing requires an AWS Signer profile and a
+  #   signing step in the pipeline. Disproportionate for a nine-week project.
+  # checkov:skip=CKV_AWS_173:Environment variables are encrypted at rest with the
+  #   AWS-managed Lambda key. A customer managed key adds ~USD $1/month and does
+  #   not change who can read the configuration. No secret is stored here — the
+  #   database URL is an SSM parameter NAME, resolved at runtime.
+  # checkov:skip=CKV_AWS_115:Reserved concurrency cannot be set on this account.
+  #   Its total Lambda concurrency limit is 10 and AWS rejects a reservation
+  #   against a limit that low. See the api module for the same constraint.
+  # checkov:skip=CKV_AWS_50:X-Ray tracing needs xray:PutTraceSegments on the
+  #   execution role. That role is pre-built by the account holder and this
+  #   account cannot create or amend IAM policies.
+  # checkov:skip=CKV_AWS_116:A dead letter queue needs sqs:SendMessage on the
+  #   execution role. The role is pre-built and this account cannot amend IAM
+  #   policies, so a DLQ would be configured and then silently fail to deliver.
+  #   Failures are caught by the Errors alarm in alarms.tf instead. Revisit if
+  #   the role gains SQS permissions.
+  # checkov:skip=CKV_AWS_117:Deliberately outside the VPC. The private subnets
+  #   have no 0.0.0.0/0 route by design, so an in-VPC fetch cannot reach the
+  #   publishers at all. Placing it inside would require a NAT gateway — ~USD
+  #   45/month standing charge to serve four HTTPS GETs a week. It holds no
+  #   credentials and touches nothing inside the VPC.
+
   function_name = "${var.name_prefix}-fetch"
   description   = "Stage 1: fetch registered sources into the raw zone."
 
-  role    = var.execution_role_arn
-  handler = "handler.handler"
-  runtime = "python3.12"
+  role          = var.execution_role_arn
+  handler       = "handler.handler"
+  runtime       = "python3.12"
+  architectures = ["x86_64"]
+
+  # An immutable version per apply, matching the api module. A batch function
+  # has no alias to move, but the version is what makes "put the old code back"
+  # a one-call operation rather than a revert-and-redeploy.
+  publish = true
 
   filename         = data.archive_file.fetch.output_path
   source_code_hash = data.archive_file.fetch.output_base64sha256
@@ -58,6 +87,11 @@ resource "aws_lambda_function" "fetch" {
 # has no retention set and bills for storage forever, and Terraform never learns
 # it exists so it survives a destroy.
 resource "aws_cloudwatch_log_group" "fetch" {
+  # checkov:skip=CKV_AWS_338:A year of retention is a compliance rule for
+  #   regulated production systems, not a nine-week student staging environment.
+  # checkov:skip=CKV_AWS_158:A customer managed KMS key costs ~USD $1/month to
+  #   encrypt logs already encrypted at rest with the CloudWatch service key.
+
   name              = "/aws/lambda/${var.name_prefix}-fetch"
   retention_in_days = var.log_retention_days
 

@@ -51,16 +51,15 @@ from psycopg.rows import dict_row
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from ingestion.loaders import loader  # noqa: E402
-from ingestion.transformers import ds01_sport_facilities as ds01  # noqa: E402
-from ingestion.transformers import ds02_public_toilets as ds02  # noqa: E402
+from ingestion.loaders import loader
+from ingestion.transformers import ds01_sport_facilities as ds01
+from ingestion.transformers import ds02_public_toilets as ds02
 
 LOG = logging.getLogger("sportable.load")
 LOG.setLevel(logging.INFO)
 
 REGISTER_DIR = Path(os.environ.get("REGISTER_DIR", "/var/task/sources"))
 RAW_BUCKET = os.environ["RAW_BUCKET"]
-QUARANTINE_BUCKET = os.environ.get("QUARANTINE_BUCKET", "")
 SSM_DB_URL_PARAM = os.environ["SSM_DB_URL_PARAM"]
 DERIVE_FUNCTION = os.environ.get("DERIVE_FUNCTION", "")
 
@@ -96,9 +95,7 @@ def normalise_lga(name: Any) -> str | None:
 
 
 def scope_from_database(conn) -> set[str]:
-    rows = conn.execute(
-        "SELECT lga_name_normalised FROM lga WHERE in_greater_melbourne"
-    ).fetchall()
+    rows = conn.execute("SELECT lga_name_normalised FROM lga WHERE in_greater_melbourne").fetchall()
 
     scope = {row["lga_name_normalised"] for row in rows} - {None}
 
@@ -184,9 +181,13 @@ def run_load(conn, source_id: str, raw: pd.DataFrame, dt: str, key: str, sha: st
 
     log("LOAD_RUN_OPENED", source_id=source_id, load_run_id=load_run_id, key=key)
 
+    # Separate names per branch. ds01 and ds02 each define their own
+    # TransformResult with different fields, so one shared variable would be
+    # narrowed to whichever type was assigned first and .amenities would not
+    # type-check.
     try:
         if source_id == "DS-01":
-            result = ds01.transform(
+            venue_result = ds01.transform(
                 raw,
                 in_scope_lgas=scope_from_database(conn),
                 normalise_lga=normalise_lga,
@@ -196,24 +197,24 @@ def run_load(conn, source_id: str, raw: pd.DataFrame, dt: str, key: str, sha: st
                 conn,
                 load_run_id=load_run_id,
                 source_id=source_id,
-                venues=result.venues,
-                venue_sports=result.venue_sports,
-                quarantine=result.quarantine,
+                venues=venue_result.venues,
+                venue_sports=venue_result.venue_sports,
+                quarantine=venue_result.quarantine,
                 rows_read=len(raw),
             )
 
         else:
-            result = ds02.transform(raw, load_run_id=load_run_id)
+            amenity_result = ds02.transform(raw, load_run_id=load_run_id)
             outcome = loader.load_amenities(
                 conn,
                 load_run_id=load_run_id,
                 source_id=source_id,
-                amenities=result.amenities,
-                quarantine=result.quarantine,
+                amenities=amenity_result.amenities,
+                quarantine=amenity_result.quarantine,
                 rows_read=len(raw),
             )
 
-    except loader.LoadAborted as error:
+    except loader.LoadAbortedError as error:
         # The loader aborts when the quarantine rate crosses its ceiling. That is
         # a deliberate stop, not a crash: a publisher schema change should leave
         # the previous good data in place rather than replace it with a mostly
@@ -256,7 +257,10 @@ def run_load(conn, source_id: str, raw: pd.DataFrame, dt: str, key: str, sha: st
 # ---------------------------------------------------------------- handler
 
 
-def handle_record(record: dict[str, Any], register: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
+def handle_record(
+    record: dict[str, Any],
+    register: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
     key = record["s3"]["object"]["key"]
 
     # Manifests are written on every run, including runs that landed nothing.

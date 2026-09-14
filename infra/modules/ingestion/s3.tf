@@ -13,6 +13,19 @@
 # ==============================================================================
 
 resource "aws_s3_bucket" "raw" {
+  # checkov:skip=CKV_AWS_144:Cross-region replication doubles storage against a
+  #   5 GB Free Tier allowance to protect an archive that can be re-fetched from
+  #   the publisher. Reproducibility here comes from the manifest, not a replica.
+  # checkov:skip=CKV_AWS_18:Access logging needs a second bucket and bills for
+  #   the log objects. The raw zone is written by one function and read by one
+  #   function, both of which log every object key to CloudWatch already.
+  # checkov:skip=CKV2_AWS_62:Event notifications ARE configured — see the
+  #   aws_s3_bucket_notification in load.tf.
+  # checkov:skip=CKV_AWS_145:AES256 rather than SSE-KMS. A customer managed key
+  #   costs ~USD $1/month plus per-request charges to encrypt Australian open
+  #   data that the publisher serves unencrypted to anyone who asks. Encryption
+  #   is configured — see aws_s3_bucket_server_side_encryption_configuration.
+
   bucket = "${var.name_prefix}-raw-${var.account_id}"
 
   tags = merge(var.tags, {
@@ -96,56 +109,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "raw" {
 
     abort_incomplete_multipart_upload {
       days_after_initiation = 7
-    }
-  }
-}
-
-# ------------------------------------------------------------------------------
-# Quarantine
-# ------------------------------------------------------------------------------
-# A row that fails validation is not silently dropped and not loaded anyway. It
-# is written here with the reason attached, so the coverage figures in the DMP
-# can be reconciled against something concrete rather than asserted.
-
-resource "aws_s3_bucket" "quarantine" {
-  bucket = "${var.name_prefix}-quarantine-${var.account_id}"
-
-  tags = merge(var.tags, {
-    Name = "${var.name_prefix}-quarantine"
-    Zone = "quarantine"
-  })
-}
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "quarantine" {
-  bucket = aws_s3_bucket.quarantine.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "quarantine" {
-  bucket = aws_s3_bucket.quarantine.id
-
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-resource "aws_s3_bucket_lifecycle_configuration" "quarantine" {
-  bucket = aws_s3_bucket.quarantine.id
-
-  rule {
-    id     = "expire-quarantine"
-    status = "Enabled"
-
-    filter {}
-
-    expiration {
-      days = 365
     }
   }
 }

@@ -161,9 +161,13 @@ variable "load_memory_mb" {
 }
 
 variable "log_retention_days" {
-  description = "CloudWatch log retention. Lambda defaults to never expire, which bills forever."
+  description = <<-EOT
+    CloudWatch log retention. Lambda defaults to never expire, which bills
+    forever. 14 days matches the retention already set across this stack — see
+    the infrastructure design document, section 1.1.
+  EOT
   type        = number
-  default     = 30
+  default     = 14
 }
 
 variable "alarm_topic_arn" {
@@ -180,4 +184,17 @@ variable "tags" {
   description = "Merged into every taggable resource."
   type        = map(string)
   default     = {}
+}
+
+variable "enable_extended_alarms" {
+  description = <<-EOT
+    Duration-near-timeout and hash-pin alarms, off by default.
+
+    CloudWatch's Free Tier allows TEN alarms in total and this stack already
+    uses six. Three Errors alarms take that to nine. Turning this on adds four
+    more and takes the account to thirteen — past the allowance, on an account
+    with no budget alarm to notice. Enable deliberately, not by default.
+  EOT
+  type        = bool
+  default     = false
 }

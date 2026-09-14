@@ -25,7 +25,9 @@ import zipfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+if TYPE_CHECKING:
+    import pandas as pd
 
 # Paths
 

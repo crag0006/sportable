@@ -59,9 +59,7 @@ def latest_load_run(conn) -> int:
     ).fetchone()
 
     if row is None:
-        raise RuntimeError(
-            "No successful load run recorded. Load DS-01 before deriving status."
-        )
+        raise RuntimeError("No successful load run recorded. Load DS-01 before deriving status.")
 
     return row["load_run_id"]
 

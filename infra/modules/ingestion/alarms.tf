@@ -1,6 +1,11 @@
 # ==============================================================================
 # ingestion module — alarms
 # ==============================================================================
+# Three Errors alarms, one per function, and nothing else by default. CloudWatch
+# allows ten alarms on the Free Tier and this stack already uses six; three more
+# reaches nine. The duration and hash-pin alarms are real but optional and sit
+# behind enable_extended_alarms because turning them on costs the allowance.
+#
 # The pipeline runs weekly and unattended. Nobody watches it. An alarm that
 # fires on a real problem is the only difference between "the data is three
 # weeks stale" being noticed and being discovered by a marker.
@@ -56,7 +61,7 @@ resource "aws_cloudwatch_metric_alarm" "errors" {
 # A run that finishes just inside the timeout today fails outright next month
 # when a publisher is slower. Alarming at 80% gives a month's warning.
 resource "aws_cloudwatch_metric_alarm" "duration" {
-  for_each = local.functions
+  for_each = var.enable_extended_alarms ? local.functions : {}
 
   alarm_name        = "${each.value}-duration-near-timeout"
   alarm_description = "${each.value} is running close to its configured timeout."
@@ -102,6 +107,8 @@ resource "aws_cloudwatch_log_metric_filter" "hash_pin_mismatch" {
 # asserted was fixed. It is not an error — the fetch succeeds — but it
 # invalidates the reproducibility claim in the DMP until someone looks.
 resource "aws_cloudwatch_metric_alarm" "hash_pin_mismatch" {
+  count = var.enable_extended_alarms ? 1 : 0
+
   alarm_name        = "${var.name_prefix}-hash-pin-mismatch"
   alarm_description = "A source's payload no longer matches its pinned SHA-256."
 

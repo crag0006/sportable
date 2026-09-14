@@ -15,11 +15,6 @@ output "raw_bucket_arn" {
   value = aws_s3_bucket.raw.arn
 }
 
-output "quarantine_bucket" {
-  description = "Quarantine bucket name. Rows that failed validation, with reasons."
-  value       = aws_s3_bucket.quarantine.id
-}
-
 output "fetch_function_name" {
   description = "For `aws lambda invoke` when running a source by hand."
   value       = aws_lambda_function.fetch.function_name

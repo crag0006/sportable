@@ -64,6 +64,7 @@ from ingestion.transformers import ds04_accessible_parking as ds04  # noqa: E402
 # union of the flagged polygons, so widening this silently changes what "in
 # scope" means for toilets and parking as well as venues. Change it with
 # --scope, deliberately, not by editing a default.
+DictConnection = psycopg.Connection[dict[str, Any]]
 DEFAULT_SCOPE = {"melbourne"}
 
 _COUNCIL_WORDS = re.compile(r"\b(city|shire|rural|borough|council|of|the)\b", flags=re.IGNORECASE)
@@ -84,7 +85,7 @@ def normalise_lga(name: Any) -> str | None:
 
 
 # ------------------------------------------------------------------ helpers
-def connect() -> psycopg.Connection:
+def connect() -> DictConnection:
     url = os.environ.get("DATABASE_URL")
     if not url:
         sys.exit("DATABASE_URL is not set. See docs/runbooks/operations.md.")
@@ -114,7 +115,7 @@ def sha_of(raw_root: Path, object_key: str) -> str:
 
 
 # ------------------------------------------------------------------ source seed
-def seed_sources(conn: psycopg.Connection) -> int:
+def seed_sources(conn: DictConnection) -> int:
     """Populate `source` from the YAML cards.
 
     `source` is the foreign-key target for `lga`, `load_run` and `venue`, so
@@ -167,7 +168,7 @@ def seed_sources(conn: psycopg.Connection) -> int:
 
 
 # ------------------------------------------------------------------ DS-06
-def load_boundaries(conn: psycopg.Connection, raw_root: Path, scope: set[str]) -> int:
+def load_boundaries(conn: DictConnection, raw_root: Path, scope: set[str]) -> int:
     """Load the ASGS LGA layer and flag the councils that define our scope.
 
     Reads the zipped GDA2020 shapefile directly. Storage is EPSG:7844, which is
@@ -230,7 +231,7 @@ def load_boundaries(conn: psycopg.Connection, raw_root: Path, scope: set[str]) -
 
 
 # ------------------------------------------------------------------ DS-01/02/04
-def run_source(conn: psycopg.Connection, source_id: str, raw_root: Path, scope: set[str]) -> None:
+def run_source(conn: DictConnection, source_id: str, raw_root: Path, scope: set[str]) -> None:
     prefix = {
         "DS-01": "sport_facilities",
         "DS-02": "public_toilets",
@@ -289,7 +290,7 @@ def run_source(conn: psycopg.Connection, source_id: str, raw_root: Path, scope: 
     )
 
 
-def derive_status(conn: psycopg.Connection) -> None:
+def derive_status(conn: DictConnection) -> None:
     """Build venue_amenity_status and venue_access_chain from what is loaded.
 
     This is the step that turns loaded rows into what the product actually
@@ -331,7 +332,7 @@ def main() -> None:
     a = p.parse_args()
 
     raw_root = Path(a.raw).resolve()
-    scope = {normalise_lga(s) for s in a.scope} - {None}
+    scope = {key for key in (normalise_lga(s) for s in a.scope) if key is not None}
 
     with connect() as conn:
         if a.seed_sources:

@@ -19,12 +19,36 @@ data "archive_file" "load" {
 }
 
 resource "aws_lambda_function" "load" {
+  # checkov:skip=CKV_AWS_272:Code signing requires an AWS Signer profile and a
+  #   signing step in the pipeline. Disproportionate for a nine-week project.
+  # checkov:skip=CKV_AWS_173:Environment variables are encrypted at rest with the
+  #   AWS-managed Lambda key. A customer managed key adds ~USD $1/month and does
+  #   not change who can read the configuration. No secret is stored here — the
+  #   database URL is an SSM parameter NAME, resolved at runtime.
+  # checkov:skip=CKV_AWS_115:Reserved concurrency cannot be set on this account.
+  #   Its total Lambda concurrency limit is 10 and AWS rejects a reservation
+  #   against a limit that low. See the api module for the same constraint.
+  # checkov:skip=CKV_AWS_50:X-Ray tracing needs xray:PutTraceSegments on the
+  #   execution role. That role is pre-built by the account holder and this
+  #   account cannot create or amend IAM policies.
+  # checkov:skip=CKV_AWS_116:A dead letter queue needs sqs:SendMessage on the
+  #   execution role. The role is pre-built and this account cannot amend IAM
+  #   policies, so a DLQ would be configured and then silently fail to deliver.
+  #   Failures are caught by the Errors alarm in alarms.tf instead. Revisit if
+  #   the role gains SQS permissions.
+
   function_name = "${var.name_prefix}-load"
   description   = "Stage 2: validate, transform and upsert a raw object into the database."
 
-  role    = var.execution_role_arn
-  handler = "handler.handler"
-  runtime = "python3.12"
+  role          = var.execution_role_arn
+  handler       = "handler.handler"
+  runtime       = "python3.12"
+  architectures = ["x86_64"]
+
+  # An immutable version per apply, matching the api module. A batch function
+  # has no alias to move, but the version is what makes "put the old code back"
+  # a one-call operation rather than a revert-and-redeploy.
+  publish = true
 
   filename         = data.archive_file.load.output_path
   source_code_hash = data.archive_file.load.output_base64sha256
@@ -39,8 +63,7 @@ resource "aws_lambda_function" "load" {
 
   environment {
     variables = {
-      RAW_BUCKET        = aws_s3_bucket.raw.id
-      QUARANTINE_BUCKET = aws_s3_bucket.quarantine.id
+      RAW_BUCKET = aws_s3_bucket.raw.id
 
       # The parameter NAME. The function resolves it at runtime through the SSM
       # API, so the connection string never enters Terraform state, a plan
@@ -62,6 +85,11 @@ resource "aws_lambda_function" "load" {
 }
 
 resource "aws_cloudwatch_log_group" "load" {
+  # checkov:skip=CKV_AWS_338:A year of retention is a compliance rule for
+  #   regulated production systems, not a nine-week student staging environment.
+  # checkov:skip=CKV_AWS_158:A customer managed KMS key costs ~USD $1/month to
+  #   encrypt logs already encrypted at rest with the CloudWatch service key.
+
   name              = "/aws/lambda/${var.name_prefix}-load"
   retention_in_days = var.log_retention_days
 
@@ -132,12 +160,36 @@ data "archive_file" "derive" {
 }
 
 resource "aws_lambda_function" "derive" {
+  # checkov:skip=CKV_AWS_272:Code signing requires an AWS Signer profile and a
+  #   signing step in the pipeline. Disproportionate for a nine-week project.
+  # checkov:skip=CKV_AWS_173:Environment variables are encrypted at rest with the
+  #   AWS-managed Lambda key. A customer managed key adds ~USD $1/month and does
+  #   not change who can read the configuration. No secret is stored here — the
+  #   database URL is an SSM parameter NAME, resolved at runtime.
+  # checkov:skip=CKV_AWS_115:Reserved concurrency cannot be set on this account.
+  #   Its total Lambda concurrency limit is 10 and AWS rejects a reservation
+  #   against a limit that low. See the api module for the same constraint.
+  # checkov:skip=CKV_AWS_50:X-Ray tracing needs xray:PutTraceSegments on the
+  #   execution role. That role is pre-built by the account holder and this
+  #   account cannot create or amend IAM policies.
+  # checkov:skip=CKV_AWS_116:A dead letter queue needs sqs:SendMessage on the
+  #   execution role. The role is pre-built and this account cannot amend IAM
+  #   policies, so a DLQ would be configured and then silently fail to deliver.
+  #   Failures are caught by the Errors alarm in alarms.tf instead. Revisit if
+  #   the role gains SQS permissions.
+
   function_name = "${var.name_prefix}-status-builder"
   description   = "Stage 3: derive venue_amenity_status and access chains, then refresh the read model."
 
-  role    = var.execution_role_arn
-  handler = "handler.handler"
-  runtime = "python3.12"
+  role          = var.execution_role_arn
+  handler       = "handler.handler"
+  runtime       = "python3.12"
+  architectures = ["x86_64"]
+
+  # An immutable version per apply, matching the api module. A batch function
+  # has no alias to move, but the version is what makes "put the old code back"
+  # a one-call operation rather than a revert-and-redeploy.
+  publish = true
 
   filename         = data.archive_file.derive.output_path
   source_code_hash = data.archive_file.derive.output_base64sha256
@@ -162,6 +214,11 @@ resource "aws_lambda_function" "derive" {
 }
 
 resource "aws_cloudwatch_log_group" "derive" {
+  # checkov:skip=CKV_AWS_338:A year of retention is a compliance rule for
+  #   regulated production systems, not a nine-week student staging environment.
+  # checkov:skip=CKV_AWS_158:A customer managed KMS key costs ~USD $1/month to
+  #   encrypt logs already encrypted at rest with the CloudWatch service key.
+
   name              = "/aws/lambda/${var.name_prefix}-status-builder"
   retention_in_days = var.log_retention_days
 
