@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "a11y": "playwright test",
+    "a11y:strict": "A11Y_STRICT=1 playwright test",
+    "a11y:report": "playwright show-report"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
@@ -17,7 +20,9 @@
     "react-router-dom": "^7.18.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",

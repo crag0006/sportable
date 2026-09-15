@@ -360,6 +360,74 @@ jobs:
           CODE=$(curl -s -o /dev/null -w '%{http_code}' "$URL/")
           [ "$CODE" = "200" ] || fail "site root returned HTTP $CODE"
 
+          # --- an event listing answers inside the 3-second budget ---
+          # AC4.2.5: an event page loads within 3 seconds. The page is React in
+          # the browser; the only part of it that can be slow is this request,
+          # so this is where the budget is measurable.
+          #
+          # /api/v1/events takes no mandatory parameters — from/to default to
+          # today and today + the configured window (see
+          # backend/app/api/v1/routes/events.py), which is exactly what the
+          # page requests on first paint. Nothing is pinned to a date, because
+          # a hard-coded date would start failing on its own one day.
+          #
+          # An empty `events` list is a perfectly good fast answer. The staging
+          # database may hold no fixtures in the current window and that says
+          # nothing about latency. What is NOT acceptable is a 4xx: that means
+          # this test is asking the wrong question, and a request that is
+          # rejected in 80 ms would otherwise sail through the budget and
+          # report a pass.
+          EVENTS_URL="$URL/api/v1/events"
+          BUDGET_S=3.0
+
+          # Warm-up, discarded. The alias moved to a new Lambda version a few
+          # steps ago, so the very next request pays a cold start of a second
+          # or more. A cold start is a real cost but it is not what AC4.2.5 is
+          # about, and failing a deploy on it would mean failing deploys at
+          # random.
+          curl -s -o /dev/null --max-time 30 "$EVENTS_URL" || true
+
+          BEST_S=""
+          LAST_CODE=""
+          for attempt in 1 2 3; do
+            # One curl call yields both numbers, so the status and the timing
+            # can never describe two different requests.
+            MEASURE=$(curl -s -o /tmp/events.json --max-time 30 \
+                        -w '%{http_code} %{time_total}' "$EVENTS_URL") \
+              || MEASURE="000 0"
+            LAST_CODE="${MEASURE%% *}"
+            SECS="${MEASURE##* }"
+
+            if [ "$LAST_CODE" != "200" ]; then
+              echo "attempt $attempt: /api/v1/events returned HTTP $LAST_CODE — retrying in 5s"
+              sleep 5
+              continue
+            fi
+
+            # A 200 that is not the events envelope means CloudFront served the
+            # SPA's index.html for an /api/* path — the same leak the 404 check
+            # above guards. Timing HTML from an edge cache would be a very fast
+            # pass for a completely broken API.
+            grep -q '"events"' /tmp/events.json \
+              || fail "/api/v1/events returned 200 but no events envelope: $(head -c 200 /tmp/events.json)"
+
+            echo "attempt $attempt: HTTP 200 in ${SECS}s"
+            if [ -z "$BEST_S" ] || awk -v a="$SECS" -v b="$BEST_S" 'BEGIN{exit !(a<b)}'; then
+              BEST_S="$SECS"
+            fi
+            # Inside budget on any attempt is a pass — three samples exist to
+            # absorb one unlucky edge fetch, not to average away a slow API.
+            awk -v t="$SECS" -v budget="$BUDGET_S" 'BEGIN{exit !(t<=budget)}' && break
+          done
+
+          [ "$LAST_CODE" = "200" ] \
+            || fail "/api/v1/events never returned 200 (last was HTTP $LAST_CODE) — the latency budget was never measured"
+
+          awk -v t="$BEST_S" -v budget="$BUDGET_S" 'BEGIN{exit !(t<=budget)}' \
+            || fail "/api/v1/events took ${BEST_S}s, over the ${BUDGET_S}s budget in AC4.2.5"
+
+          echo "Events endpoint answered in ${BEST_S}s (budget ${BUDGET_S}s)."
+
           echo "Smoke test passed."
 
       - name: Summary

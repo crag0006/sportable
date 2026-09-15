@@ -112,3 +112,107 @@ resource "aws_s3_bucket_lifecycle_configuration" "raw" {
     }
   }
 }
+
+# ==============================================================================
+# The quarantine bucket
+# ==============================================================================
+# WHY THIS IS IN S3 AND NOT ONLY IN POSTGRES
+#
+# There is already a `quarantine` table, and for a load that SUCCEEDS it is the
+# better home: a human diagnosing a bad transform wants SQL, not object keys.
+#
+# The problem is the load that FAILS. write_quarantine() inserts inside the load
+# transaction, check_rejection_rate() then raises LoadAbortedError above the
+# threshold, and loader.connect() rolls the transaction back on any exception.
+# So the rows are discarded at exactly the moment they become evidence — and the
+# abort message tells the operator to "inspect the quarantine table before
+# rerunning", which on that path would be empty.
+#
+# An S3 write is outside the database transaction and survives the rollback.
+# The table keeps the successful loads; this bucket keeps the aborted ones.
+#
+# No event notification, deliberately. Nothing should react to a rejected row
+# landing — the alarm in alarms.tf keys off the loader's log events instead, and
+# a notification here would be a second trigger on the same failure.
+# ==============================================================================
+
+resource "aws_s3_bucket" "quarantine" {
+  # checkov:skip=CKV_AWS_144:Cross-region replication to protect rejected rows
+  #   that can be reproduced by re-running the transform against the raw zone,
+  #   which is itself versioned. The evidence is derived, not primary.
+  # checkov:skip=CKV_AWS_18:Access logging needs a second bucket and bills for
+  #   the log objects. One writer, one human reader, both already logged.
+  # checkov:skip=CKV_AWS_145:AES256 rather than SSE-KMS, matching the raw zone.
+  #   A customer managed key costs ~USD $1/month to encrypt rows derived from
+  #   Australian open data the publisher serves unencrypted to anyone.
+  # checkov:skip=CKV2_AWS_62:Event notifications are deliberately absent — see
+  #   the block comment above.
+
+  bucket = "${var.name_prefix}-quarantine-${var.account_id}"
+
+  tags = merge(var.tags, {
+    Name = "${var.name_prefix}-quarantine"
+    Zone = "quarantine"
+  })
+}
+
+resource "aws_s3_bucket_versioning" "quarantine" {
+  bucket = aws_s3_bucket.quarantine.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "quarantine" {
+  bucket = aws_s3_bucket.quarantine.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "quarantine" {
+  bucket = aws_s3_bucket.quarantine.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# Quarantined rows stay in Standard and are NOT aged into Glacier, unlike the
+# raw zone. They are read by a person deciding whether the transform is wrong or
+# the publisher is, and that decision happens in the days after the alarm, not
+# in a year. Ninety days is long enough to cover an iteration boundary.
+resource "aws_s3_bucket_lifecycle_configuration" "quarantine" {
+  bucket = aws_s3_bucket.quarantine.id
+
+  rule {
+    id     = "expire-old-quarantine"
+    status = "Enabled"
+
+    filter {}
+
+    expiration {
+      days = 90
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = 30
+    }
+  }
+
+  rule {
+    id     = "abort-incomplete-uploads"
+    status = "Enabled"
+
+    filter {}
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+}

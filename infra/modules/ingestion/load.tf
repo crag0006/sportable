@@ -72,6 +72,11 @@ resource "aws_lambda_function" "load" {
     variables = {
       RAW_BUCKET = aws_s3_bucket.raw.id
 
+      # Rejected rows are written here BEFORE the rejection-rate check, so the
+      # evidence survives the transaction rollback that an aborted load causes.
+      # See the block comment in s3.tf.
+      QUARANTINE_BUCKET = aws_s3_bucket.quarantine.id
+
       # The parameter NAME. The function resolves it at runtime through the SSM
       # API, so the connection string never enters Terraform state, a plan
       # output or a CI log.

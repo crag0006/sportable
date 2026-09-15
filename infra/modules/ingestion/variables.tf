@@ -99,6 +99,25 @@ variable "schedules" {
     Cadence follows the publisher, not our convenience. A source polled more
     often than it is published costs quota and returns 304s; polled less often,
     the staleness banner fires on data that was fine.
+
+    ONLY DS-09 IS SCHEDULED. Iteration 2 scope decision, 15 Sep 2026: event data
+    is the only thing that churns. Programmes start and end weekly, so AAA Play
+    is polled weekly. Facilities, public toilets, transit and the ABS boundary
+    layers are reference data on a scale of months to years — they are loaded
+    ONCE by hand through data/scripts/load_run.py over the bastion tunnel, and a
+    weekly rule fetching them would spend requests to re-confirm what has not
+    moved.
+
+    The consequence is deliberate and visible: a one-time load freezes
+    publisher_last_updated, so those sources cross their staleness thresholds on
+    the calendar and their facts start carrying "possibly out of date" in the
+    interface. That warning is TRUE — we are not refetching, so the fact may
+    indeed be out of date — and it must not be silenced by raising the threshold.
+    The threshold describes our refresh policy, not the publisher's cadence, and
+    the honest reading of a one-time load is exactly what the banner says.
+
+    Re-enabling a source is adding its entry back here, not a code change. The
+    fetch function and the load function already handle DS-01 and DS-02.
   EOT
 
   type = map(object({
@@ -108,25 +127,34 @@ variable "schedules" {
   }))
 
   default = {
-    sport_facilities = {
-      schedule_expression = "cron(0 15 ? * SUN *)"
-      source_ids          = ["DS-01"]
-      description         = "Vic sport and recreation facilities, published weekly."
-    }
-    public_toilets = {
-      schedule_expression = "cron(30 15 ? * SUN *)"
-      source_ids          = ["DS-02"]
-      description         = "National Public Toilet Map, published weekly."
-    }
-    transit = {
-      schedule_expression = "cron(0 16 ? * SUN *)"
-      source_ids          = ["DS-03"]
-      description         = "PTV GTFS, published weekly. Largest payload, runs alone."
-    }
-    boundaries_and_parking = {
-      schedule_expression = "cron(0 17 1 * ? *)"
-      source_ids          = ["DS-04", "DS-06", "DS-07", "DS-08"]
-      description         = "Parking and ABS boundaries. Monthly is generous for ABS."
+    # DS-09 GETS ITS OWN SLOT, AND THAT IS THE WHOLE POINT OF THE ENTRY.
+    #
+    # handler.py raises at the end of a run if ANY source in the payload
+    # failed, so every source sharing a rule shares a fate. The other eight
+    # sources are file downloads from government portals with pinned hashes.
+    # DS-09 is a live third-party WordPress API on somebody else's server,
+    # behind Wordfence, with no contract with us and no obligation to keep its
+    # shape. It is by far the most likely source in the register to fail on any
+    # given week, and grouping it with DS-04/06/07/08 would let one AAA Play
+    # timeout mark the ABS boundaries as failed too.
+    #
+    # 16:30 UTC Sunday: weekly, matching the card's cadence, and staggered
+    # thirty minutes clear of the transit pull at 16:00 (the largest payload,
+    # which runs alone) and thirty minutes clear of the monthly boundaries run
+    # at 17:00. Nothing else in this map touches that slot.
+    #
+    # NO TIMEOUT CHANGE IS NEEDED and none is made. The pull measured on
+    # 11 Sep 2026 took 28.06 seconds over 18 HTTP requests — six activity
+    # pages, six facility pages, two organisation pages and four taxonomies —
+    # and landed 15.4 MB as ONE S3 object, aaaplay/dt=YYYY-MM-DD/aaaplay.json.
+    # Against fetch_timeout_seconds of 900 that is roughly 3% of the budget, so
+    # the publisher could get thirty times slower before this rule is the thing
+    # that breaks. The single object is deliberate: see the source card and
+    # extractors/aaaplay.py for why eighteen responses become one body.
+    aaaplay = {
+      schedule_expression = "cron(30 16 ? * SUN *)"
+      source_ids          = ["DS-09"]
+      description         = "AAA Play activity finder (Access for All Abilities), published weekly. Live API, so it runs alone."
     }
   }
 }
