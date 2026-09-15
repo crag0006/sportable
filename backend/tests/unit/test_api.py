@@ -29,7 +29,8 @@ def test_unknown_route_is_json_404(client: TestClient):
 
 def test_sports_on_both_paths(client: TestClient):
     for path in ("/api/v1/sports", "/api/v1/meta/sports"):
-        assert client.get(path).json()["sports"] == ["Basketball", "Netball", "Swimming"]
+        names = [s["name"] for s in client.get(path).json()["sports"]]
+        assert names == ["Basketball", "Netball", "Swimming"]
 
 
 def test_suburbs_carry_the_display_label(client: TestClient):
@@ -180,7 +181,7 @@ def test_venue_card_distance_from_coordinates(client: TestClient):
 
 
 def test_venue_card_rejects_an_unknown_starting_point(client: TestClient):
-    response = client.get("/api/v1/venues/10432", params={"from": "Hobart 7000"})
+    response = client.get("/api/v1/venues/10432", params={"from": "Atlantis 7000"})
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "unknown_place"
 
@@ -211,7 +212,10 @@ def test_corridor_lists_facilities_in_travel_order(client: TestClient):
     assert body["path"]["within_m"] == 500
     assert len(body["path"]["coordinates"]) == 2
     assert [f["seq"] for f in body["facilities"]] == [1, 2]
-    assert [f["type"] for f in body["facilities"]] == ["toilet", "parking"]  # by fraction
+    assert [f["type"] for f in body["facilities"]] == [
+        "accessible_toilet",
+        "accessible_parking",
+    ]  # by fraction
     first = body["facilities"][0]
     assert first["distance_from_path_m"] == 90
     assert first["along_path_m"] == round(0.2 * body["path"]["length_m"])
@@ -223,9 +227,9 @@ def test_corridor_widening_the_band_reveals_the_far_toilet(client: TestClient):
     body = client.get(CORRIDOR, params={"from": "Preston 3072", "within": "1000"}).json()
     names = [f["name"] for f in body["facilities"]]
     assert names == ["Gower St toilets", "High St bay", "Northland"]
-    toilet = next(t for t in body["types"] if t["type"] == "toilet")
+    toilet = next(t for t in body["types"] if t["type"] == "accessible_toilet")
     assert toilet == {
-        "type": "toilet",
+        "type": "accessible_toilet",
         "label": "Accessible toilets",
         "count": 2,
         "status": "found",
@@ -235,19 +239,26 @@ def test_corridor_widening_the_band_reveals_the_far_toilet(client: TestClient):
 def test_corridor_separates_none_within_from_no_data(client: TestClient):
     body = client.get(CORRIDOR, params={"from": "3072", "types": "change,stop"}).json()
     statuses = {t["type"]: t["status"] for t in body["types"]}
-    assert statuses == {"change": "none_within", "stop": "no_data"}
+    assert statuses == {
+        "accessible_change_facility": "none_within",
+        "accessible_transport_stop": "no_data",
+    }
     assert body["facilities"] == []
-    # change was checked (a dataset exists); stops were not (no dataset loaded)
+    # change was checked (a dataset exists); stations were not (no dataset loaded)
     assert any("change" in sentence.lower() for sentence in body["checked"])
-    assert any("transport stops" in sentence for sentence in body["not_checked"])
+    assert any("railway stations" in sentence for sentence in body["not_checked"])
 
 
 def test_corridor_defaults_and_never_claims_a_route(client: TestClient):
     body = client.get(CORRIDOR, params={"from": "Preston 3072"}).json()
-    assert body["path"]["within_m"] == 500  # config default
+    assert body["path"]["within_m"] == 400  # config corridor_default_m
     statuses = {t["type"]: t["status"] for t in body["types"]}
-    assert set(statuses) == {"toilet", "parking", "stop"}  # default types
-    assert statuses["stop"] == "no_data"  # GTFS pending - never "none found"
+    assert set(statuses) == {
+        "accessible_toilet",
+        "accessible_parking",
+        "accessible_transport_stop",
+    }  # default types
+    assert statuses["accessible_transport_stop"] == "no_data"  # GTFS pending
     assert len(body["not_checked"]) == 3  # step-free + stops + opening hours
     joined = " ".join(body["checked"] + body["not_checked"]).lower()
     assert "route" not in joined  # AC2.3.4: never described as a route
