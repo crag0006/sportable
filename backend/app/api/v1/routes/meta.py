@@ -1,4 +1,4 @@
-"""Reference endpoints: health, config, sports, suburbs, locations, sources."""
+"""Reference endpoints: health, config, sports, suburbs, locations, sources, legend."""
 
 from typing import Annotated
 
@@ -6,7 +6,9 @@ from fastapi import APIRouter, Query
 
 from app.api.deps import Repo, SettingsDep
 from app.api.params import COVERAGE_DESCRIPTION, parse_place, parse_point
+from app.domain.legend import LEGEND, LEGEND_HEADING, LEGEND_NOTE, screen_reader_summary
 from app.domain.presenters import reference_out, register_source_out
+from app.schemas.legend import FacilityTypeOut, FacilityTypesOut
 from app.schemas.locations import CoverageOut, MatchedOut, ResolveOut, SuggestionOut
 from app.schemas.sources import SourcesOut
 from app.schemas.venues import (
@@ -64,6 +66,40 @@ def sports(
             SportOut(name=s.name, venue_count=s.venue_count, event_count=s.event_count)
             for s in repo.list_sports(q)
         ]
+    )
+
+
+@router.get("/facility-types", response_model=FacilityTypesOut)
+def facility_types() -> FacilityTypesOut:
+    """The map legend, as data (US3.1).
+
+    No repository dependency on purpose. This vocabulary is the ``amenity_kind``
+    enum: it changes when a migration changes it and at no other time, so a
+    database round trip per page load would buy nothing and would add a way for
+    the legend to be unavailable while the markers it explains are drawn anyway.
+    ``data/sql/011_vocabulary_and_summary.sql`` holds the matching
+    ``facility_legend`` view for anything reading the store directly, and
+    ``tests/unit/test_legend.py`` fails if the two ever disagree.
+
+    ``screen_reader_summary`` (AC3.1.4) is built from the same rows the map
+    draws, so the spoken legend cannot describe a marker the map does not draw.
+    """
+    return FacilityTypesOut(
+        heading=LEGEND_HEADING,
+        facility_types=[
+            FacilityTypeOut(
+                type=entry.kind,
+                label=entry.display_label,
+                shape=entry.shape,
+                colour_token=entry.colour_token,
+                colour_hex=entry.colour_hex,
+                description=entry.description,
+                screen_reader_text=entry.screen_reader_text,
+            )
+            for entry in LEGEND
+        ],
+        note=LEGEND_NOTE,
+        screen_reader_summary=screen_reader_summary(),
     )
 
 

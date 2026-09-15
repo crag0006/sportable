@@ -71,18 +71,37 @@ retrieval:
 
 coverage:
   publisher_scope: statewide
-  records_total: 530
+  records_total: 532
   records_in_target_area: null
+  counts_verified_at: 2026-09-15
+  records_by_collection:
+    activity: 532
+    facility: 552
+    organisation: 178
+    activity_type: 82
+    age_range: 6
+    lga: 102
+    region: 16
   basis: >-
-    530 activity records, 552 facility records and 178 organisation records on the pull of 11 September 2026. The 530 is the figure reported here because
-    activities are what the events epic displays; facilities and organisations are supporting dimensions reached by integer key.
+    532 activity records, 552 facility records and 178 organisation records, read from the X-WP-Total header of each collection on 15 September 2026 and
+    confirmed by paging every collection to exhaustion. The 532 is the figure reported here because activities are what the events epic displays;
+    facilities and organisations are supporting dimensions reached by integer key.
+    THE REGISTER MOVED BETWEEN TWO PULLS. The source assessment of 11 September counted 530 activities against the same 552 facilities and 178
+    organisations. Two activities were added in four days, which is 0.4% and is what a live register does. The earlier figure is not wrong and is not
+    corrected away: it is what that day held, and the profiling figures in notes below are still stated against it and labelled.
+    records_by_collection carries all seven collections rather than the three post types, because the fetch count-drift guard compares this run against the
+    previous run's manifest figures collection by collection, and the four taxonomies are collected by the same paginator and can be truncated the same
+    way. The taxonomy counts are small enough that a percentage means little, which is why the guard has a floor as well as a band.
     records_in_target_area stays null until the facility points are clipped against the DS-06 in-scope polygon, but the expected answer is now close to all
-    530. Scope is the whole of Victoria, and this is a Victoria-only publisher, so unlike every other source in the register there is no meaningful
-    out-of-area remainder to subtract. The figure stays null rather than being set to 530 because "no records fall outside Victoria" is an assumption about
+    532. Scope is the whole of Victoria, and this is a Victoria-only publisher, so unlike every other source in the register there is no meaningful
+    out-of-area remainder to subtract. The figure stays null rather than being set to 532 because "no records fall outside Victoria" is an assumption about
     a publisher's coverage, not something anyone has counted, and this register does not fill a field with a number nobody verified.
-    The publisher's own region taxonomy gives a Greater Melbourne cut of 317 activities against 337 facilities. That grouping is useful for a metropolitan
-    versus regional comparison in a profiling report; it is NOT a scope boundary and must never be used as one on screen.
+    The publisher's own region taxonomy gives a Greater Melbourne cut of 317 activities against 337 facilities, counted on 11 September. That grouping is
+    useful for a metropolitan versus regional comparison in a profiling report; it is NOT a scope boundary and must never be used as one on screen.
   notes: >-
+    Figures in this block below are from the 11 September profile and are stated against the 530 activities of that day, not against the 532 of
+    15 September. They are not rescaled, because nobody re-profiled the field coverage on the later pull and a proportion carried across to a different
+    denominator is a number nobody counted.
     514 of 530 activities carry a facility id. 15 carry neither a facility nor coordinates and quarantine as COORD_MISSING.
     The statewide scope change makes the regional records first-class rather than surplus. Roughly 213 of the 530 activities and 215 of the 552 facilities
     sit outside Greater Melbourne, led by Geelong, Bendigo and Ballarat. Under the old 31-council scope those were out of area; they are now in scope and
@@ -165,6 +184,21 @@ known_limitations:
     as a cross-check only; scope is decided by point-in-polygon against DS-06, as it is for every other source. The junk terms matter more now that scope is
     statewide: under the old 31-council scope a stray term like "benalla" fell outside the boundary anyway, whereas Benalla is now in scope and a term-based
     filter would quietly disagree with the polygon.
+  - >-
+    THE PUBLISHER'S SPORT TAXONOMY IS NOT THE VENUE SPORT VOCABULARY. activity_type holds 82 terms; DS-01 records 80 distinct Sports Played values, and
+    the two agree on 47. The rest need a decision each and the decisions are in data/ingestion/crosswalks/ds09_sport_vocabulary.yaml, loaded into the
+    sport_crosswalk table by migration 012. Twenty publisher terms name sports the venue register has never heard of, so they enter the sport list as
+    entries of their own; five of those are adaptive or para sports — boccia, goalball, floor curling, adaptive climbing, walking and rolling — and are
+    deliberately NOT folded into bowls, climbing or walking. Six terms are not sports at all, including Special Olympics, which is a multi-sport movement
+    and the second most used term in the taxonomy; they are kept as published and given no vocabulary entry. A term that appears upstream and is not in
+    the reviewed file is quarantined as SCHEMA_VIOLATION rather than dropped or guessed at.
+  - >-
+    NO PINNED HASH IS POSSIBLE FOR THIS SOURCE. expected_sha256 is null because the payload is assembled from eighteen responses rather than downloaded,
+    so the truncation protection DS-01 to DS-08 get from a publisher-stated digest does not exist here. Two guards stand in its place, both in the
+    extractor. Each collection is checked against its own X-WP-Total header and a shortfall beyond a few mid-pull edits is refused outright. Each
+    collection is then compared with the previous run's manifest figures and a swing beyond 20% is logged as COUNT_DRIFT, loudly, without refusing the
+    write: a truncated pull and a genuinely smaller register look identical in the numbers, only a person can tell them apart, and refusing to write would
+    destroy both the evidence and the baseline the next run needs.
   - >-
     Statewide scope removes this source's out-of-area remainder but not its uneven support. A program in Bendigo or Mildura is in scope and displayed, while
     the access chain around it is thinner than around a metropolitan one, because DS-04 is a single-council source and DS-03 transit coverage falls away

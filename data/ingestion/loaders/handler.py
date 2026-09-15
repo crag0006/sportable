@@ -40,6 +40,7 @@ import logging
 import os
 import re
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -65,11 +66,59 @@ RAW_BUCKET = os.environ["RAW_BUCKET"]
 SSM_DB_URL_PARAM = os.environ["SSM_DB_URL_PARAM"]
 DERIVE_FUNCTION = os.environ.get("DERIVE_FUNCTION", "")
 
+# Rejected rows are written here BEFORE the rejection-rate check. An abort rolls
+# the load transaction back, taking the quarantine TABLE rows with it, so on the
+# one path where the evidence matters most the table is empty. S3 is outside the
+# transaction. Unset means no sink and the table-only behaviour, which is what
+# load_run.py does over the tunnel.
+QUARANTINE_BUCKET = os.environ.get("QUARANTINE_BUCKET", "")
+
 SUPPORTED = {"DS-01", "DS-02", "DS-09"}
 
 s3 = boto3.client("s3")
 ssm = boto3.client("ssm")
 lam = boto3.client("lambda")
+
+
+def quarantine_to_s3(*, load_run_id: int, source_id: str, frame: pd.DataFrame) -> str | None:
+    """Write rejected rows to the quarantine bucket as newline-delimited JSON.
+
+    NDJSON rather than a single array so a very large rejection set can be read
+    with `aws s3 cp ... - | head`, which is what an operator does first.
+
+    The key carries the load run id, so the objects from one aborted load group
+    together and a rerun cannot overwrite the evidence from the run before it.
+    """
+
+    if not QUARANTINE_BUCKET:
+        return None
+
+    key = f"{source_id}/dt={datetime.now(UTC).date().isoformat()}/load_run_{load_run_id}.ndjson"
+    body = "\n".join(
+        json.dumps(
+            {
+                "load_run_id": load_run_id,
+                "source_id": source_id,
+                "natural_key": row.get("natural_key"),
+                "reason": row["reason"],
+                "detail": row.get("detail"),
+                "payload": row.get("payload") or {},
+            },
+            default=str,
+        )
+        for _, row in frame.iterrows()
+    )
+
+    s3.put_object(
+        Bucket=QUARANTINE_BUCKET,
+        Key=key,
+        Body=body.encode("utf-8"),
+        ContentType="application/x-ndjson",
+    )
+    log(
+        "QUARANTINE_WRITTEN", source_id=source_id, load_run_id=load_run_id, key=key, rows=len(frame)
+    )
+    return key
 
 
 def log(event: str, **fields: Any) -> None:
@@ -253,6 +302,7 @@ def run_load(
             )
             outcome = loader.load_venues(
                 conn,
+                sink=quarantine_to_s3,
                 load_run_id=load_run_id,
                 source_id=source_id,
                 venues=venue_result.venues,
@@ -276,6 +326,7 @@ def run_load(
             )
             outcome = loader.load_programs(
                 conn,
+                sink=quarantine_to_s3,
                 load_run_id=load_run_id,
                 source_id=source_id,
                 result=program_result,
@@ -286,6 +337,7 @@ def run_load(
             amenity_result = ds02.transform(tabular(raw), load_run_id=load_run_id)
             outcome = loader.load_amenities(
                 conn,
+                sink=quarantine_to_s3,
                 load_run_id=load_run_id,
                 source_id=source_id,
                 amenities=amenity_result.amenities,

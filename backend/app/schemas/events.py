@@ -11,7 +11,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from app.schemas.common import FacilityOut, ReferencePointOut, SourceRefOut
-from app.schemas.venues import VenueCardOut
+from app.schemas.venues import CorridorOut, VenueCardOut
 
 Kind = Literal["fixture", "program"]
 
@@ -160,3 +160,64 @@ class ShareOut(BaseModel):
 class EventDetailOut(EventOut):
     venue_card: VenueCardOut | None = None
     share: ShareOut
+    # US3.3 - Read Aloud, one complete sentence per element (AC3.3.3). On the
+    # detail model rather than on EventOut because AC3.3.1 is about a page's
+    # important information, and a list of fifty rows would otherwise carry
+    # fifty summaries nothing ever speaks.
+    summary_sentences: list[str] = Field(default_factory=list)
+
+
+# ------------------------------------------------------- directions (US4.2)
+# AC4.2.4 asks "Get Directions" to show the route to the EVENT and the
+# accessible facilities along it. That is the venue requirement pointed at a
+# different target, so the payload is the venue corridor object unchanged,
+# wrapped in the two things an event adds: which event this is, and whether a
+# route exists for it at all.
+RouteUnavailableReason = Literal["venue_not_matched"]
+
+
+class RoutingProviderOut(BaseModel):
+    """What was, or was not, asked of the routing provider (DS-05).
+
+    Stated in the payload rather than left implicit because DS-05 is a
+    request-time service with a quota, the events page multiplies the number of
+    times a directions view is opened, and "why is this a straight line" is a
+    question the answer to should travel with the answer.
+    """
+
+    provider: str
+    # ``not_used`` is the normal state: no request was made, so no quota was
+    # spent and nothing can fail. ``degraded`` is reserved for the day a routed
+    # leg is added and the provider is unavailable — the page still renders the
+    # corridor rather than erroring.
+    status: Literal["not_used", "degraded"]
+    note: str
+
+
+class DirectionsEventOut(BaseModel):
+    """Just enough of the event to caption the map. The full record is /events/{id}."""
+
+    id: str
+    kind: Kind
+    title: str
+    status: str
+    status_label: str
+    starts_at: str | None = None
+    date_local: str | None = None
+    time_local: str | None = None
+    timezone: str
+    recurrence_summary: str | None = None
+    href: str
+
+
+class EventDirectionsOut(BaseModel):
+    event: DirectionsEventOut
+    # False when the event's venue could not be matched to a DS-01 venue. The
+    # corridor is then null and ``message`` says why: an empty facility list
+    # would read as "we checked and there is nothing on the way", which is a
+    # different and untrue statement.
+    route_available: bool
+    reason: RouteUnavailableReason | None = None
+    message: str
+    corridor: CorridorOut | None = None
+    routing: RoutingProviderOut
