@@ -712,6 +712,11 @@ def transform(
                 "load_run_id": load_run_id,
                 "program_id": f"{SOURCE_ID}:activity:{activity_id}",
                 "publisher_key": activity_id,
+                # Explicit rather than relying on the column default: _tuples
+                # sends an explicit NULL for any column the frame lacks, and an
+                # explicit NULL overrides a DEFAULT rather than falling back to
+                # it.
+                "kind": "program",
                 "name": _rendered(record.get("title")),
                 "description": _rendered(record.get("content")),
                 # There is no start date, end date or season anywhere in this

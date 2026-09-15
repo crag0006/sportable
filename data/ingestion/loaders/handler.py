@@ -51,9 +51,11 @@ from psycopg.rows import dict_row
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from ingestion.extractors import aaaplay
 from ingestion.loaders import loader
 from ingestion.transformers import ds01_sport_facilities as ds01
 from ingestion.transformers import ds02_public_toilets as ds02
+from ingestion.transformers import ds09_aaaplay as ds09
 
 LOG = logging.getLogger("sportable.load")
 LOG.setLevel(logging.INFO)
@@ -63,7 +65,7 @@ RAW_BUCKET = os.environ["RAW_BUCKET"]
 SSM_DB_URL_PARAM = os.environ["SSM_DB_URL_PARAM"]
 DERIVE_FUNCTION = os.environ.get("DERIVE_FUNCTION", "")
 
-SUPPORTED = {"DS-01", "DS-02"}
+SUPPORTED = {"DS-01", "DS-02", "DS-09"}
 
 s3 = boto3.client("s3")
 ssm = boto3.client("ssm")
@@ -144,7 +146,7 @@ def parse_key(key: str) -> tuple[str, str, str]:
 # ---------------------------------------------------------------- read
 
 
-def read_payload(local: Path, fmt: str) -> pd.DataFrame:
+def read_payload(local: Path, fmt: str) -> pd.DataFrame | dict[str, Any]:
     if fmt == "csv":
         # low_memory=False: the toilet map export mixes types within a column
         # and chunked inference produces different dtypes for the same column
@@ -154,7 +156,56 @@ def read_payload(local: Path, fmt: str) -> pd.DataFrame:
     if fmt == "xlsx":
         return pd.read_excel(local)
 
+    if fmt == "api":
+        # One JSON document, unpacked into the four arguments the DS-09
+        # transformer takes. The shape is defined in the extractor, so the
+        # collector and the reader cannot drift apart.
+        return aaaplay.split(local.read_bytes())
+
     raise ValueError(f"No reader for format {fmt!r}")
+
+
+def tabular(raw: pd.DataFrame | dict[str, Any]) -> pd.DataFrame:
+    """Narrow a payload to a DataFrame.
+
+    read_payload returns a DataFrame for the file sources and a dict for DS-09,
+    so every branch of run_load has to say which of the two it expects. A raise
+    rather than a cast: if a source card's format and its source id ever
+    disagree, a named error at the top of the branch is far easier to read than
+    a KeyError three frames down inside a transformer.
+    """
+    if isinstance(raw, dict):
+        raise TypeError(
+            "Expected a tabular payload but received the DS-09 API document. "
+            "Check the source card's retrieval.format against its source_id."
+        )
+
+    return raw
+
+
+def document(raw: pd.DataFrame | dict[str, Any]) -> dict[str, Any]:
+    """Narrow a payload to the collected DS-09 document. See tabular()."""
+    if not isinstance(raw, dict):
+        raise TypeError(
+            "Expected the DS-09 API document but received a tabular payload. "
+            "Check the source card's retrieval.format against its source_id."
+        )
+
+    return raw
+
+
+def rows_read(raw: pd.DataFrame | dict[str, Any]) -> int:
+    """How many source records a payload represents.
+
+    For a DS-09 document that is the activity count, not the sum of all three
+    post types. Facilities and organisations are dimensions the activities point
+    at; counting them would inflate rows_read and quietly deflate the quarantine
+    rate the loader's abort threshold is measured against.
+    """
+    if isinstance(raw, dict):
+        return len(raw.get("activities") or [])
+
+    return len(raw)
 
 
 def sha256_of(local: Path) -> str:
@@ -170,7 +221,14 @@ def sha256_of(local: Path) -> str:
 # ---------------------------------------------------------------- load
 
 
-def run_load(conn, source_id: str, raw: pd.DataFrame, dt: str, key: str, sha: str):
+def run_load(
+    conn,
+    source_id: str,
+    raw: pd.DataFrame | dict[str, Any],
+    dt: str,
+    key: str,
+    sha: str,
+):
     load_run_id = loader.open_load_run(
         conn,
         source_id=source_id,
@@ -188,7 +246,7 @@ def run_load(conn, source_id: str, raw: pd.DataFrame, dt: str, key: str, sha: st
     try:
         if source_id == "DS-01":
             venue_result = ds01.transform(
-                raw,
+                tabular(raw),
                 in_scope_lgas=scope_from_database(conn),
                 normalise_lga=normalise_lga,
                 load_run_id=load_run_id,
@@ -200,18 +258,39 @@ def run_load(conn, source_id: str, raw: pd.DataFrame, dt: str, key: str, sha: st
                 venues=venue_result.venues,
                 venue_sports=venue_result.venue_sports,
                 quarantine=venue_result.quarantine,
-                rows_read=len(raw),
+                rows_read=rows_read(raw),
+            )
+
+        elif source_id == "DS-09":
+            # DS-09 is not part of the access chain. It writes to the program
+            # tables only, and nothing it carries can produce a facility status,
+            # so no derive step follows it. See the source card.
+            collected = document(raw)
+            program_result = ds09.transform(
+                activities=collected["activities"],
+                facilities=collected["facilities"],
+                organisations=collected["organisations"],
+                taxonomy_terms=collected["taxonomy_terms"],
+                load_run_id=load_run_id,
+                retrieved_at=dt,
+            )
+            outcome = loader.load_programs(
+                conn,
+                load_run_id=load_run_id,
+                source_id=source_id,
+                result=program_result,
+                rows_read=rows_read(raw),
             )
 
         else:
-            amenity_result = ds02.transform(raw, load_run_id=load_run_id)
+            amenity_result = ds02.transform(tabular(raw), load_run_id=load_run_id)
             outcome = loader.load_amenities(
                 conn,
                 load_run_id=load_run_id,
                 source_id=source_id,
                 amenities=amenity_result.amenities,
                 quarantine=amenity_result.quarantine,
-                rows_read=len(raw),
+                rows_read=rows_read(raw),
             )
 
     except loader.LoadAbortedError as error:
@@ -222,7 +301,7 @@ def run_load(conn, source_id: str, raw: pd.DataFrame, dt: str, key: str, sha: st
         loader.close_load_run(
             conn,
             load_run_id=load_run_id,
-            rows_read=len(raw),
+            rows_read=rows_read(raw),
             rows_loaded=0,
             rows_quarantined=0,
             outcome="aborted",
@@ -289,7 +368,7 @@ def handle_record(
     sha = sha256_of(local)
     raw = read_payload(local, card["retrieval"]["format"])
 
-    log("PAYLOAD_READ", source_id=source_id, key=key, rows=len(raw), sha256=sha[:12])
+    log("PAYLOAD_READ", source_id=source_id, key=key, rows=rows_read(raw), sha256=sha[:12])
 
     dsn = ssm.get_parameter(Name=SSM_DB_URL_PARAM, WithDecryption=True)["Parameter"]["Value"]
 
