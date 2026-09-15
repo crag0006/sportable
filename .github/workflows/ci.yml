@@ -315,3 +315,116 @@ jobs:
         run: |
           npm ci
           npm run build
+
+  # ---------------------------------------------------- frontend a11y (I5)
+  # Owner: Infra/Platform engineer, with the Frontend team as the audience.
+  #
+  # WHY THIS JOB EXISTS
+  #   Epic 3's Definition of Done says the relevant WCAG 2.1 guidelines are
+  #   "identified and tested". A guideline that is identified in a document and
+  #   nowhere else is a guideline the team will break by accident, because the
+  #   failures are invisible to anyone using a mouse and a 1280px screen. This
+  #   job is the "tested" half.
+  #
+  # WHAT IT ENFORCES
+  #   AC3.2.1  Reflow at 320 CSS px (SC 1.4.10) — no horizontal scrolling, no
+  #            clipped content, also checked at the 640px and 853px widths a
+  #            200% and 150% zoom produce.
+  #   AC3.2.3  axe-core over the WCAG 2.0/2.1 A and AA rule sets — fails on any
+  #            `serious` or `critical` finding — plus an explicit heading-order
+  #            check, because axe grades heading order as best-practice and
+  #            therefore never fails on it.
+  #   AC3.2.4  Keyboard-only traversal with pointer events disabled at the
+  #            engine level: every visible control must be reachable by Tab and
+  #            the two forms on the critical path must be operable by key.
+  #
+  # WHY IT IS SEPARATE FROM THE `frontend` JOB
+  #   The build job protects the deploy (deploy-staging.yml syncs
+  #   frontend/dist). This one takes ~2 minutes because it downloads a browser.
+  #   Keeping them apart means a syntax error still fails in seconds.
+  #
+  # THERE IS A SNAG LIST
+  #   frontend/tests/a11y/support/known-issues.ts records the defects that
+  #   already exist in the UI, so this job is green on arrival and fails on
+  #   anything NEW. Each entry is printed as a warning annotation on every run,
+  #   and a listed defect that has been fixed fails the job until its line is
+  #   deleted — the list can shrink but it cannot quietly rot. Run
+  #   `npm run a11y:strict` in frontend/ to ignore the list and see the true
+  #   state before signing off Epic 3.
+  a11y:
+    name: Frontend — accessibility (WCAG 2.1 AA)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Same guard pattern as every other optional job in this file: activates
+      # by itself when the config appears, so a branch that predates the gate
+      # is not failed by its absence.
+      - name: Any accessibility gate yet?
+        id: guard
+        run: |
+          if [ -f frontend/playwright.config.ts ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No frontend/playwright.config.ts yet — this job activates when it appears."
+          fi
+
+      - name: Set up Node
+        if: steps.guard.outputs.found == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        if: steps.guard.outputs.found == 'true'
+        working-directory: frontend
+        run: npm ci
+
+      # The browser is ~180 MB and the download dominates this job. The cache
+      # key is the lock file, because that is what pins the Playwright version
+      # and Playwright refuses to run a browser build it did not ask for.
+      - name: Cache the Playwright browser
+        if: steps.guard.outputs.found == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+
+      # Chromium only. axe's findings for the rules this gate fails on are
+      # engine-independent, so a second and third engine would cost three times
+      # the minutes to report the same violations.
+      #
+      # Runs even on a cache hit: it is a no-op for an already-present browser,
+      # and --with-deps installs the system libraries, which the cache does not
+      # cover because they live in /usr, not in the home directory.
+      - name: Install the browser
+        if: steps.guard.outputs.found == 'true'
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      # `npm run a11y` builds the bundle and serves it with `vite preview` —
+      # see the webServer block in playwright.config.ts. Nothing here reaches
+      # AWS, a database, or any third party: every /api/* request the app makes
+      # is fulfilled from a fixture in tests/a11y/support/app.ts. CI has no
+      # backend, and a gate that needed one would be a gate that is red for
+      # reasons that have nothing to do with accessibility.
+      - name: Accessibility gate
+        if: steps.guard.outputs.found == 'true'
+        working-directory: frontend
+        run: npm run a11y
+
+      # The HTML report carries the screenshot and the trace for every failure,
+      # which is the difference between "axe found a contrast violation" and
+      # being able to see the element. Only on failure — on a green run it is
+      # 20 MB nobody opens.
+      - name: Upload the accessibility report
+        if: failure() && steps.guard.outputs.found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: a11y-report
+          path: frontend/playwright-report/
+          retention-days: 7

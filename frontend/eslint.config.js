@@ -6,7 +6,13 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // Build output and test artefacts, not source.
+  //
+  // playwright-report/ and test-results/ are written by `npm run a11y` (the
+  // accessibility gate) and contain Playwright's own bundled, minified report
+  // viewer. Without this line a single local test run turns `npm run lint`
+  // into 700+ errors in code nobody here wrote.
+  globalIgnores(['dist', 'playwright-report', 'test-results']),
 
   // JavaScript / JSX
   {
