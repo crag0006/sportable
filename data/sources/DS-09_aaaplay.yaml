@@ -42,22 +42,32 @@ retrieval:
   download_url: https://aaaplay.org.au/wp-json/wp/v2/activity
   format: api
   raw_prefix: aaaplay
+  collector: paginated_wp_api
   requires_auth: false
   expected_sha256: null
   notes: >-
     WordPress REST API, open. The root at /wp-json/ reports "authentication": [], so no key, no signup, no header and no Parameter Store entry. This is the
-    only scheduled source in the register that is an API rather than a file download, and the fetch contract has to bend to accommodate it.
-    A full pull is fourteen requests across three post types plus four taxonomies: activity six pages, facility six pages, organisation two pages, then
-    activity_type, age_range, lga and region once each. Pagination is stock WordPress, per_page=100&page=N, with totals in the X-WP-Total and
-    X-WP-TotalPages response headers. Read the header rather than paging until a 400, because WordPress returns rest_post_invalid_page_number past the end
-    and that is an error response, not a terminator.
-    expected_sha256 is null and must stay null. The existing fetch handler hashes one downloaded body to decide whether anything changed; fourteen bodies
-    have no single hash, and WordPress emits no ETag or Last-Modified on these collection endpoints, so the conditional-GET path does not apply either.
-    Change detection instead uses modified_gmt, which every record carries: the fetch writes one newline-delimited JSON object per post type and records
-    max(modified_gmt) in the manifest. Unchanged max means no payload written, which means no ObjectCreated event, which means no load, preserving the
-    existing quiet-week behaviour rather than working around it.
-    Many registration_url and social URLs arrive wrapped in Outlook safelinks, kor01.safelinks.protection.outlook.com, with the real target percent-encoded
-    in the url query parameter. Unwrap at transform time and store the target. A safelink is not a stable URL and will not resolve for every visitor.
+    only scheduled source in the register that is an API rather than a file download.
+    A full pull is EIGHTEEN requests: activity six pages, facility six pages, organisation two pages, then activity_type, age_range, lga and region once
+    each. The source assessment says fourteen, which counts the post-type pages and forgets the four taxonomies. Pagination is stock WordPress,
+    per_page=100&page=N, with totals in the X-WP-Total and X-WP-TotalPages response headers. Page on the header rather than paging until a 400: WordPress
+    answers a page past the end with rest_post_invalid_page_number, and treating an error response as a terminator makes a genuine upstream failure
+    indistinguishable from the end of the data.
+    THE EIGHTEEN RESPONSES ARE WRITTEN AS ONE OBJECT, not as a file per post type. The load handler is triggered per S3 object and opens one transaction per
+    object, so separate files would raise four events for one logical pull, and the activity event would arrive unable to resolve a facility id or a term id
+    because those sit in files the transformer cannot see. The four loads would also race, with programmes inserted before their facilities commit failing on
+    a foreign key. One object also leaves change detection alone: a single body has a single SHA-256, so the existing conditional path, manifest and
+    quiet-week behaviour apply unchanged and an API source needs no special case. The collector sorts keys and fixes separators so an unchanged register
+    produces a byte-identical body; without that, dictionary ordering alone would make every week look like a change.
+    expected_sha256 stays null because the body is assembled from eighteen responses rather than downloaded, so there is no publisher-stated digest to
+    compare against. The run-to-run SHA is still the change signal.
+    Multi-value ACF fields are stored as SLUGS, not display labels: activity_access_needs returns wheelchair_accessible and non_disability_everyone,
+    activity_when returns after_school, activity_environment returns at_home. activity_welcoming is the exception and returns display strings such as
+    "LGBTIQA+ communities". The transformer maps the slugs to labels rather than title-casing them, because non_disability_everyone does not title-case
+    into anything a person would write. facility_location.post_code arrives as an integer, not a string, and activity_lga and activity_region can be null.
+    Many registration_url and social URLs arrive wrapped in safelinks.protection.outlook.com under more than one tenant prefix, kor01 and aus01 both
+    observed, with the real target percent-encoded in the url query parameter. Unwrap at transform time and store the target. A safelink is not a stable URL
+    and will not resolve for every visitor.
 
 coverage:
   publisher_scope: statewide
@@ -66,12 +76,23 @@ coverage:
   basis: >-
     530 activity records, 552 facility records and 178 organisation records on the pull of 11 September 2026. The 530 is the figure reported here because
     activities are what the events epic displays; facilities and organisations are supporting dimensions reached by integer key.
-    records_in_target_area stays null until the facility points are clipped against the DS-06 in-scope polygon. The publisher's own region taxonomy gives a
-    provisional Greater Melbourne cut of 317 activities against 337 facilities, but that is the publisher's regional grouping and not our scope boundary,
-    and the two must not be conflated in a figure that appears on screen.
+    records_in_target_area stays null until the facility points are clipped against the DS-06 in-scope polygon, but the expected answer is now close to all
+    530. Scope is the whole of Victoria, and this is a Victoria-only publisher, so unlike every other source in the register there is no meaningful
+    out-of-area remainder to subtract. The figure stays null rather than being set to 530 because "no records fall outside Victoria" is an assumption about
+    a publisher's coverage, not something anyone has counted, and this register does not fill a field with a number nobody verified.
+    The publisher's own region taxonomy gives a Greater Melbourne cut of 317 activities against 337 facilities. That grouping is useful for a metropolitan
+    versus regional comparison in a profiling report; it is NOT a scope boundary and must never be used as one on screen.
   notes: >-
-    514 of 530 activities carry a facility id. 15 carry neither a facility nor coordinates and quarantine as COORD_MISSING. Statewide reach means a
-    material share of facilities sit outside Greater Melbourne, led by Geelong, Bendigo and Ballarat; those are out of scope for Iteration 2, not bad data.
+    514 of 530 activities carry a facility id. 15 carry neither a facility nor coordinates and quarantine as COORD_MISSING.
+    The statewide scope change makes the regional records first-class rather than surplus. Roughly 213 of the 530 activities and 215 of the 552 facilities
+    sit outside Greater Melbourne, led by Geelong, Bendigo and Ballarat. Under the old 31-council scope those were out of area; they are now in scope and
+    carry the same obligations as anything in the metropolitan set. Two consequences follow and both are easy to miss.
+    First, the facility-to-venue match figures in the source assessment of 11 September 2026 are stale. They were computed against 2,153 DS-01 venues from
+    the 31-council load, so the 220 facilities reported with nothing within two kilometres were largely regional venues whose DS-01 counterparts had simply
+    not been loaded. Re-run the match against the statewide DS-01 load before anyone quotes a match rate.
+    Second, the further a program sits from the City of Melbourne the fewer of the four facility tiles can say anything, because DS-04 accessible parking is
+    published for one council only. That is the existing honest gap widening, not a new defect, but it is now the normal case for a regional program rather
+    than the exception.
 
 verification:
   verified: true
@@ -141,7 +162,14 @@ known_limitations:
     displayed as recorded provider text with attribution and is never parsed into a status. Prose is not a publication_status.
   - >-
     The lga taxonomy carries about 25 zero-count junk terms such as bare lowercase council names, and one combined term naming two councils. Terms are used
-    as a cross-check only; scope is decided by point-in-polygon against DS-06, as it is for every other source.
+    as a cross-check only; scope is decided by point-in-polygon against DS-06, as it is for every other source. The junk terms matter more now that scope is
+    statewide: under the old 31-council scope a stray term like "benalla" fell outside the boundary anyway, whereas Benalla is now in scope and a term-based
+    filter would quietly disagree with the polygon.
+  - >-
+    Statewide scope removes this source's out-of-area remainder but not its uneven support. A program in Bendigo or Mildura is in scope and displayed, while
+    the access chain around it is thinner than around a metropolitan one, because DS-04 is a single-council source and DS-03 transit coverage falls away
+    outside the network. The listing is not degraded; the surrounding evidence is. Nothing may be padded to hide the difference, and no regional program may
+    be filtered out to make the coverage look even.
 
 decisions:
   - id: DS-09-D1

@@ -50,6 +50,7 @@ pip_install() {
 
 echo "==> fetch"
 cp "$DATA_DIR/ingestion/extractors/handler.py" "$BUILD_DIR/fetch/"
+cp "$DATA_DIR/ingestion/extractors/aaaplay.py" "$BUILD_DIR/fetch/"
 
 # handler.py resolves REGISTER_DIR to /var/task/sources. The source cards are
 # the register; without them every invocation fails with "No source card found".
