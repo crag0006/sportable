@@ -15,6 +15,11 @@ output "raw_bucket_arn" {
   value = aws_s3_bucket.raw.arn
 }
 
+output "artifacts_bucket" {
+  description = "Lambda artefact bucket. Holds the load package, which is too large for a direct upload."
+  value       = aws_s3_bucket.artifacts.id
+}
+
 output "fetch_function_name" {
   description = "For `aws lambda invoke` when running a source by hand."
   value       = aws_lambda_function.fetch.function_name
