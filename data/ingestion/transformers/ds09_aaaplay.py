@@ -23,6 +23,14 @@ THE ONE RULE THAT MATTERS MOST
     with their own attribution, and they stay out of venue, venue_amenity_status
     and venue_access_chain. See DS-09 known_limitations.
 
+SPORT TERMS ARE STORED AS PUBLISHED, NEVER REWRITTEN
+    program_sport.sport_key holds AAA Play's own activity_type term, decoded
+    from HTML once in _terms(). Translating it into the DS-01 venue sport
+    vocabulary is a join against sport_crosswalk, seeded by migration
+    012_sport_crosswalk.sql from the reviewed file in ingestion/crosswalks. Pass
+    that crosswalk to transform() and a term missing from it is quarantined so
+    somebody sees it; do not add a rewrite here to make a filter match.
+
 WHAT IS DELIBERATELY THROWN AWAY
     contact_email and contact_phone      personal information, see privacy note
     facility_changing_places             provably wrong, see _FACILITY_BOOLEANS
@@ -35,10 +43,16 @@ import html
 import math
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, unquote, urlparse
 
 import pandas as pd
+
+if TYPE_CHECKING:
+    # Type-only, so this module still imports in a deployment package that does
+    # not carry ingestion/crosswalks. The crosswalk is READ BY THE CALLER and
+    # handed in; see the sport_crosswalk argument to transform() for why.
+    from ingestion.crosswalks.sport import SportCrosswalk
 
 SOURCE_ID = "DS-09"
 
@@ -164,6 +178,15 @@ class TransformResult:
             f"  access-need tags         {len(self.program_access_needs):,}",
             f"    programs carrying none {s.get('programs_untagged', 0):,}",
             f"  sport tags               {len(self.program_sports):,}",
+            f"    distinct terms         {s.get('sport_terms_used', 0):,}",
+            (
+                "    unreviewed terms       "
+                + (
+                    "crosswalk not supplied"
+                    if s.get("sport_terms_unreviewed") is None
+                    else f"{s['sport_terms_unreviewed']:,}"
+                )
+            ),
             f"  venue attributes         {len(self.venue_attributes):,}",
             (
                 f"  quarantined              {len(self.quarantine):,}"
@@ -356,6 +379,15 @@ def _terms(
 ) -> dict[str, dict[int, str]]:
     """Build taxonomy term id -> term name maps.
 
+    TERM NAMES ARE HTML-DECODED HERE AND NOWHERE ELSE. The WordPress API returns
+    "Bike riding, BMX &amp; cycling" and "Billiards, snooker &amp; pool", so the
+    ampersand arrives as an entity. _rendered strips markup and unescapes once,
+    which is why sport_label reads as a person wrote it and sport_key comes out
+    as bike_riding_bmx_cycling. Decoding again anywhere downstream would turn a
+    literal "&amp;" that a provider genuinely typed into an ampersand, and
+    decoding in the frontend would leave the entity in the key the crosswalk
+    joins on. Once, here.
+
     About 25 zero-count junk terms sit in the lga taxonomy, bare lowercase
     council names such as "casey" and "kingston", plus one combined term naming
     two councils. They are mapped like any other term because scope is decided
@@ -479,8 +511,23 @@ def transform(
     taxonomy_terms: dict[str, list[dict[str, Any]]] | None = None,
     load_run_id: int | None = None,
     retrieved_at: Any = None,
+    sport_crosswalk: SportCrosswalk | None = None,
 ) -> TransformResult:
-    """Convert the DS-09 post types into program, venue and link rows."""
+    """Convert the DS-09 post types into program, venue and link rows.
+
+    sport_crosswalk IS OPTIONAL AND IS ONLY EVER USED TO REPORT, NEVER TO
+    REWRITE. program_sport keeps the publisher's own term, because that is what
+    the publisher said and it is what the listing displays. The mapping to the
+    venue sport vocabulary is a join in the database, seeded by migration
+    012_sport_crosswalk.sql from the same reviewed YAML. What this argument buys
+    is the other half: a publisher term that is NOT in the reviewed file is
+    quarantined as SCHEMA_VIOLATION so somebody sees it, instead of travelling
+    to a sport filter that will never match it.
+
+    Passed in rather than read here so this module keeps doing no file, database
+    or network access. Omit it and the check is skipped and says so in the
+    stats; it is never silently assumed to have passed.
+    """
 
     activities = activities or []
     facilities = facilities or []
@@ -605,6 +652,12 @@ def transform(
     quarantine_rows: list[dict[str, Any]] = []
 
     programs_untagged = 0
+
+    # Publisher sport term key -> label and the number of programmes carrying
+    # it. Collected so an unreviewed term can be reported once, with its weight,
+    # rather than once per programme.
+    sport_terms: dict[str, dict[str, Any]] = {}
+
     dropped = {"personal contact fields": 0, "changing places claims": 0}
     dangling = {"facility reference": 0, "organisation reference": 0}
 
@@ -770,14 +823,73 @@ def transform(
                 }
             )
 
+        # ONE ROW PER SPORT, NOT ONE JOINED STRING. program_sport is keyed
+        # (program_id, sport_key), so a programme carries as many sports as the
+        # publisher gave it and a search for any one of them finds it. 52 of the
+        # 532 activities carry more than one term; one carries seven.
+        #
+        # The term stored is the publisher's own, HTML already decoded in
+        # _terms(). Mapping it to the venue sport vocabulary is a join against
+        # sport_crosswalk, not a rewrite here: the listing must keep saying what
+        # the publisher said.
         for sport in sports:
+            sport_key = _slug_key(sport)
+
+            seen = sport_terms.setdefault(sport_key, {"label": sport, "programs": 0})
+            seen["programs"] += 1
+
             sport_rows.append(
                 {
                     "source_id": SOURCE_ID,
                     "load_run_id": load_run_id,
                     "program_id": f"{SOURCE_ID}:activity:{activity_id}",
-                    "sport_key": _slug_key(sport),
+                    "sport_key": sport_key,
                     "sport_label": sport,
+                }
+            )
+
+    # ------------------------------------------------- unreviewed sport terms
+
+    # A publisher term that is not in the reviewed crosswalk cannot be resolved
+    # to a venue sport, and an unresolvable term is the failure this check
+    # exists to make loud. It is quarantined PER TERM, not per programme, and
+    # the programmes themselves are loaded untouched.
+    #
+    # WHY THE PROGRAMME IS NOT QUARANTINED. Quarantining a programme because one
+    # of its sport terms is new would delete an accessible programme from the
+    # product over a vocabulary gap that is ours, not the publisher's. The
+    # programme still displays, still carries the publisher's label, and is
+    # still findable by that label; what it loses is the venue-vocabulary match,
+    # and that loss is what the quarantine row records.
+    #
+    # SCHEMA_VIOLATION is the reason code because that is what this is: a value
+    # outside the contract the register agreed with this source. No new enum
+    # member is added for it — see quarantine_reason in 001_schema.sql.
+    unreviewed: list[str] = []
+
+    if sport_crosswalk is not None:
+        unreviewed = sport_crosswalk.unknown_keys(list(sport_terms))
+
+        for sport_key in unreviewed:
+            seen = sport_terms[sport_key]
+
+            quarantine_rows.append(
+                {
+                    "source_id": SOURCE_ID,
+                    "load_run_id": load_run_id,
+                    "natural_key": f"activity_type:{sport_key}",
+                    "reason": "SCHEMA_VIOLATION",
+                    "detail": (
+                        f"activity_type term {seen['label']!r} is not in the reviewed sport "
+                        f"crosswalk, so {seen['programs']} programme(s) carrying it cannot be "
+                        "matched to a venue sport. Add it to "
+                        "ingestion/crosswalks/ds09_sport_vocabulary.yaml with a decided relation."
+                    ),
+                    "payload": {
+                        "sport_key": sport_key,
+                        "sport_label": seen["label"],
+                        "programs_affected": seen["programs"],
+                    },
                 }
             )
 
@@ -793,6 +905,12 @@ def transform(
 
     stats["venues_with_geocode"] = venues_with_geocode
     stats["programs_untagged"] = programs_untagged
+    stats["sport_terms_used"] = len(sport_terms)
+    # None rather than 0 when no crosswalk was supplied. Zero would read as "the
+    # check ran and found nothing", which is the one thing it must never say
+    # when the check did not run at all.
+    stats["sport_terms_unreviewed"] = len(unreviewed) if sport_crosswalk is not None else None
+    stats["sport_terms_unreviewed_keys"] = unreviewed
     stats["dropped"] = dropped
     stats["dangling"] = dangling
     stats["quarantine_rate_pct"] = round(100 * len(quarantine) / read, 2)

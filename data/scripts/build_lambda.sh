@@ -86,6 +86,28 @@ cp "$DATA_DIR/ingestion/transformers/ds01_sport_facilities.py" "$BUILD_DIR/load/
 cp "$DATA_DIR/ingestion/transformers/ds02_public_toilets.py" "$BUILD_DIR/load/ingestion/transformers/"
 cp "$DATA_DIR/ingestion/loaders/loader.py" "$BUILD_DIR/load/ingestion/loaders/"
 
+# DS-09, and the extractor module it needs.
+#
+# loaders/handler.py imports BOTH of these at module scope:
+#
+#     from ingestion.extractors import aaaplay
+#     from ingestion.transformers import ds09_aaaplay as ds09
+#
+# so leaving either out is not a missing feature, it is a ModuleNotFoundError at
+# cold start that takes the whole load function down — including DS-01 and DS-02,
+# which have nothing to do with DS-09. An import at module scope makes every
+# source share the fate of the least-packaged one.
+#
+# ds09_aaaplay.py needs pandas, which the load package already installs, and its
+# crosswalk import is under TYPE_CHECKING, so nothing else has to ship for it.
+# This is why the DS-01/DS-02-only rule above is about GEOPANDAS specifically and
+# not a general rule about which transformers may be packaged.
+cp "$DATA_DIR/ingestion/transformers/ds09_aaaplay.py" "$BUILD_DIR/load/ingestion/transformers/"
+
+mkdir -p "$BUILD_DIR/load/ingestion/extractors"
+touch "$BUILD_DIR/load/ingestion/extractors/__init__.py"
+cp "$DATA_DIR/ingestion/extractors/aaaplay.py" "$BUILD_DIR/load/ingestion/extractors/"
+
 mkdir -p "$BUILD_DIR/load/sources"
 cp "$DATA_DIR"/sources/*.yaml "$BUILD_DIR/load/sources/"
 

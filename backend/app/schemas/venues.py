@@ -182,6 +182,12 @@ class VenueCardOut(VenueSummaryOut):
     limits: LimitsOut
     sources: list[SourceRefOut]
     upcoming_events: UpcomingEventsOut
+    # US3.3 - Read Aloud. An ordered array of short, complete sentences built
+    # from the fields above, one sentence per element so the frontend can
+    # highlight the sentence being spoken (AC3.3.3) without having to split
+    # prose on full stops that also appear in addresses and times. All four
+    # facility statuses are always present, including the unknown ones.
+    summary_sentences: list[str] = Field(default_factory=list)
     last_updated: str | None = None
     # Only when the request carried ?from=
     distance_m: int | None = None

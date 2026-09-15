@@ -530,6 +530,7 @@ def filename_for(
 
 def collect_from_api(
     card: dict[str, Any],
+    previous: dict[str, Any] | None = None,
 ) -> tuple[bytes, dict[str, Any], list[dict[str, Any]]]:
     """Assemble a payload from many responses instead of downloading one file.
 
@@ -543,9 +544,34 @@ def collect_from_api(
     written. That is not a regression: the collector sorts keys and fixes
     separators, so an unchanged register produces a byte-identical body and the
     existing no_change path fires exactly as it does for a 304.
+
+    `previous` is the latest manifest, and it is here because THIS SOURCE HAS NO
+    PINNED HASH. DS-01 to DS-08 register an expected_sha256 that catches a
+    truncated file; an assembled payload has no publisher-stated digest, so the
+    only thing standing between a short pull and a silently smaller register is
+    a comparison against what last week collected. The result is recorded on the
+    manifest so the next run has a baseline and so the DS-09 alarms can read it.
     """
     started = time.time()
     body = aaaplay.collect()
+
+    counts = aaaplay.record_counts(body)
+
+    # The previous run is the right baseline. THE SOURCE CARD IS THE FALLBACK,
+    # and it exists because the first run, and any run after the manifest is
+    # lost, would otherwise have nothing to compare against at exactly the
+    # moment a truncated pull is most likely to be believed. The card's figures
+    # are dated and verified, so they age as the register moves — which is why
+    # the result records which of the two it used rather than treating them as
+    # interchangeable.
+    baseline_counts = (previous or {}).get("record_counts")
+    baseline = "previous_run"
+
+    if not baseline_counts:
+        baseline_counts = (card.get("coverage") or {}).get("records_by_collection")
+        baseline = "source_card"
+
+    drift = aaaplay.check_count_drift(counts, baseline_counts, baseline=baseline)
 
     metadata: dict[str, Any] = {
         "status": 200,
@@ -557,6 +583,8 @@ def collect_from_api(
         "final_url": card["retrieval"]["download_url"],
         "duration_seconds": round(time.time() - started, 3),
         "collector": "paginated_wp_api",
+        "record_counts": counts,
+        "count_drift": drift,
     }
 
     return body, metadata, [{"attempt": 1, "status": 200}]
@@ -608,7 +636,10 @@ def fetch_source(
         )
 
     elif collector in COLLECTORS:
-        body, response_meta, attempts = COLLECTORS[collector](card)
+        # The previous manifest goes in so the collector can compare this pull
+        # against the last one. A file source gets that comparison for free from
+        # its ETag and its pinned hash; an assembled payload has neither.
+        body, response_meta, attempts = COLLECTORS[collector](card, previous)
 
     else:
         raise ValueError(f"{source_id} names an unknown collector {collector!r}")
@@ -637,6 +668,14 @@ def fetch_source(
         },
         "record_count": None,
         "record_count_deferred_to": "transform",
+        # Present only for a collector that assembles a payload from many
+        # responses and can therefore count records without parsing a file
+        # format. THIS IS WHAT THE NEXT RUN COMPARES AGAINST, so it is written
+        # on every outcome, including no_change: dropping it on a quiet week
+        # would leave the following run with no baseline and a guard that
+        # silently did not run.
+        "record_counts": response_meta.get("record_counts"),
+        "count_drift": response_meta.get("count_drift"),
     }
 
     if body is None:
