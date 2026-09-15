@@ -50,7 +50,14 @@ resource "aws_lambda_function" "load" {
   # a one-call operation rather than a revert-and-redeploy.
   publish = true
 
-  filename         = data.archive_file.load.output_path
+  # Shipped through S3, not as a direct upload: at 48.8 MB zipped this package
+  # sits at 97.6% of Lambda's 50 MB direct-upload cap. See artifacts.tf.
+  #
+  # source_code_hash is still the archive's hash, not the object's. It is what
+  # tells Terraform the code changed and a new version must be published; the
+  # S3 key changing is what tells Lambda where to read it from.
+  s3_bucket        = aws_s3_object.load.bucket
+  s3_key           = aws_s3_object.load.key
   source_code_hash = data.archive_file.load.output_base64sha256
 
   timeout     = 900

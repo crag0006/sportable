@@ -121,6 +121,17 @@ jobs:
       - name: Build the Lambda deployment package
         run: bash backend/scripts/build_lambda.sh
 
+      # The ingestion module's three archive_file data sources read
+      # data/build/{fetch,load,derive}. Those directories are gitignored build
+      # output, so without this step `terraform plan` fails with "could not
+      # archive missing directory" — which is what broke runs #28, #29 and #30
+      # after module.ingestion was wired into infra/envs/staging.
+      #
+      # Like the backend package above, this must run before `terraform plan`,
+      # not just before apply: the plan hashes the zips.
+      - name: Build the ingestion Lambda packages
+        run: bash data/scripts/build_lambda.sh
+
       - name: Terraform init
         working-directory: ${{ env.TF_DIR }}
         run: terraform init -input=false
