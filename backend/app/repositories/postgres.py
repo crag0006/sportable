@@ -18,12 +18,14 @@ point and the corridor. Distances are on ``geography`` so the result is
 metres, straight-line, the same basis as the builder's ``distance_m``.
 """
 
+import json
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Any
 
 from app.core.db import connection
+from app.domain.matching import match_basis
 from app.repositories.protocols import (
     ChainRow,
     CorridorFacilityRow,
@@ -53,11 +55,11 @@ PLAIN_LABEL = r"regexp_replace(label, '\s*\([^)]*\)$', '')"
 # ------------------------------------------------------------------ sports
 SQL_SPORTS = """
 SELECT sv.sport AS name, sv.venue_count,
-       (SELECT count(*) FROM event e
-         WHERE lower(e.sport) = lower(sv.sport)
-           AND (e.kind = 'program' AND e.status = 'ACTIVE'
-                OR e.kind = 'fixture' AND e.status IN ('UPCOMING', 'PENDING')
-                    AND e.starts_at > now())) AS event_count
+       (SELECT count(DISTINCT ps.program_id)
+          FROM program_sport ps
+          JOIN program p ON p.program_id = ps.program_id
+         WHERE lower(ps.sport_label) = lower(sv.sport)
+           AND (p.kind = 'program' OR p.starts_at > now())) AS event_count
   FROM sport_vocabulary sv
  WHERE %(q)s::text IS NULL
     OR lower(sv.sport) LIKE '%%' || lower(%(q)s) || '%%'
@@ -226,29 +228,80 @@ SELECT s.source_id, s.name, s.publisher, s.licence_name, s.licence_url,
 """
 
 # ------------------------------------------------------------------ events
-# Listable: a program that is active, or a fixture that has not started and
-# is not cancelled or abandoned (AC5.1.3). ``status = all`` lifts the second
-# condition so a shared link to a cancelled game still resolves.
+# Read from the DS-09 program tables (data/sql/009). One "event" in the API is
+# one program row: a weekly program today, a dated fixture when a dated source
+# lands (kind = 'fixture', starts_at set). Nothing here derives a status: the
+# four tiles come from venue_amenity_status through program_venue.venue_id.
+#
+# Listable: every program (they have no status of their own), and a fixture
+# that has not started yet (AC5.1.3). ``status = all`` lifts the second
+# condition so a shared link to a past game still resolves.
 EVENT_LISTABLE = """
-    (e.kind = 'program' AND e.status = 'ACTIVE')
-    OR (e.kind = 'fixture' AND e.status IN ('UPCOMING', 'PENDING')
-        AND (%(include_past)s OR e.starts_at > %(now)s))
+    (p.kind = 'program' OR %(include_past)s OR p.starts_at > %(now)s)
 """
 
+# The publisher's sport labels, and the first one that is also a name in our
+# sport vocabulary (so the events page and the venue search share a list).
+# The alias map covers the handful of AAA Play terms that name a sport the
+# facilities list spells differently; anything else is shown as published.
+SPORT_ALIASES: dict[str, str] = {
+    "football (soccer)": "soccer",
+    "afl": "australian rules football",
+    "tenpin bowling": "ten pin bowling",
+    "bowls": "lawn bowls",
+    "gym": "fitness / gymnasium workouts",
+    "general fitness": "fitness / gymnasium workouts",
+    "bike riding, bmx & cycling": "cycling",
+}
+
 EVENT_COLUMNS = """
-       e.event_id, e.source_id, e.kind::text AS kind, e.title, e.sport, e.sport_raw,
-       e.competition, e.season, e.grade, e.round, e.home_team, e.away_team,
-       e.description, e.organisation, e.status, e.starts_at, e.ends_at, e.timezone,
-       e.weekdays, e.time_of_day, e.price, e.age_ranges, e.access_needs,
-       e.external_url, e.registration_url,
-       e.venue_external_id, e.venue_name, e.venue_address, e.venue_suburb, e.venue_postcode,
-       ST_Y(e.venue_geom) AS venue_lat, ST_X(e.venue_geom) AS venue_lon,
-       e.venue_id, e.venue_match_basis, e.venue_match_distance_m,
-       e.publisher_updated_at, e.retrieved_at,
+       p.program_id AS event_id, p.source_id, p.kind::text AS kind, p.name AS title,
+       CASE WHEN p.kind = 'program' THEN 'ACTIVE'
+            WHEN p.starts_at > %(now)s THEN 'UPCOMING'
+            ELSE 'FINAL' END AS status,
+       p.source_url AS external_url, p.retrieved_at,
+       sp.labels AS sport_labels, sp.vocab AS sport_vocab,
+       p.description, o.name AS organisation,
+       p.starts_at, p.ends_at,
+       p.recurrence_weekdays AS weekdays, p.recurrence_time_of_day AS time_of_day,
+       CASE WHEN p.is_free THEN 'free' WHEN p.is_free IS FALSE THEN 'paid' END AS price,
+       p.age_ranges, needs.labels AS access_needs,
+       p.registration_url,
+       pv.program_venue_id AS venue_external_id, pv.name AS venue_name,
+       pv.full_address AS venue_address, pv.suburb_name AS venue_suburb,
+       pv.postcode AS venue_postcode,
+       ST_Y(coalesce(pv.geom, p.geom)) AS venue_lat, ST_X(coalesce(pv.geom, p.geom)) AS venue_lon,
+       pv.venue_id, pv.match_distance_m, pv.match_name_similarity,
+       p.publisher_last_updated AS publisher_updated_at,
        s.name AS source_name, s.attribution_text AS source_attribution,
        s.publisher_last_updated AS source_publisher_last_updated,
        s.stale_after_days AS source_stale_after_days
 """
+
+EVENT_FROM = """
+  FROM program p
+  JOIN source s ON s.source_id = p.source_id
+  LEFT JOIN program_venue pv ON pv.program_venue_id = p.program_venue_id
+  LEFT JOIN program_organisation o ON o.organisation_id = p.organisation_id
+  LEFT JOIN LATERAL (
+       SELECT array_agg(ps.sport_label ORDER BY ps.sport_label) AS labels,
+              (SELECT sv.sport FROM program_sport ps2
+                 JOIN sport_vocabulary sv
+                   ON lower(sv.sport) = lower(ps2.sport_label)
+                   OR lower(sv.sport) = coalesce(%(aliases)s::jsonb ->> lower(ps2.sport_label), '')
+                WHERE ps2.program_id = p.program_id
+                ORDER BY ps2.sport_label LIMIT 1) AS vocab
+         FROM program_sport ps
+        WHERE ps.program_id = p.program_id
+  ) sp ON true
+  LEFT JOIN LATERAL (
+       SELECT array_agg(n.access_need_label ORDER BY n.access_need_label) AS labels
+         FROM program_access_need n
+        WHERE n.program_id = p.program_id
+  ) needs ON true
+"""
+
+_ALIASES_JSON = json.dumps(SPORT_ALIASES)
 
 SQL_EVENTS = f"""
 WITH ref AS (
@@ -256,49 +309,55 @@ WITH ref AS (
            ELSE ST_SetSRID(ST_MakePoint(%(lon)s, %(lat)s), {SRID})::geography END AS g
 )
 SELECT {EVENT_COLUMNS},
-       CASE WHEN ref.g IS NULL OR e.venue_geom IS NULL THEN NULL
-            ELSE ST_Distance(e.venue_geom::geography, ref.g) END AS distance_m
-  FROM event e
-  JOIN source s ON s.source_id = e.source_id
+       CASE WHEN ref.g IS NULL THEN NULL
+            ELSE ST_Distance(coalesce(pv.geom, p.geom)::geography, ref.g) END AS distance_m
+  {EVENT_FROM}
  CROSS JOIN ref
- WHERE (%(status_all)s OR ({EVENT_LISTABLE}))
-   AND (e.kind = 'program'
-        OR (e.starts_at AT TIME ZONE e.timezone)::date BETWEEN %(date_from)s AND %(date_to)s)
+ WHERE (%(status_all)s OR {EVENT_LISTABLE})
+   AND (p.kind = 'program'
+        OR (p.starts_at AT TIME ZONE 'Australia/Melbourne')::date
+           BETWEEN %(date_from)s AND %(date_to)s)
    AND (%(sports)s::text[] IS NULL
-        OR lower(e.sport) = ANY(%(sports)s) OR lower(e.sport_raw) = ANY(%(sports)s))
-   AND (%(venue_id)s::text IS NULL OR e.venue_id = %(venue_id)s)
-   AND (ref.g IS NULL OR e.venue_geom IS NULL
-        OR ST_DWithin(e.venue_geom::geography, ref.g, %(within_m)s))
-   AND (%(weekdays)s::text[] IS NULL OR e.weekdays && %(weekdays)s)
-   AND (%(time_of_day)s::text[] IS NULL OR e.time_of_day && %(time_of_day)s)
-   AND (%(price)s::text IS NULL OR e.price = %(price)s)
- ORDER BY (e.kind = 'fixture') DESC, e.starts_at NULLS LAST, distance_m NULLS LAST, e.title
+        OR lower(sp.vocab) = ANY(%(sports)s)
+        OR EXISTS (SELECT 1 FROM unnest(sp.labels) AS l(label)
+                    WHERE lower(l.label) = ANY(%(sports)s)))
+   AND (%(venue_id)s::text IS NULL OR pv.venue_id = %(venue_id)s)
+   AND (ref.g IS NULL
+        OR ST_DWithin(coalesce(pv.geom, p.geom)::geography, ref.g, %(within_m)s))
+   AND (%(weekdays)s::text[] IS NULL OR p.recurrence_weekdays && %(weekdays)s)
+   AND (%(time_of_day)s::text[] IS NULL
+        OR EXISTS (SELECT 1 FROM unnest(p.recurrence_time_of_day) AS t(v)
+                    WHERE lower(replace(t.v, ' ', '_')) = ANY(%(time_of_day)s)))
+   AND (%(price)s::text IS NULL
+        OR (%(price)s = 'free' AND p.is_free) OR (%(price)s = 'paid' AND p.is_free IS FALSE))
+ ORDER BY (p.kind = 'fixture') DESC, p.starts_at NULLS LAST, distance_m NULLS LAST, p.name
  LIMIT %(limit)s
 """
 
 SQL_EVENT = f"""
 SELECT {EVENT_COLUMNS}, NULL::double precision AS distance_m
-  FROM event e
-  JOIN source s ON s.source_id = e.source_id
- WHERE e.event_id = %(id)s
+  {EVENT_FROM}
+ WHERE p.program_id = %(id)s
 """
 
 SQL_EVENT_SPORTS = f"""
-SELECT coalesce(e.sport, e.sport_raw) AS name, count(*) AS event_count
-  FROM event e
- WHERE ({EVENT_LISTABLE})
-   AND (e.kind = 'program'
-        OR (e.starts_at AT TIME ZONE e.timezone)::date BETWEEN %(date_from)s AND %(date_to)s)
-   AND coalesce(e.sport, e.sport_raw) IS NOT NULL
+SELECT coalesce(sp.vocab, sp.labels[1]) AS name, count(*) AS event_count
+  {EVENT_FROM}
+ WHERE {EVENT_LISTABLE}
+   AND (p.kind = 'program'
+        OR (p.starts_at AT TIME ZONE 'Australia/Melbourne')::date
+           BETWEEN %(date_from)s AND %(date_to)s)
+   AND coalesce(sp.vocab, sp.labels[1]) IS NOT NULL
  GROUP BY 1
  ORDER BY 1
 """
 
 SQL_UPCOMING_AT_VENUE = f"""
-SELECT count(*) AS n, min(e.starts_at) FILTER (WHERE e.kind = 'fixture') AS next_starts_at
-  FROM event e
- WHERE e.venue_id = %(venue_id)s
-   AND ({EVENT_LISTABLE})
+SELECT count(*) AS n, min(p.starts_at) FILTER (WHERE p.kind = 'fixture') AS next_starts_at
+  FROM program p
+  JOIN program_venue pv ON pv.program_venue_id = p.program_venue_id
+ WHERE pv.venue_id = %(venue_id)s
+   AND {EVENT_LISTABLE}
 """
 
 SQL_VENUES_BY_ID = f"""
@@ -405,30 +464,33 @@ def _facility(row: dict[str, Any]) -> FacilityRow:
     )
 
 
+def _slug(value: str) -> str:
+    return value.strip().lower().replace(" ", "_")
+
+
 def _event(row: dict[str, Any], venue: VenueRow | None) -> EventRow:
+    labels = tuple(row["sport_labels"] or ())
+    distance = _float(row["match_distance_m"])
+    similarity = _float(row["match_name_similarity"])
     return EventRow(
         event_id=row["event_id"],
         source_id=row["source_id"],
         kind=row["kind"],
         title=row["title"],
         status=row["status"],
-        external_url=row["external_url"],
+        external_url=row["external_url"] or "",
         retrieved_at=row["retrieved_at"],
-        sport=row["sport"],
-        sport_raw=row["sport_raw"],
-        competition=row["competition"],
-        season=row["season"],
-        grade=row["grade"],
-        round=row["round"],
-        home_team=row["home_team"],
-        away_team=row["away_team"],
+        sport=row["sport_vocab"],
+        sport_raw=labels[0] if labels else None,
         description=row["description"],
         organisation=row["organisation"],
         starts_at=_datetime(row["starts_at"]),
         ends_at=_datetime(row["ends_at"]),
-        timezone=row["timezone"] or "Australia/Melbourne",
+        timezone="Australia/Melbourne",
         weekdays=tuple(row["weekdays"] or ()),
-        time_of_day=tuple(row["time_of_day"] or ()),
+        # The loader stores the publisher's display labels ("After school");
+        # the API vocabulary is the slug ("after_school").
+        time_of_day=tuple(_slug(t) for t in (row["time_of_day"] or ())),
         price=row["price"],
         age_ranges=tuple(row["age_ranges"] or ()),
         access_needs=tuple(row["access_needs"] or ()),
@@ -440,9 +502,9 @@ def _event(row: dict[str, Any], venue: VenueRow | None) -> EventRow:
         venue_postcode=row["venue_postcode"],
         venue_lat=_float(row["venue_lat"]),
         venue_lon=_float(row["venue_lon"]),
-        venue_id=row["venue_id"],
-        venue_match_basis=row["venue_match_basis"] or "none",
-        venue_match_distance_m=_float(row["venue_match_distance_m"]),
+        venue_id=row["venue_id"] if venue is not None else None,
+        venue_match_basis=match_basis(distance, similarity) if venue is not None else "none",
+        venue_match_distance_m=distance if venue is not None else None,
         publisher_updated_at=_datetime(row["publisher_updated_at"]),
         source_name=row["source_name"],
         source_attribution=row["source_attribution"],
@@ -603,6 +665,7 @@ class PostgresVenueRepository:
             "time_of_day": list(filters.time_of_day) or None,
             "price": filters.price,
             "limit": filters.limit,
+            "aliases": _ALIASES_JSON,
         }
         with connection() as conn:
             rows = conn.execute(SQL_EVENTS, params).fetchall()
@@ -610,15 +673,22 @@ class PostgresVenueRepository:
         return [_event(r, venues.get(r["venue_id"])) for r in rows]
 
     def get_event(self, event_id: str) -> EventRow | None:
+        params = {"id": event_id, "now": datetime.now(UTC), "aliases": _ALIASES_JSON}
         with connection() as conn:
-            row = conn.execute(SQL_EVENT, {"id": event_id}).fetchone()
+            row = conn.execute(SQL_EVENT, params).fetchone()
             if row is None:
                 return None
             venues = self._venues_by_id(conn, [row["venue_id"]] if row["venue_id"] else [])
         return _event(row, venues.get(row["venue_id"]))
 
     def event_sports(self, date_from: date, date_to: date, now: datetime) -> list[EventSportRow]:
-        params = {"date_from": date_from, "date_to": date_to, "now": now, "include_past": False}
+        params = {
+            "date_from": date_from,
+            "date_to": date_to,
+            "now": now,
+            "include_past": False,
+            "aliases": _ALIASES_JSON,
+        }
         with connection() as conn:
             rows = conn.execute(SQL_EVENT_SPORTS, params).fetchall()
         return [EventSportRow(name=r["name"], event_count=int(r["event_count"])) for r in rows]
