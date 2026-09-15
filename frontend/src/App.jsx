@@ -4,6 +4,7 @@ import DirectionsPage from './pages/DirectionsPage'
 import HomePage from './pages/Home'
 import VenueDetailPage from './pages/VenueDetailPage'
 import Passwordgate from './pages/Passwordgate'
+import Events from './pages/Events'
 
 export default function App() {
   return (
@@ -15,6 +16,8 @@ export default function App() {
 
         {/* Venue search page */}
         <Route path="/venues" element={<HomePage />} />
+
+        <Route path="/events" element={<Events />} />
 
         <Route path="/venues/:id" element={<VenueDetailPage />} />
         <Route path="/venues/:id/directions" element={<DirectionsPage />} />

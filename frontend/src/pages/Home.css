@@ -621,6 +621,122 @@
   color: #66777a;
   line-height: 1.5;
 }
+.event-top,
+.event-venue {
+  flex-direction: column;
+}
+
+/* --------------------------------------------------------------------------
+   Event cards (Events page results)
+   -------------------------------------------------------------------------- */
+
+.event-card {
+  margin-top: 14px;
+  padding: 18px 20px;
+  background: #fff;
+  border: 1px solid #dde5e3;
+  border-radius: 14px;
+}
+
+.event-card:first-of-type {
+  margin-top: 0;
+}
+
+.event-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.event-teams {
+  margin: 0.5rem 0 0 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0c1c2d;
+}
+
+.event-meta {
+  margin: 4px 0 0 0;
+  font-size: 0.82rem;
+  color: #66777a;
+}
+
+.event-datetime {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: #14507a;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.event-venue {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eef1f0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.event-venue-name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1a2733;
+}
+
+.event-venue-address {
+  margin: 3px 0 0 0;
+  font-size: 0.82rem;
+  color: #66777a;
+}
+
+.event-access-summary {
+  margin: 10px 0 0 0;
+  font-size: 0.85rem;
+  color: #3f545e;
+  line-height: 1.5;
+}
+
+.event-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.event-action-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.event-action-link--primary {
+  background-color: #14507a;
+  color: #fff;
+}
+
+.event-action-link--primary:hover {
+  background-color: #0f3d5e;
+}
+
+.event-action-link--secondary {
+  background-color: #fff;
+  color: #14507a;
+  border: 1px solid #14507a;
+}
+
+.event-action-link--secondary:hover {
+  background-color: #eef5fa;
+}
 
 /* --------------------------------------------------------------------------
    Smaller screens
