@@ -14,17 +14,17 @@ variable "name_prefix" {
   description = <<-EOT
     Prefix for every resource name and Name tag.
 
-    Distinct from staging's so the two environments cannot collide — S3 bucket
+    Distinct from every other environment's, so they cannot collide — S3 bucket
     names in particular are unique across every AWS account on earth.
   EOT
   type        = string
-  default     = "sportable-iteration-1"
+  default     = "sportable-prod"
 }
 
 variable "domain_name" {
   description = "Apex domain for this iteration. www is added as a subject alternative name."
   type        = string
-  default     = "sportablemelbourne-iteration1.me"
+  default     = "sportablemelbourne.me"
 }
 
 variable "enable_custom_domain" {
@@ -59,20 +59,4 @@ variable "api_origin_domain" {
   EOT
   type        = string
   default     = "w9kjh1cuye.execute-api.ap-southeast-2.amazonaws.com"
-}
-
-variable "basic_auth_credentials" {
-  description = <<-EOT
-    "user:password" protecting this iteration site, or null to make it public.
-
-    Supplied from the environment, never committed:
-        export TF_VAR_basic_auth_credentials='user:password'
-
-    Record the same credentials in the Team Information document. The PGP
-    guidelines require "Link to each version of iteration build and its
-    credentials", and mentors run acceptance testing against this URL.
-  EOT
-  type        = string
-  default     = null
-  sensitive   = true
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import TopBar from "../components/TopBar";
 import { getConfig, getVenue } from "../api/venues";
 import FacilityCard from "../components/FacilityCard";
 import VenueHero from "../components/VenueHero";
@@ -313,36 +314,10 @@ function VenueDetailPage() {
     <div className="venue-page">
       {/* Slim top bar — logo on the left, back button on the right.
           This replaces the old tall sidebar that left empty space. */}
-      <header className="venue-topbar">
-        <div className="venue-topbar-inner">
-          <div className="venue-brand">
-            <svg
-              width="34"
-              height="34"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="11" cy="4" r="2" />
-              <path d="M11 8v6h5l3 6" />
-              <path d="M15.5 14a5.5 5.5 0 1 1-6-5.48" />
-            </svg>
-
-            <div>
-              <div className="venue-brand-name">SportAble</div>
-              <div className="venue-brand-tagline">Know more. Play more.</div>
-            </div>
-          </div>
-
-          <Link className="venue-back-link" to={venueDetailData.backTo}>
-            ‹ {venueDetailData.backLabel}
-          </Link>
-        </div>
-      </header>
+     <TopBar links={[
+  { to: "/venues", label: "Back to search results" },
+  { to: "/", label: "Home" },
+]} />
 
       {/* The venue's details, now using the full width of the page */}
       <main className="venue-content">

@@ -80,3 +80,30 @@ variable "acm_certificate_arn" {
   type        = string
   default     = null
 }
+
+variable "basic_auth_credentials" {
+  description = <<-EOT
+    "user:password" for HTTP basic auth at the edge, or null for a public site.
+
+    Set for an iteration environment that should not be publicly readable while
+    it is being marked; leave null for staging, which the team uses constantly.
+
+    NEVER hardcode this in a .tf file or commit it in tfvars. Supply it at apply
+    time from an environment variable:
+
+        export TF_VAR_basic_auth_credentials='user:password'
+
+    The value is base64-encoded into the CloudFront function, which is not a
+    secret store — anyone who can read the function can recover the password.
+    It keeps casual visitors out; it is not a security control, and the security
+    plan does not claim it as one.
+
+    IMPORTANT: mentors must be able to reach the build. If this is set, the
+    credentials belong in the Team Information document, which the PGP
+    guidelines already require ("Link to each version of iteration build and
+    its credentials").
+  EOT
+  type        = string
+  default     = null
+  sensitive   = true
+}

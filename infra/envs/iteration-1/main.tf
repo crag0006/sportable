@@ -33,4 +33,12 @@ module "static_site" {
   aliases = var.enable_custom_domain ? [var.domain_name, "www.${var.domain_name}"] : []
 
   acm_certificate_arn = var.enable_custom_domain ? aws_acm_certificate.site.arn : null
+
+  # The iteration site is kept private while it is being marked — a team
+  # decision. Supplied at apply time, never committed:
+  #     export TF_VAR_basic_auth_credentials='user:password'
+  #
+  # The credentials must also go in the Team Information document, or mentors
+  # cannot reach the build and the build component fails.
+  basic_auth_credentials = var.basic_auth_credentials
 }

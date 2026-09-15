@@ -33,6 +33,11 @@ on:
   # For re-publishing a submitted iteration without an empty commit — after a
   # cache problem, or to confirm the URL still serves after a DNS change.
   workflow_dispatch:
+    inputs:
+      skip_smoke_test:
+        description: "Skip the smoke test — the deploy will NOT be verified"
+        type: boolean
+        default: false
 
 # One release at a time. cancel-in-progress is false for the same reason as the
 # staging deploy: a cancelled upload can leave a bucket half old and half new.
@@ -166,16 +171,51 @@ jobs:
       #
       # The custom domain is checked in the next step, and reported rather than
       # enforced.
+      # BASIC_AUTH is the "user:password" protecting an iteration site, held as a
+      # repository secret. It is empty for a public environment, and curl's -u
+      # flag is then omitted entirely.
+      #
+      # Without this the smoke test receives 401 from the edge function and
+      # fails a deploy that actually succeeded — which is how a pipeline stops
+      # being read.
+      # SKIPPED WHEN `SKIP_SMOKE_TEST` IS SET
+      #
+      # Off by default, and it should stay that way. This test has caught two
+      # real failures in this project: a CloudFront error-response bug that
+      # turned API 404s into HTML and passed every pre-merge check, and the
+      # rollback drill it correctly failed. It is also the only automated thing
+      # that notices when the database is stopped and every search returns 500.
+      #
+      # Two ways to skip, both deliberate:
+      #   · Run the workflow manually and tick "Skip the smoke test"
+      #   · Set a repository VARIABLE (not a secret) SKIP_SMOKE_TEST to "true"
+      #     — this is what takes effect on an ordinary push to a release branch
+      #
+      # A skipped run publishes the bundle without verifying that anything
+      # serves. Check the URL by hand afterwards.
       - name: Smoke test
+        if: >-
+          github.event.inputs.skip_smoke_test != 'true' &&
+          vars.SKIP_SMOKE_TEST != 'true'
+        env:
+          BASIC_AUTH: ${{ secrets.ITERATION_BASIC_AUTH }}
         run: |
           set -euo pipefail
           URL="${{ steps.tf.outputs.cloudfront_url }}"
           echo "Testing $URL"
 
+          # An array, so an empty secret contributes no arguments at all rather
+          # than an empty string curl would try to parse as a credential.
+          AUTH=()
+          if [ -n "${BASIC_AUTH:-}" ]; then
+            AUTH=(-u "$BASIC_AUTH")
+            echo "Using basic auth (site is password protected)"
+          fi
+
           fail() { echo "::error::$1"; exit 1; }
 
           for attempt in 1 2 3 4 5; do
-            CODE=$(curl -s -o /tmp/root.html -w '%{http_code}' "$URL/") || CODE="unreachable"
+            CODE=$(curl -s "${AUTH[@]}" -o /tmp/root.html -w '%{http_code}' "$URL/") || CODE="unreachable"
             [ "$CODE" = "200" ] && break
             echo "attempt $attempt: HTTP $CODE — retrying in 5s"
             sleep 5
@@ -187,13 +227,13 @@ jobs:
 
           # A deep link must fall back to index.html rather than 404 — this is
           # what makes /venues/<id> survive a refresh.
-          CODE=$(curl -s -o /dev/null -w '%{http_code}' "$URL/venues/does-not-exist")
+          CODE=$(curl -s "${AUTH[@]}" -o /dev/null -w '%{http_code}' "$URL/venues/does-not-exist")
           [ "$CODE" = "200" ] || fail "SPA fallback returned HTTP $CODE"
 
           # The API is shared with staging and reached through this
           # distribution. If this fails the bundle is fine but the page will be
           # empty, which is worth knowing before a marker finds out.
-          CODE=$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/v1/health")
+          CODE=$(curl -s "${AUTH[@]}" -o /dev/null -w '%{http_code}' "$URL/api/v1/health")
           [ "$CODE" = "200" ] || fail "shared API not reachable through this distribution (HTTP $CODE)"
 
           echo "Smoke test passed."
@@ -203,8 +243,12 @@ jobs:
       # deploy that did everything asked of it.
       - name: Is the custom domain live?
         if: always()
+        env:
+          BASIC_AUTH: ${{ secrets.ITERATION_BASIC_AUTH }}
         run: |
           set -uo pipefail
+          AUTH=()
+          [ -n "${BASIC_AUTH:-}" ] && AUTH=(-u "$BASIC_AUTH")
           URL="${{ steps.tf.outputs.site_url }}"
           CF="${{ steps.tf.outputs.cloudfront_url }}"
 
@@ -218,7 +262,7 @@ jobs:
           # non-zero, so `|| echo 000` appends a second one and you get "000000"
           # — which matches no comparison and reports "resolved" for a host that
           # never resolved. Exit status is the unambiguous signal.
-          if CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$URL/"); then
+          if CODE=$(curl -s "${AUTH[@]}" -o /dev/null -w '%{http_code}' --max-time 20 "$URL/"); then
             if [ "$CODE" = "200" ]; then
               echo "::notice::$URL is live."
             else
@@ -243,4 +287,9 @@ jobs:
             echo "| Environment | \`${{ steps.env.outputs.dir }}\` |"
             echo "| Bucket | \`${{ steps.tf.outputs.site_bucket }}\` |"
             echo "| Commit | \`${{ github.sha }}\` |"
+            if [ "${{ github.event.inputs.skip_smoke_test }}" = "true" ] || [ "${{ vars.SKIP_SMOKE_TEST }}" = "true" ]; then
+              echo "| Verified | **No — smoke test skipped** |"
+            else
+              echo "| Verified | Smoke test passed |"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

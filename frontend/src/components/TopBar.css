@@ -1,0 +1,68 @@
+/* Dark bar at the top of every page */
+.site-topbar {
+  position: relative;
+  background: linear-gradient(
+      120deg,
+      rgba(12, 28, 45, 0.92),
+      rgba(12, 28, 45, 0.86)
+    ),
+    url("/images/image.jpg") center center / cover no-repeat;
+  padding: 1rem 2rem;
+}
+
+.site-topbar-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.site-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: #fff;
+  text-decoration: none;
+}
+
+.site-brand-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.site-brand-tagline {
+  font-size: 0.75rem;
+  color: #b9c6d3;
+}
+
+.site-nav {
+  display: flex;
+  gap: 8px;
+}
+
+/* Every button in the top right corner looks like this, on every page */
+.site-nav-link {
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.site-nav-link:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+@media (max-width: 640px) {
+  .site-topbar-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}

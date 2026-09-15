@@ -1,13 +1,31 @@
 import { MapContainer, TileLayer, Marker, Polyline, CircleMarker, Popup } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { FacilityIconGlyph } from './Icons'
 
-// Colours used for the small dots that mark nearby facilities on the map.
-const TYPE_COLOR = {
-  toilet: '#0f4f59',
-  parking: '#2f7d6b',
-  stop: '#8a8a8a',
+// Emoji used to mark nearby facilities on the map.
+const TYPE_EMOJI = {
+  toilet: '🚻',
+  parking: '🅿',
+  stop: '🚋',
 }
+
+function createFacilityIcon(type) {
+  const emoji = TYPE_EMOJI[type] || '📍'
+  return L.divIcon({
+    className: 'facility-marker-icon',
+    html: `<div style="background:#e8f1f8;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.35);">${emoji}</div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+  })
+}
+
+const facilityIcons = {
+  toilet: createFacilityIcon('toilet'),
+  parking: createFacilityIcon('parking'),
+  stop: createFacilityIcon('stop'),
+}
+
 
 // Builds a simple round marker with a letter in it (S for start, V for venue),
 // so we don't need to fight with Leaflet's default marker image files.
@@ -56,30 +74,26 @@ export default function RouteMap({ corridor, facilities }) {
         </Marker>
 
         {facilities.map((facility) => (
-          <CircleMarker
-            key={facility.id}
-            center={[facility.lat, facility.lon]}
-            radius={6}
-            pathOptions={{
-              color: TYPE_COLOR[facility.type] || '#666',
-              fillColor: TYPE_COLOR[facility.type] || '#666',
-              fillOpacity: 0.85,
-            }}
-          >
-            <Popup>
-              <strong>{facility.title}</strong>
-              <br />
-              {facility.pillText}
-            </Popup>
-          </CircleMarker>
-        ))}
+  <Marker
+    key={facility.id}
+    position={[facility.lat, facility.lon]}
+    icon={facilityIcons[facility.type] || facilityIcons.toilet}
+  >
+    <Popup>
+      <strong>{facility.title}</strong>
+      <br />
+      {facility.pillText}
+    </Popup>
+  </Marker>
+))}
+
       </MapContainer>
 
-      <div className="map-legend">
-        <span><i style={{ background: TYPE_COLOR.toilet }} /> Toilets</span>
-        <span><i style={{ background: TYPE_COLOR.parking }} /> Parking</span>
-        <span><i style={{ background: TYPE_COLOR.stop }} /> Transport stops</span>
-      </div>
+<div className="map-legend">
+  <span><span className="legend-icon">🚻</span> Toilets</span>
+  <span><span className="legend-icon">🅿</span> Parking</span>
+  <span><span className="legend-icon">🚋</span> Transport stops</span>
+</div>
     </div>
   )
 }
