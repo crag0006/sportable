@@ -43,6 +43,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote_plus
 
 import boto3
 import pandas as pd
@@ -183,8 +184,14 @@ def load_register() -> dict[str, dict[str, Any]]:
 
 
 def parse_key(key: str) -> tuple[str, str, str]:
-    """Split '<prefix>/dt=<date>/<filename>' into its three parts."""
-    parts = key.split("/")
+    """Split '<prefix>/dt=<date>/<filename>' into its three parts.
+
+    The key is decoded first. S3 event notifications URL-encode the object key,
+    so the '=' of the partition arrives as '%3D' and the key in the event is not
+    the key in the bucket. Decoding an already-decoded key is a no-op, so the
+    CLI runner, which passes the key verbatim, is unaffected.
+    """
+    parts = unquote_plus(key).split("/")
 
     if len(parts) != 3 or not parts[1].startswith("dt="):
         raise ValueError(f"Unexpected raw key layout: {key}")
@@ -392,7 +399,11 @@ def handle_record(
     record: dict[str, Any],
     register: dict[str, dict[str, Any]],
 ) -> dict[str, Any] | None:
-    key = record["s3"]["object"]["key"]
+    # Decoded here, at the edge, because everything below treats this as the
+    # key in the bucket: it is downloaded with it and it is written to
+    # load_run.raw_object_key as provenance. An event key is URL-encoded, so
+    # 'dt=' arrives as 'dt%3D' and both of those uses would be wrong.
+    key = unquote_plus(record["s3"]["object"]["key"])
 
     # Manifests are written on every run, including runs that landed nothing.
     # They are provenance, not payload, and there is no transformer for them.
