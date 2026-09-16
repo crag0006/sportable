@@ -40,14 +40,32 @@ import boto3
 import psycopg
 from psycopg.rows import dict_row
 
-from derive import place_geography, status_builder, venue_match
+from derive import run
 
 LOG = logging.getLogger("sportable.derive")
 LOG.setLevel(logging.INFO)
 
-SSM_DB_URL_PARAM = os.environ["SSM_DB_URL_PARAM"]
+# Passed in by Terraform, read from SSM on the CI runner at apply time. NOT
+# read from SSM here: this function has no route to the SSM API from its
+# private subnet, and the call hangs rather than failing. Same trade, and the
+# same reasoning, as the API's DATABASE_URL — see T5-config-observability.
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+
+# The fallback for a hand-run from a laptop or the bastion, where there IS a
+# route to SSM. Empty in the deployed function.
+SSM_DB_URL_PARAM = os.environ.get("SSM_DB_URL_PARAM", "")
 
 ssm = boto3.client("ssm")
+
+
+def database_url() -> str:
+    if DATABASE_URL:
+        return DATABASE_URL
+
+    if not SSM_DB_URL_PARAM:
+        raise RuntimeError("Neither DATABASE_URL nor SSM_DB_URL_PARAM is set.")
+
+    return str(ssm.get_parameter(Name=SSM_DB_URL_PARAM, WithDecryption=True)["Parameter"]["Value"])
 
 
 def log(event: str, **fields: Any) -> None:
@@ -73,61 +91,7 @@ def latest_load_run(conn) -> int:
 
 
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
-    dsn = ssm.get_parameter(Name=SSM_DB_URL_PARAM, WithDecryption=True)["Parameter"]["Value"]
-
-    with psycopg.connect(dsn, row_factory=dict_row) as conn:
+    with psycopg.connect(database_url(), row_factory=dict_row) as conn:
         load_run_id = event.get("load_run_id") or latest_load_run(conn)
 
-        log("DERIVE_STARTED", load_run_id=load_run_id)
-
-        outcome = status_builder.build(conn, load_run_id=load_run_id)
-
-        log(
-            "DERIVE_COMPLETED",
-            load_run_id=load_run_id,
-            venues=outcome.venues,
-            status_rows=outcome.status_rows,
-            chain_rows=outcome.chain_rows,
-            by_kind=outcome.by_kind,
-        )
-
-        # Last, and inside the same connection. The materialised views are what
-        # the API actually serves; until this runs, the site shows the previous
-        # load's data no matter how much new data is in the base tables. The
-        # refresh is concurrent so the site does not go blank while it runs.
-        status_builder.refresh_read_model(conn)
-
-        log("READ_MODEL_REFRESHED", load_run_id=load_run_id)
-
-        # Committed before the place stage so the statuses and the read model
-        # are durable on their own. A DS-09 stage that fails is a failure worth
-        # seeing, but it is not a reason to lose a venue derive that succeeded.
-        conn.commit()
-
-        matched = venue_match.match_places(conn)
-
-        log("PLACES_MATCHED", load_run_id=load_run_id, by_basis=matched)
-
-        # build() derives the suburb and postcode and refreshes
-        # place_vocabulary, which is why that view is not in
-        # status_builder.READ_MODEL_VIEWS: it is refreshed here, after the rows
-        # it reads have been written, rather than before.
-        geography = place_geography.build(conn)
-
-        log(
-            "PLACE_GEOGRAPHY_DERIVED",
-            load_run_id=load_run_id,
-            rows_derived=geography.rows_derived,
-            places=geography.places,
-            suburb_derived=geography.suburb_derived,
-            postcode_derived=geography.postcode_derived,
-        )
-
-    return {
-        "load_run_id": load_run_id,
-        "venues": outcome.venues,
-        "status_rows": outcome.status_rows,
-        "chain_rows": outcome.chain_rows,
-        "places_matched": matched,
-        "places_geocoded": geography.rows_derived,
-    }
+        return run.derive_all(conn, load_run_id=load_run_id, log=log)

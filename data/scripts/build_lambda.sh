@@ -111,6 +111,17 @@ cp "$DATA_DIR/ingestion/extractors/aaaplay.py" "$BUILD_DIR/load/ingestion/extrac
 mkdir -p "$BUILD_DIR/load/sources"
 cp "$DATA_DIR"/sources/*.yaml "$BUILD_DIR/load/sources/"
 
+# The derive stage, which the loader now runs itself rather than invoking as a
+# second function: from inside this subnet there is no route to the Lambda API,
+# so the invoke hung until the timeout. See derive/run.py. These modules import
+# nothing but psycopg, which this package already installs.
+mkdir -p "$BUILD_DIR/load/derive"
+touch "$BUILD_DIR/load/derive/__init__.py"
+cp "$DATA_DIR/derive/run.py" "$BUILD_DIR/load/derive/"
+cp "$DATA_DIR/derive/status_builder.py" "$BUILD_DIR/load/derive/"
+cp "$DATA_DIR/derive/venue_match.py" "$BUILD_DIR/load/derive/"
+cp "$DATA_DIR/derive/place_geography.py" "$BUILD_DIR/load/derive/"
+
 pip_install "$BUILD_DIR/load" \
   "psycopg[binary]==3.2.3" \
   "pandas==2.2.3" \
@@ -131,6 +142,7 @@ mkdir -p "$BUILD_DIR/derive/derive"
 # build or the deploy, it fails at cold start inside the VPC, which is where it
 # went unnoticed for a week. tests/test_derive_handler.py reads this list
 # against the handler's imports so the two cannot drift apart again.
+cp "$DATA_DIR/derive/run.py" "$BUILD_DIR/derive/derive/"
 cp "$DATA_DIR/derive/status_builder.py" "$BUILD_DIR/derive/derive/"
 cp "$DATA_DIR/derive/venue_match.py" "$BUILD_DIR/derive/derive/"
 cp "$DATA_DIR/derive/place_geography.py" "$BUILD_DIR/derive/derive/"

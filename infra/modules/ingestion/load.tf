@@ -12,6 +12,12 @@
 # nothing on a quiet week without anyone arranging for it to do nothing.
 # ==============================================================================
 
+# The connection string, read on the CI runner at apply time. See the
+# environment blocks below for why it is not read at runtime.
+data "aws_ssm_parameter" "db_url" {
+  name = var.ssm_db_url_parameter
+}
+
 data "archive_file" "load" {
   type        = "zip"
   source_dir  = var.load_source_dir
@@ -23,8 +29,8 @@ resource "aws_lambda_function" "load" {
   #   signing step in the pipeline. Disproportionate for a nine-week project.
   # checkov:skip=CKV_AWS_173:Environment variables are encrypted at rest with the
   #   AWS-managed Lambda key. A customer managed key adds ~USD $1/month and does
-  #   not change who can read the configuration. No secret is stored here — the
-  #   database URL is an SSM parameter NAME, resolved at runtime.
+  #   not change who can read the configuration. The database URL IS here, as a
+  #   value rather than a parameter name: see the environment block below.
   # checkov:skip=CKV_AWS_115:Reserved concurrency cannot be set on this account.
   #   Its total Lambda concurrency limit is 10 and AWS rejects a reservation
   #   against a limit that low. See the api module for the same constraint.
@@ -77,17 +83,18 @@ resource "aws_lambda_function" "load" {
       # See the block comment in s3.tf.
       QUARANTINE_BUCKET = aws_s3_bucket.quarantine.id
 
-      # The parameter NAME. The function resolves it at runtime through the SSM
-      # API, so the connection string never enters Terraform state, a plan
-      # output or a CI log.
-      SSM_DB_URL_PARAM = var.ssm_db_url_parameter
+      # Read from SSM HERE, on the runner, and passed in. It was the parameter
+      # NAME until the loader timed out reaching the SSM API: these functions
+      # sit in a private subnet whose only route out is the S3 gateway
+      # endpoint, so the call hangs rather than failing. An SSM interface
+      # endpoint costs ~USD $7.30/month per AZ, which T5 already refused for
+      # the API's own DATABASE_URL. Same trade, same answer.
+      #
+      # The value is in Terraform state either way: the RDS module generates
+      # the password, so state is already sensitive and already encrypted.
+      DATABASE_URL = data.aws_ssm_parameter.db_url.value
 
       REGISTER_DIR = "/var/task/sources"
-
-      # The loader invokes the status builder asynchronously once a load has
-      # committed. Passed as a name rather than looked up at runtime so the
-      # dependency is visible in the plan.
-      DERIVE_FUNCTION = "${var.name_prefix}-status-builder"
     }
   }
 
@@ -176,8 +183,8 @@ resource "aws_lambda_function" "derive" {
   #   signing step in the pipeline. Disproportionate for a nine-week project.
   # checkov:skip=CKV_AWS_173:Environment variables are encrypted at rest with the
   #   AWS-managed Lambda key. A customer managed key adds ~USD $1/month and does
-  #   not change who can read the configuration. No secret is stored here — the
-  #   database URL is an SSM parameter NAME, resolved at runtime.
+  #   not change who can read the configuration. The database URL IS here, as a
+  #   value rather than a parameter name: see the environment block below.
   # checkov:skip=CKV_AWS_115:Reserved concurrency cannot be set on this account.
   #   Its total Lambda concurrency limit is 10 and AWS rejects a reservation
   #   against a limit that low. See the api module for the same constraint.
@@ -216,7 +223,9 @@ resource "aws_lambda_function" "derive" {
 
   environment {
     variables = {
-      SSM_DB_URL_PARAM = var.ssm_db_url_parameter
+      # As above: resolved at apply time, because this function cannot reach
+      # the SSM API from its subnet either.
+      DATABASE_URL = data.aws_ssm_parameter.db_url.value
     }
   }
 
