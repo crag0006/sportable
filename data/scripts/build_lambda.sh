@@ -125,7 +125,15 @@ pip_install "$BUILD_DIR/load" \
 echo "==> derive"
 cp "$DATA_DIR/derive/handler.py" "$BUILD_DIR/derive/"
 mkdir -p "$BUILD_DIR/derive/derive"
+
+# Every module handler.py imports, not only the status builder. venue_match and
+# place_geography are the DS-09 place stage; leaving them out does not fail the
+# build or the deploy, it fails at cold start inside the VPC, which is where it
+# went unnoticed for a week. tests/test_derive_handler.py reads this list
+# against the handler's imports so the two cannot drift apart again.
 cp "$DATA_DIR/derive/status_builder.py" "$BUILD_DIR/derive/derive/"
+cp "$DATA_DIR/derive/venue_match.py" "$BUILD_DIR/derive/derive/"
+cp "$DATA_DIR/derive/place_geography.py" "$BUILD_DIR/derive/derive/"
 touch "$BUILD_DIR/derive/derive/__init__.py"
 
 pip_install "$BUILD_DIR/derive" "psycopg[binary]==3.2.3"
