@@ -390,11 +390,19 @@ function Events() {
       />
 
       <main className="search-content">
-        <div className="search-banner">
-          <div className="search-banner-overlay">
-            <p className="search-banner-text">
-             No more maybes — every step, mapped out.
-            </p>
+        
+                <div className="search-banner-wrap">
+          <div className="page-kicker">
+            <span className="page-kicker-icon" aria-hidden="true">📅</span>
+            Events
+          </div>
+
+          <div className="search-banner">
+            <div className="search-banner-overlay">
+              <p className="search-banner-text">
+               No more maybes — every step, mapped out.
+              </p>
+            </div>
           </div>
         </div>
 
