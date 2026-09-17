@@ -214,7 +214,7 @@ function EventCard({ event }) {
         )}
 
         {!venueHref && !directionsHref && (
-          <p className="field-hint">
+          <p className="venue-unavailable-note">
             Venue details not available for this event.
           </p>
         )}
