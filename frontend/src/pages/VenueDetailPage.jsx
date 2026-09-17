@@ -4,6 +4,7 @@ import TopBar from "../components/TopBar";
 import { getConfig, getVenue } from "../api/venues";
 import FacilityCard from "../components/FacilityCard";
 import VenueHero from "../components/VenueHero";
+import ReadAloud from "../components/ReadAloud";
 import { FACILITY_INFO, VENUES as HOME_VENUES } from "../data/homepageVenues";
 import { venueFacilities, venueDetailData } from "../data/venueData";
 
@@ -246,6 +247,36 @@ function buildFallbackHero(venue) {
   };
 }
 
+// Builds the short spoken summary for Read Aloud (AC3.3.1) — the venue name
+// and address, the summary panels already shown at the top of the page, and
+// a one-line rundown of each facility. Deliberately short: this reads the
+// important accessibility facts, not the whole page.
+function buildReadAloudSummary(heroData, facilities) {
+  const sentences = [];
+
+  if (heroData?.title) {
+    sentences.push(`${heroData.title}.`);
+  }
+
+  if (heroData?.address) {
+    sentences.push(`${heroData.address}.`);
+  }
+
+  (heroData?.panels ?? []).forEach((panel) => {
+    if (panel.body) {
+      sentences.push(`${panel.label}: ${panel.body}`);
+    }
+  });
+
+  facilities.forEach((facility) => {
+    if (facility.title && facility.pillText) {
+      sentences.push(`${facility.title}: ${facility.pillText}.`);
+    }
+  });
+
+  return sentences;
+}
+
 function VenueDetailPage() {
   // Reads the venue id straight out of the web address.
   const { id } = useParams();
@@ -316,6 +347,11 @@ function VenueDetailPage() {
     return buildFacilityCards(displayVenue, config?.default_distance_m ?? 500);
   }, [config, displayVenue]);
 
+  const readAloudSummary = useMemo(
+    () => buildReadAloudSummary(heroData, facilities),
+    [heroData, facilities]
+  );
+
   return (
     <div className="venue-page">
       {/* Slim top bar — logo on the left, back button on the right.
@@ -334,6 +370,10 @@ function VenueDetailPage() {
     </div>
   </div>
         <VenueHero hero={heroData} venueId={id} />
+
+        <section className="section-card">
+          <ReadAloud summary={readAloudSummary} />
+        </section>
 
         {error && !fallbackVenue && (
           <section className="section-card">
