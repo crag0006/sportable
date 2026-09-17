@@ -69,7 +69,16 @@ function SavedEvents() {
               Find an event and select "Save" on its card to add it here.
               Saved events are only kept for this visit.
             </p>
-            <Link to="/events" className="search-button saved-events-browse-link">
+            <Link
+              to="/events"
+              className="search-button saved-events-browse-link"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                textDecoration: "none",
+              }}
+            >
               Browse events
             </Link>
           </section>
