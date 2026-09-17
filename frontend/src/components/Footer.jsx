@@ -20,7 +20,7 @@ export default function Footer() {
 
           {/* Quick links */}
           <div className="footer-col">
-            <h3 className="footer-heading">Explore</h3>
+            <h2 className="footer-heading">Explore</h2>
             <ul className="footer-links">
               <li><Link to="/">Home</Link></li>
               <li><Link to="/venues">Venue search</Link></li>
@@ -30,7 +30,7 @@ export default function Footer() {
 
           {/* Data & sources */}
           <div className="footer-col">
-            <h3 className="footer-heading">Data &amp; sources</h3>
+            <h2 className="footer-heading">Data &amp; sources</h2>
             <p className="footer-text">
               Facility information is drawn from the National Public Toilet
               Map, the Sport and Recreation Victoria facilities list, and
@@ -41,9 +41,9 @@ export default function Footer() {
 
           {/* About / legal */}
           <div className="footer-col">
-            <h3 className="footer-heading">About this project</h3>
+            <h2 className="footer-heading">About this project</h2>
             <ul className="footer-links">
-              <li>Built for FIT5120 — IT Project, Monash University</li>              
+              <li>Built for FIT5120 — IT Project, Monash University</li>
             </ul>
           </div>
         </div>

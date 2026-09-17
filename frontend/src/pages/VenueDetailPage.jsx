@@ -304,7 +304,7 @@ function VenueDetailPage() {
     return {
       eyebrow: "Venue detail",
       title: venue.name,
-      address: formatAddress(venue),      
+      address: formatAddress(venue),
       tags: [...(venue.sports ?? []), venue.surface, venue.lga].filter(Boolean),
       panels: buildSummary(venue),
     };
@@ -341,7 +341,7 @@ function VenueDetailPage() {
           <section className="section-card">
             <div className="section-head">
               <div>
-                <h3>Venue information unavailable</h3>
+                <h2>Venue information unavailable</h2>
               </div>
             </div>
             <p>{error}</p>
@@ -352,7 +352,7 @@ function VenueDetailPage() {
           <section className="section-card">
             <div className="section-head">
               <div>
-                <h3>{venueDetailData.facilitiesSectionTitle}</h3>
+                <h2>{venueDetailData.facilitiesSectionTitle}</h2>
               </div>
             </div>
 
@@ -367,7 +367,7 @@ function VenueDetailPage() {
     some information on this page may be incomplete */}
 {facilities.length > 0 && (
   <section className="disclaimer-card">
-    <h3>Always double-check with the venue</h3>
+    <h2>Always double-check with the venue</h2>
     <p>
       Accessibility details shown here may be incomplete or out of date.
       For more clarification and further information, please contact
