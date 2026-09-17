@@ -19,7 +19,7 @@ function getSavedSearch() {
     const saved = sessionStorage.getItem(STORAGE_KEY);
     if (saved) return JSON.parse(saved);
   } catch {
-   
+
   }
   return null;
 }
@@ -197,7 +197,7 @@ function EventCard({ event }) {
 
       <div className="event-actions">
         {venueHref && (
-          
+
            <a className="event-action-link event-action-link--secondary"
             href={venueHref}>
             View venue
@@ -330,7 +330,7 @@ function Events() {
           })
         );
       } catch {
-       
+
       }
     } catch (error) {
       setSearchError(
@@ -355,7 +355,7 @@ function Events() {
 
     try {
       sessionStorage.removeItem(STORAGE_KEY);
-    } catch {      
+    } catch {
     }
   }
 
@@ -380,6 +380,25 @@ function Events() {
     return text;
   }
 
+  // Builds the "no matching events" sentence ourselves instead of trusting
+  // results.emptyMessage as-is — the API's empty_message bakes in its own
+  // default date window even when the user never picked dates, which made
+  // this message claim a date range that was never actually searched for.
+  function buildEmptyMessage() {
+    if (!results) return "";
+
+    let message = `No ${results.searchedSport} events found near ${results.searchedPlace}`;
+
+    const dateRangeText = buildDateRangeText();
+    if (dateRangeText) {
+      message += ` between ${results.searchedDateFrom} and ${results.searchedDateTo}`;
+    }
+
+    message += ". Try a wider date range, remove a filter, or try a nearby suburb.";
+
+    return message;
+  }
+
   return (
     <div className="search-page">
       <TopBar
@@ -390,7 +409,7 @@ function Events() {
       />
 
       <main className="search-content">
-        
+
                 <div className="search-banner-wrap">
           <div className="page-kicker">
             <span className="page-kicker-icon" aria-hidden="true">📅</span>
@@ -543,7 +562,7 @@ function Events() {
                     className={dateFrom ? "input" : "input input-date-empty"}
                     value={dateFrom}
                     onChange={(event) => setDateFrom(event.target.value)}
-                  />                  
+                  />
                 </div>
 
                 <div className="field">
@@ -602,7 +621,7 @@ function Events() {
               {results.events.length === 0 && (
                 <div className="empty-card">
                   <h3>No matching events</h3>
-                  <p>{results.emptyMessage || "Try a wider date range or a different suburb."}</p>
+                  <p>{buildEmptyMessage()}</p>
                 </div>
               )}
 
