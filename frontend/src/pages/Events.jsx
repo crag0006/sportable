@@ -225,6 +225,15 @@ function EventCard({ event }) {
           onClick={handleToggleSave}
           aria-pressed={isSaved}
           aria-label={isSaved ? `Unsave ${eventTitle}` : `Save ${eventTitle}`}
+          style={{
+            appearance: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            font: "inherit",
+            lineHeight: "inherit",
+            boxSizing: "border-box",
+            cursor: "pointer",
+          }}
         >
           <span aria-hidden="true">{isSaved ? "★" : "☆"}</span>{" "}
           {isSaved ? "Saved" : "Save"}
