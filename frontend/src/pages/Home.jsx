@@ -2,12 +2,11 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import VenueCard, { FACILITY_INFO } from "../components/SearchVenue";
+import ReadAloud from "../components/ReadAloud";
 import "./Home.css";
 import { getSports, getSuburbs, getConfig, searchVenues } from "../api/venues";
 
-// Reads whatever search we last saved, so if someone leaves this page
-// (eg to look at one venue) and comes back, they see the same results
-// instead of a blank form. Returns null if nothing was saved yet.
+
 function getSavedSearch() {
   try {
     const saved = sessionStorage.getItem("sportable-last-search");
@@ -315,6 +314,39 @@ function Home() {
     return text;
   }
 
+  // Builds the short spoken summary for Read Aloud (AC3.3.1) — what was
+  // searched, how many venues matched, and a pointer to the top result.
+  // Deliberately short, not a read-through of every card.
+  function buildReadAloudSummary() {
+    if (!results) {
+      return [];
+    }
+
+    const sentences = [`${buildSummaryText()}.`];
+
+    const countText =
+      results.matched.length === results.total
+        ? `${results.total} venues found.`
+        : `${results.matched.length} of ${results.total} venues found.`;
+    sentences.push(countText);
+
+    if (results.matched.length === 0) {
+      sentences.push("Try removing an amenity or choosing a bigger distance.");
+      return sentences;
+    }
+
+    const firstVenue = results.matched[0];
+    sentences.push(`Top result: ${firstVenue.name}.`);
+
+    if (results.undocumented.length > 0) {
+      sentences.push(
+        `${results.undocumented.length} more venues matched but have no published information for the facilities you selected.`
+      );
+    }
+
+    return sentences;
+  }
+
   return (
     <div className="search-page">
       {/* Top bar, the same one used on the venue detail page */}
@@ -607,6 +639,8 @@ function Home() {
             </section>
           ) : (
             <div className="results">
+              <ReadAloud summary={buildReadAloudSummary()} />
+
               <div className="results-heading">
                 <div>
                   <h2>

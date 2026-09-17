@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { getCorridor, getVenue } from '../api/venues'
 import RouteMap from '../components/RouteMap'
 import FacilityCard from '../components/FacilityCard'
+import ReadAloud from '../components/ReadAloud'
 
 const PAGE_SIZE = 6
 
@@ -57,6 +58,29 @@ function formatFacilityDescription(facility, key) {
   }
 
   return parts.length > 0 ? parts.join(' · ') : 'No further detail published for this facility.'
+}
+
+// Builds the short spoken summary for Read Aloud (AC3.3.1) — the venue name,
+// what's nearby, and the corridor disclaimer. Deliberately short: this is a
+// summary, not a transcript of the whole page.
+function buildReadAloudSummary(venue, corridor) {
+  if (!corridor) return []
+
+  const sentences = [`Getting to ${venue?.name || 'this venue'}.`]
+
+  corridor.types.forEach((t) => {
+    if (t.status === 'found') {
+      sentences.push(`${t.count} ${t.label} nearby.`)
+    } else {
+      sentences.push(`No data recorded for ${t.label}.`)
+    }
+  })
+
+  sentences.push(
+    'This is a straight-line corridor, not a walking route. No dataset confirms the path between these points is step-free.',
+  )
+
+  return sentences
 }
 
 // Turns the raw corridor facilities into the shape FacilityCard already knows how to render,
@@ -146,6 +170,11 @@ export default function DirectionsPage() {
 
   const visibleFacilities = facilityCards.slice(0, visibleCount)
 
+  const readAloudSummary = useMemo(
+    () => buildReadAloudSummary(venue, corridor),
+    [venue, corridor],
+  )
+
   return (
     <div className="venue-page">
       <header className="venue-topbar">
@@ -210,6 +239,10 @@ export default function DirectionsPage() {
 
         {corridor && (
           <>
+            <section className="section-card">
+              <ReadAloud summary={readAloudSummary} />
+            </section>
+
             <section className="section-card">
               <div className="section-head">
                 <div><h3>What's nearby</h3></div>

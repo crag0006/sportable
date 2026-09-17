@@ -7,8 +7,6 @@ import VenueHero from "../components/VenueHero";
 import { FACILITY_INFO, VENUES as HOME_VENUES } from "../data/homepageVenues";
 import { venueFacilities, venueDetailData } from "../data/venueData";
 
-// This page shows all the details for ONE venue — the page you land on
-// after clicking "View venue" on a search result card.
 
 // Each amenity (toilet, parking, transport stop, change facility) needs
 // a small icon next to it. This says which icon to use for each one.
