@@ -324,12 +324,18 @@ function Home() {
 ]} />
 
       <main className="search-content">
-        {/* Photo banner, matching the venue detail page */}
-        <div className="search-banner">
-          <div className="search-banner-overlay">
-            <p className="search-banner-text">
-              No more maybes — every step, mapped out.
-            </p>
+                <div className="search-banner-wrap">
+          <div className="page-kicker">
+            <span className="page-kicker-icon" aria-hidden="true">🏟</span>
+            Venue search
+          </div>
+
+          <div className="search-banner">
+            <div className="search-banner-overlay">
+              <p className="search-banner-text">
+                No more maybes — every step, mapped out.
+              </p>
+            </div>
           </div>
         </div>
 
