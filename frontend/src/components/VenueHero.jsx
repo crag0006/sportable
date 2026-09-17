@@ -7,7 +7,7 @@ export default function VenueHero({ hero, venueId }) {
 
       <div className="hero-top">
         <div className="hero-copy-main">
-          <h1>{hero.title}</h1>
+          <h2>{hero.title}</h2>
           <p>{hero.address}</p>
         </div>
 

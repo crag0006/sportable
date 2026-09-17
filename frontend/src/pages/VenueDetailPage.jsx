@@ -341,7 +341,7 @@ function VenueDetailPage() {
           <section className="section-card">
             <div className="section-head">
               <div>
-                <h2>Venue information unavailable</h2>
+                <h3>Venue information unavailable</h3>
               </div>
             </div>
             <p>{error}</p>
@@ -352,7 +352,7 @@ function VenueDetailPage() {
           <section className="section-card">
             <div className="section-head">
               <div>
-                <h2>{venueDetailData.facilitiesSectionTitle}</h2>
+                <h3>{venueDetailData.facilitiesSectionTitle}</h3>
               </div>
             </div>
 
@@ -367,7 +367,7 @@ function VenueDetailPage() {
     some information on this page may be incomplete */}
 {facilities.length > 0 && (
   <section className="disclaimer-card">
-    <h2>Always double-check with the venue</h2>
+    <h3>Always double-check with the venue</h3>
     <p>
       Accessibility details shown here may be incomplete or out of date.
       For more clarification and further information, please contact
