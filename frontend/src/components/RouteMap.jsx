@@ -12,6 +12,17 @@ const TYPE_INFO = {
   change: { emoji: '♿', label: 'Change facilities' },
 }
 
+// Your API (see API_CONTRACT.md §2/§10) sends facility.type as the long DB
+// enum value, not the short keys above — the same mapping Events.jsx already
+// needed via EVENT_FACILITY_TYPE_TO_KEY. Without this, facility.type never
+// matches a TYPE_INFO key and every marker falls back to the generic pin.
+const API_TYPE_TO_KEY = {
+  accessible_toilet: 'toilet',
+  accessible_parking: 'parking',
+  accessible_transport_stop: 'stop',
+  accessible_change_facility: 'change',
+}
+
 // Fallback for any facility type not listed in TYPE_INFO — a generic pin,
 // never a specific facility icon, so an unrecognised type is never mislabeled
 // as (say) a toilet.
@@ -87,7 +98,7 @@ export default function RouteMap({ corridor, facilities }) {
           <Marker
             key={facility.id}
             position={[facility.lat, facility.lon]}
-            icon={facilityIcons[facility.type] || unknownFacilityIcon}
+            icon={facilityIcons[API_TYPE_TO_KEY[facility.type]] || unknownFacilityIcon}
           >
             <Popup>
               <strong>{facility.title}</strong>
@@ -101,7 +112,11 @@ export default function RouteMap({ corridor, facilities }) {
 
       <div className="map-legend">
         {Object.entries(TYPE_INFO).map(([type, { emoji, label }]) => (
-          <span key={type}>            
+          <span key={type}>
+            {/* Renamed from "legend-icon" — that class name already exists
+                elsewhere in the stylesheet with its own background/sizing
+                rules built for a different icon mechanism, and it was
+                silently hiding this emoji. "map-legend-glyph" is unique. */}
             <span className="map-legend-glyph" aria-hidden="true">{emoji}</span> {label}
           </span>
         ))}
