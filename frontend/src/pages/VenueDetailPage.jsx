@@ -304,7 +304,7 @@ function VenueDetailPage() {
     return {
       eyebrow: "Venue detail",
       title: venue.name,
-      address: formatAddress(venue),      
+      address: formatAddress(venue),
       tags: [...(venue.sports ?? []), venue.surface, venue.lga].filter(Boolean),
       panels: buildSummary(venue),
     };
