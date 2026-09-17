@@ -2,6 +2,7 @@ const ICON_EMOJI = {
   toilet: "🚻",
   parking: "🅿",
   transport: "🚋",
+  change: "♿",
 };
 
 function FacilityCard({ facility }) {
