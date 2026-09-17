@@ -362,7 +362,15 @@ function Home() {
       autoComplete="off"
       value={sport}
       onFocus={() => setShowSports(true)}
-      onBlur={() => setShowSports(false)}
+      onBlur={() => {
+        // Defer closing the dropdown so the browser finishes its own Tab
+        // focus-move first. Closing synchronously here was removing the
+        // suggestion list from the DOM in the same tick Chromium resolves
+        // "next tabbable element," which was knocking focus back to
+        // <body> and breaking keyboard navigation for every field after
+        // Sport (Suburb, amenities, Clear, Search).
+        window.setTimeout(() => setShowSports(false), 0);
+      }}
       onChange={(event) => {
         setSport(event.target.value);
         setShowSports(true);

@@ -320,7 +320,9 @@ function Events() {
   autoComplete="off"
   value={sport}
   onFocus={() => setShowSports(true)}
-  onBlur={() => setShowSports(false)}
+  onBlur={() => {
+  window.setTimeout(() => setShowSports(false), 0);
+}}
   onChange={(event) => {
     setSport(event.target.value);
     setShowSports(true);
