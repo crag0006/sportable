@@ -233,6 +233,7 @@ function EventCard({ event }) {
             lineHeight: "inherit",
             boxSizing: "border-box",
             cursor: "pointer",
+            alignSelf: "flex-start",
           }}
         >
           <span aria-hidden="true">{isSaved ? "★" : "☆"}</span>{" "}
