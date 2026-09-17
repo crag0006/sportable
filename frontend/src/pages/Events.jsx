@@ -5,6 +5,7 @@ import { getSports, getSuburbs } from "../api/venues";
 import { getEvents } from "../api/events";
 import { FACILITY_INFO } from "../components/SearchVenue";
 import ReadAloud from "../components/ReadAloud";
+import { addSavedEvent, isEventSaved, removeSavedEvent } from "../components/savedEvents";
 
 const STORAGE_KEY = "sportable-last-event-search";
 
@@ -125,16 +126,37 @@ function EventCard({ event }) {
   const venueHref = venue.href;
   const directionsHref = links.directions;
 
+  const eventTitle =
+    event.home_team && event.away_team
+      ? `${event.home_team} v ${event.away_team}`
+      : event.title || event.sport;
+
+  const [isSaved, setIsSaved] = useState(() => isEventSaved(event.id));
+
+  function handleToggleSave() {
+    if (isSaved) {
+      removeSavedEvent(event.id);
+      setIsSaved(false);
+      return;
+    }
+
+    addSavedEvent({
+      id: event.id,
+      title: eventTitle,
+      sport: event.sport,
+      dateTimeLabel: formatEventDateTime(event),
+      suburb: venue.suburb || venue.address || "",
+      venueName: venue.name || "Venue to be confirmed",
+    });
+    setIsSaved(true);
+  }
+
   return (
     <article className="event-card">
       <div className="event-top">
         <div>
           <span className="chip">{event.sport}</span>
-          <h3 className="event-teams">
-            {event.home_team && event.away_team
-              ? `${event.home_team} v ${event.away_team}`
-              : event.title}
-          </h3>
+          <h3 className="event-teams">{eventTitle}</h3>
           <p className="event-meta">
             {[event.competition, event.grade, event.round]
               .filter(Boolean)
@@ -197,6 +219,17 @@ function EventCard({ event }) {
       )}
 
       <div className="event-actions">
+        <button
+          type="button"
+          className="event-action-link event-action-link--secondary save-event-button"
+          onClick={handleToggleSave}
+          aria-pressed={isSaved}
+          aria-label={isSaved ? `Unsave ${eventTitle}` : `Save ${eventTitle}`}
+        >
+          <span aria-hidden="true">{isSaved ? "★" : "☆"}</span>{" "}
+          {isSaved ? "Saved" : "Save"}
+        </button>
+
         {venueHref && (
 
            <a className="event-action-link event-action-link--secondary"
@@ -400,7 +433,7 @@ function Events() {
     return message;
   }
 
-  // Builds the short spoken summary for Read Aloud  — what was
+  // Builds the short spoken summary for Read Aloud (AC3.3.1) — what was
   // searched, how many events were found, and a one-line pointer to the
   // first result. Deliberately short, not a read-through of every card.
   function buildReadAloudSummary() {
@@ -430,6 +463,7 @@ function Events() {
         links={[
           { to: "/", label: "Home" },
           { to: "/venues", label: "Venue search" },
+          { to: "/saved-events", label: "Saved events" },
         ]}
       />
 
