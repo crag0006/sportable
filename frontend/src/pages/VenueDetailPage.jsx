@@ -42,6 +42,10 @@ function formatAddress(venue) {
   return "Address not published";
 }
 
+function getFacilityFallback(key) {
+  return FACILITY_CONTENT_FALLBACK[key] ?? null;
+}
+
 // Looks up the backup text for one facility, in case the backend didn't
 // send us anything useful for it.
 function getBackToResultsHref() {
