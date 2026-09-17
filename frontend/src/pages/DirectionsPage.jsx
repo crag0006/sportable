@@ -6,34 +6,48 @@ import FacilityCard from '../components/FacilityCard'
 
 const PAGE_SIZE = 6
 
+
+const API_TYPE_TO_KEY = {
+  accessible_toilet: 'toilet',
+  accessible_parking: 'parking',
+  accessible_transport_stop: 'stop',
+  accessible_change_facility: 'change',
+}
+
+function getFacilityKey(facility) {
+  return API_TYPE_TO_KEY[facility.type] || facility.type
+}
+
 const TYPE_ICON = {
   toilet: 'toilet',
   parking: 'parking',
   stop: 'transport',
+  change: 'change',
 }
 
 const TYPE_LABEL_FALLBACK = {
   toilet: 'Accessible toilet',
   parking: 'Accessible parking',
   stop: 'Accessible transport stop',
+  change: 'Accessible change facility',
 }
 
 // Some facilities from the backend have no name, just an address, or neither.
 // This picks the best thing we have to show as the card title.
-function formatFacilityTitle(facility) {
+function formatFacilityTitle(facility, key) {
   if (facility.name) return facility.name
   if (facility.address) return facility.address
-  return TYPE_LABEL_FALLBACK[facility.type] || 'Accessible facility'
+  return TYPE_LABEL_FALLBACK[key] || 'Accessible facility'
 }
 
-function formatFacilityDescription(facility) {
+function formatFacilityDescription(facility, key) {
   const parts = []
 
   if (facility.name && facility.address && facility.address !== facility.name) {
     parts.push(facility.address)
   }
 
-  if (facility.type === 'toilet') {
+  if (key === 'toilet') {
     if (facility.opening_hours) parts.push(facility.opening_hours)
     if (facility.mlak) parts.push('MLAK key required')
   }
@@ -49,18 +63,25 @@ function formatFacilityDescription(facility) {
 // sorted so the closest ones show first.
 function buildFacilityCards(facilities) {
   return [...facilities]
+    // Drop anything recorded as exactly 0 m from the corridor — only show
+    // facilities that are actually some distance away from the path.
+    .filter((facility) => facility.distance_from_path_m > 0)
     .sort((a, b) => a.distance_from_path_m - b.distance_from_path_m)
-    .map((facility) => ({
-      id: `facility-${facility.seq}`,
-      icon: TYPE_ICON[facility.type] || 'ramp',
-      title: formatFacilityTitle(facility),
-      description: formatFacilityDescription(facility),
-      state: 'within', // the backend already filtered these to "within_m", so they're all confirmed close
-      pillText: `${facility.distance_from_path_m} m from the corridor`,
-      lat: facility.lat,
-      lon: facility.lon,
-      type: facility.type,
-    }))
+    .map((facility) => {
+      const key = getFacilityKey(facility)
+
+      return {
+        id: `facility-${facility.seq}`,
+        icon: TYPE_ICON[key] || 'ramp',
+        title: formatFacilityTitle(facility, key),
+        description: formatFacilityDescription(facility, key),
+        state: 'within', // the backend already filtered these to "within_m", so they're all confirmed close
+        pillText: `${facility.distance_from_path_m} m from the corridor`,
+        lat: facility.lat,
+        lon: facility.lon,
+        type: facility.type,
+      }
+    })
 }
 
 export default function DirectionsPage() {
