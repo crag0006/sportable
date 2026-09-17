@@ -110,6 +110,24 @@ function Home() {
       .catch(() => setDistanceBands([250, 500, 1000]));
   }, []);
 
+  // Closes either suggestion list when clicking anywhere outside the
+  // field it belongs to. Needed because we don't close the sport
+  // dropdown on its own blur — doing that was interfering with Tab
+  // navigation (it kept knocking keyboard focus back to the very top
+  // of the page instead of letting it move on to the suburb field).
+  useEffect(() => {
+    function handleDocumentMouseDown(event) {
+      if (!event.target.closest?.(".field-inner")) {
+        setShowSports(false);
+        setShowSuburbs(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleDocumentMouseDown);
+    return () =>
+      document.removeEventListener("mousedown", handleDocumentMouseDown);
+  }, []);
+
   // Only suggest something once at least 3 characters have been typed
   function findMatches(list, typedText) {
     if (typedText.length < 3) {
@@ -362,15 +380,6 @@ function Home() {
       autoComplete="off"
       value={sport}
       onFocus={() => setShowSports(true)}
-      onBlur={() => {
-        // Defer closing the dropdown so the browser finishes its own Tab
-        // focus-move first. Closing synchronously here was removing the
-        // suggestion list from the DOM in the same tick Chromium resolves
-        // "next tabbable element," which was knocking focus back to
-        // <body> and breaking keyboard navigation for every field after
-        // Sport (Suburb, amenities, Clear, Search).
-        window.setTimeout(() => setShowSports(false), 0);
-      }}
       onChange={(event) => {
         setSport(event.target.value);
         setShowSports(true);
@@ -418,6 +427,7 @@ function Home() {
       placeholder="eg: Melbourne CBD or 3000"
       autoComplete="off"
       value={suburb}
+      onFocus={() => setShowSports(false)}
       onChange={(event) => {
         setSuburb(event.target.value);
         setShowSuburbs(true);
