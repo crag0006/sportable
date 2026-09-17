@@ -225,6 +225,12 @@ function Home() {
       // Fold the form away so the results are the first thing on screen
       setShowForm(false);
 
+       try {
+        sessionStorage.setItem("sportable-last-results-page", "/venues");
+      } catch {
+        // Not critical if this fails.
+      }
+
       // Remember this search, so coming back from a venue page shows the
       // same results instead of an empty form.
       try {

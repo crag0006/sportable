@@ -42,10 +42,18 @@ function formatAddress(venue) {
   return "Address not published";
 }
 
-// Looks up the backup text for one facility, in case the backend didn't
-// send us anything useful for it.
 function getFacilityFallback(key) {
   return FACILITY_CONTENT_FALLBACK[key] ?? null;
+}
+
+// Looks up the backup text for one facility, in case the backend didn't
+// send us anything useful for it.
+function getBackToResultsHref() {
+  try {
+    return sessionStorage.getItem("sportable-last-results-page") || "/venues";
+  } catch {
+    return "/venues";
+  }
 }
 
 // Works out the status of one amenity (toilet, parking, etc):
@@ -314,8 +322,8 @@ function VenueDetailPage() {
     <div className="venue-page">
       {/* Slim top bar — logo on the left, back button on the right.
           This replaces the old tall sidebar that left empty space. */}
-     <TopBar links={[
-  { to: "/venues", label: "Back to search results" },
+        <TopBar links={[
+  { to: getBackToResultsHref(), label: "Back to search results" },
   { to: "/", label: "Home" },
 ]} />
 

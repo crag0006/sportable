@@ -3,8 +3,16 @@ import TopBar from "../components/TopBar";
 import "./Home.css";
 import { getSports, getSuburbs } from "../api/venues";
 import { getEvents } from "../api/events";
+import { FACILITY_INFO } from "../components/SearchVenue";
 
 const STORAGE_KEY = "sportable-last-event-search";
+
+const EVENT_FACILITY_TYPE_TO_KEY = {
+  accessible_toilet: "toilet",
+  accessible_parking: "parking",
+  accessible_transport_stop: "stop",
+  accessible_change_facility: "change",
+};
 
 function getSavedSearch() {
   try {
@@ -36,19 +44,66 @@ function formatEventDistance(meters) {
   return meters + "m away";
 }
 
-function formatEventDateTime(dateLocal, timeLocal) {
-  if (!dateLocal) return "Date to be confirmed";
-  const date = new Date(`${dateLocal}T${timeLocal || "00:00"}`);
-  const dateText = date.toLocaleDateString("en-AU", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-  if (!timeLocal) return dateText;
-  const timeText = date
-    .toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })
-    .toLowerCase();
-  return `${dateText} · ${timeText}`;
+function formatEventDateTime(event) {
+  if (event.date_local) {
+    const date = new Date(`${event.date_local}T${event.time_local || "00:00"}`);
+    const dateText = date.toLocaleDateString("en-AU", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+    if (!event.time_local) return dateText;
+    const timeText = date
+      .toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })
+      .toLowerCase();
+    return `${dateText} · ${timeText}`;
+  }
+
+  if (event.recurrence?.summary) {
+    return event.status_label
+      ? `${event.status_label} · ${event.recurrence.summary}`
+      : event.recurrence.summary;
+  }
+
+  if (event.status_label) return event.status_label;
+
+  return "Date to be confirmed";
+}
+function getEventFacilityState(facility) {
+  if (!facility) return "unknown";
+
+  if (facility.display === "at_venue") return "at-venue";
+  if (facility.display === "beyond_limit") return "beyond";
+  if (facility.display === "within_limit") return "within";
+
+  if (facility.status === "not_available" || facility.status === "absent") {
+    return "absent";
+  }
+
+  return "unknown";
+}
+
+function getEventFacilityText(facility, state) {
+  if (state === "at-venue") return "At the venue";
+
+  if (state === "within" || state === "beyond") {
+    const distanceText =
+      facility.distance_m !== undefined && facility.distance_m !== null
+        ? facility.distance_m + " m away"
+        : "Distance unknown";
+    return state === "beyond" ? `${distanceText} — beyond your limit` : distanceText;
+  }
+
+  if (state === "absent") return "Not available";
+
+  return "No published information — check with the venue";
+}
+
+function getEventFacilityStatusSymbol(state) {
+  if (state === "at-venue" || state === "within") return "✓";
+  if (state === "beyond") return "!";
+  if (state === "absent") return "✕";
+  return "?";
 }
 
 function EventCard({ event }) {
@@ -56,10 +111,10 @@ function EventCard({ event }) {
   const venue = event.venue || {};
   const links = event.links || {};
   const access = event.access || {};
+  const facilities = access.facilities || [];
 
   const venueHref = venue.href;
   const directionsHref = links.directions;
-  const accessSummary = access.summary;
 
   return (
     <article className="event-card">
@@ -79,7 +134,7 @@ function EventCard({ event }) {
         </div>
 
         <span className="event-datetime">
-          {formatEventDateTime(event.date_local, event.time_local)}
+          {formatEventDateTime(event)}
         </span>
       </div>
 
@@ -98,8 +153,38 @@ function EventCard({ event }) {
         )}
       </div>
 
-      {accessSummary && (
-        <p className="event-access-summary">{accessSummary}</p>
+      {facilities.length > 0 && (
+        <div className="amenity-grid">
+          {facilities.map((facility) => {
+            const key = EVENT_FACILITY_TYPE_TO_KEY[facility.type];
+            if (!key || !FACILITY_INFO[key]) return null;
+
+            const state = getEventFacilityState(facility);
+
+            return (
+              <div
+                key={facility.type}
+                className={"amenity-box amenity-" + state}
+              >
+                <span className="facility-icon" aria-hidden="true">
+                  {FACILITY_INFO[key].icon}
+                </span>
+
+                <div className="amenity-content">
+                  <strong>{FACILITY_INFO[key].name}</strong>
+                  <p>{getEventFacilityText(facility, state)}</p>
+                </div>
+
+                <span
+                  className={"status-symbol status-" + state}
+                  aria-label={state}
+                >
+                  {getEventFacilityStatusSymbol(state)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       <div className="event-actions">
@@ -118,6 +203,12 @@ function EventCard({ event }) {
           >
             Get directions
           </a>
+        )}
+
+        {!venueHref && !directionsHref && (
+          <p className="field-hint">
+            Venue details not available for this event.
+          </p>
         )}
       </div>
     </article>
@@ -204,11 +295,19 @@ function Events() {
         emptyMessage: data.empty_message,
         searchedSport: sport,
         searchedPlace: suburb,
+        searchedDateFrom: dateFrom,
+        searchedDateTo: dateTo,
       };
 
       setResults(newResults);
       setVisibleCount(5);
       setShowForm(false);
+
+       try {
+        sessionStorage.setItem("sportable-last-results-page", "/events");
+      } catch {
+        // Not critical if this fails.
+      }
 
       try {
         sessionStorage.setItem(
@@ -255,11 +354,20 @@ function Events() {
   const sportMatches = findSportMatches(sports, sport);
   const suburbMatches = findSuburbMatches(suburbs, suburb);
 
+  function buildDateRangeText() {
+    if (!results) return "";
+    if (results.searchedDateFrom && results.searchedDateTo) {
+      return `${results.searchedDateFrom} to ${results.searchedDateTo}`;
+    }
+    return "";
+  }
+
   function buildSummaryText() {
     if (!results) return "";
     let text = results.searchedSport + " near " + results.searchedPlace;
-    if (results.window?.from && results.window?.to) {
-      text = text + " · " + results.window.from + " to " + results.window.to;
+    const dateRangeText = buildDateRangeText();
+    if (dateRangeText) {
+      text = text + " · " + dateRangeText;
     }
     return text;
   }
@@ -419,8 +527,7 @@ function Events() {
                     className={dateFrom ? "input" : "input input-date-empty"}
                     value={dateFrom}
                     onChange={(event) => setDateFrom(event.target.value)}
-                  />
-                  <p className="field-hint">Leave blank to include all upcoming dates.</p>
+                  />                  
                 </div>
 
                 <div className="field">
@@ -471,9 +578,7 @@ function Events() {
                   <h2>{results.events.length} events found</h2>
                   <p>
                     {results.searchedSport} events near {results.searchedPlace}
-                    {results.window?.from && results.window?.to
-                      ? ` · ${results.window.from} to ${results.window.to}`
-                      : ""}
+                    {buildDateRangeText() ? ` · ${buildDateRangeText()}` : ""}
                   </p>
                 </div>
               </div>
