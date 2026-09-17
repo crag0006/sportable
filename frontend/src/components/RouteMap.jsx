@@ -2,7 +2,9 @@ import { MapContainer, TileLayer, Marker, Polyline, CircleMarker, Popup } from '
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-
+// Single source of truth for facility marker types: emoji + accessible label.
+// The legend below is generated from this object, so it can never drift out
+// of sync with what the map actually plots. Add new facility types here only.
 const TYPE_INFO = {
   toilet: { emoji: '🚻', label: 'Toilets' },
   parking: { emoji: '🅿', label: 'Parking' },
@@ -99,8 +101,8 @@ export default function RouteMap({ corridor, facilities }) {
 
       <div className="map-legend">
         {Object.entries(TYPE_INFO).map(([type, { emoji, label }]) => (
-          <span key={type}>
-            <span className="legend-icon" aria-hidden="true">{emoji}</span> {label}
+          <span key={type}>            
+            <span className="map-legend-glyph" aria-hidden="true">{emoji}</span> {label}
           </span>
         ))}
       </div>
