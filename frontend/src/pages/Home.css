@@ -646,6 +646,10 @@
   border-radius: 14px;
 }
 
+.event-card .amenity-grid {
+  margin-top: 16px;
+}
+
 .event-card:first-of-type {
   margin-top: 0;
 }

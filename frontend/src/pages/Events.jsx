@@ -86,12 +86,20 @@ function getEventFacilityState(facility) {
 function getEventFacilityText(facility, state) {
   if (state === "at-venue") return "At the venue";
 
-  if (state === "within" || state === "beyond") {
+  if (state === "within") {
+    return facility.distance_m !== undefined && facility.distance_m !== null
+      ? facility.distance_m + " m away"
+      : "Distance unknown";
+  }
+
+  if (state === "beyond") {
     const distanceText =
       facility.distance_m !== undefined && facility.distance_m !== null
         ? facility.distance_m + " m away"
         : "Distance unknown";
-    return state === "beyond" ? `${distanceText} — beyond your limit` : distanceText;
+    return facility.distance_limit_m
+      ? `${distanceText} (beyond ${facility.distance_limit_m} m)`
+      : distanceText;
   }
 
   if (state === "absent") return "Not available";
