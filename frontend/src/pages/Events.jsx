@@ -333,6 +333,7 @@ function Events() {
       <li key={item}>
         <button
           type="button"
+          tabIndex={-1}
           onMouseDown={(event) => {
             event.preventDefault();
             setSport(item);
@@ -382,6 +383,7 @@ function Events() {
                           <li key={item}>
                             <button
                               type="button"
+                              tabIndex={-1}
                               onClick={() => {
                                 setSuburb(item);
                                 setShowSuburbs(false);
