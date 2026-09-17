@@ -121,6 +121,16 @@ function Home() {
     );
   }
 
+   function findSportMatches(list, typedText) {
+    if (typedText.length === 0) {
+      return list;
+    }
+
+    return list.filter((item) =>
+      item.toLowerCase().includes(typedText.toLowerCase())
+    );
+  }
+
   // Runs when someone presses "Search venues". Checks the two required
   // fields first, then asks the backend and shows whatever comes back.
   async function handleSearch(event) {
@@ -254,7 +264,7 @@ function Home() {
     }
   }
 
-  const sportMatches = findMatches(sports, sport);
+  const sportMatches = findSportMatches(sports, sport);
   const suburbMatches = findMatches(suburbs, suburb);
 
   // Builds the one-line summary shown on the bar when the form is folded
@@ -351,6 +361,8 @@ function Home() {
       placeholder="eg: Basketball"
       autoComplete="off"
       value={sport}
+      onFocus={() => setShowSports(true)}
+      onBlur={() => setShowSports(false)}
       onChange={(event) => {
         setSport(event.target.value);
         setShowSports(true);
@@ -363,7 +375,8 @@ function Home() {
           <li key={item}>
             <button
               type="button"
-              onClick={() => {
+              onMouseDown={(event) => {
+                event.preventDefault();
                 setSport(item);
                 setShowSports(false);
               }}
@@ -376,11 +389,11 @@ function Home() {
     )}
   </div>
 
-  {showSports && sport.length >= 3 && sportMatches.length === 0 && (
+  {showSports && sport.length > 0 && sportMatches.length === 0 && (
     <p className="no-match">No sport found with that name.</p>
   )}
 
-  <p className="field-hint">Enter minimum 3 letters to search.</p>
+  <p className="field-hint">Click to browse all sports, or start typing to filter.</p>
 </div>
 
                <div className="field">

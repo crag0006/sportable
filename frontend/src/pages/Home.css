@@ -189,6 +189,14 @@
   border-color: #14507a;
 }
 
+.input::placeholder {
+  color: #8a9699;
+}
+
+.input-date-empty {
+  color: #8a9699;
+}
+
 /* The red star next to a required field label */
 .required {
   color: #96231f;
