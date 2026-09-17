@@ -4,6 +4,7 @@ import "./Home.css";
 import { getSports, getSuburbs } from "../api/venues";
 import { getEvents } from "../api/events";
 import { FACILITY_INFO } from "../components/SearchVenue";
+import ReadAloud from "../components/ReadAloud";
 
 const STORAGE_KEY = "sportable-last-event-search";
 
@@ -399,6 +400,30 @@ function Events() {
     return message;
   }
 
+  // Builds the short spoken summary for Read Aloud  — what was
+  // searched, how many events were found, and a one-line pointer to the
+  // first result. Deliberately short, not a read-through of every card.
+  function buildReadAloudSummary() {
+    if (!results) return [];
+
+    const sentences = [`${buildSummaryText()}.`];
+
+    if (results.events.length === 0) {
+      sentences.push(buildEmptyMessage());
+      return sentences;
+    }
+
+    sentences.push(
+      `${results.events.length} event${results.events.length === 1 ? "" : "s"} found.`
+    );
+
+    const firstEvent = results.events[0];
+    const firstVenueName = firstEvent.venue?.name || "a venue to be confirmed";
+    sentences.push(`Next up: ${firstEvent.sport} at ${firstVenueName}.`);
+
+    return sentences;
+  }
+
   return (
     <div className="search-page">
       <TopBar
@@ -608,6 +633,8 @@ function Events() {
             </section>
           ) : (
             <div className="results">
+              <ReadAloud summary={buildReadAloudSummary()} />
+
               <div className="results-heading">
                 <div>
                   <h2>{results.events.length} events found</h2>
