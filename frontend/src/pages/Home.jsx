@@ -110,10 +110,38 @@ function Home() {
       .catch(() => setDistanceBands([250, 500, 1000]));
   }, []);
 
+  // Closes either suggestion list when clicking anywhere outside the
+  // field it belongs to. Needed because we don't close the sport
+  // dropdown on its own blur — doing that was interfering with Tab
+  // navigation (it kept knocking keyboard focus back to the very top
+  // of the page instead of letting it move on to the suburb field).
+  useEffect(() => {
+    function handleDocumentMouseDown(event) {
+      if (!event.target.closest?.(".field-inner")) {
+        setShowSports(false);
+        setShowSuburbs(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleDocumentMouseDown);
+    return () =>
+      document.removeEventListener("mousedown", handleDocumentMouseDown);
+  }, []);
+
   // Only suggest something once at least 3 characters have been typed
   function findMatches(list, typedText) {
     if (typedText.length < 3) {
       return [];
+    }
+
+    return list.filter((item) =>
+      item.toLowerCase().includes(typedText.toLowerCase())
+    );
+  }
+
+   function findSportMatches(list, typedText) {
+    if (typedText.length === 0) {
+      return list;
     }
 
     return list.filter((item) =>
@@ -254,7 +282,7 @@ function Home() {
     }
   }
 
-  const sportMatches = findMatches(sports, sport);
+  const sportMatches = findSportMatches(sports, sport);
   const suburbMatches = findMatches(suburbs, suburb);
 
   // Builds the one-line summary shown on the bar when the form is folded
@@ -351,6 +379,7 @@ function Home() {
       placeholder="eg: Basketball"
       autoComplete="off"
       value={sport}
+      onFocus={() => setShowSports(true)}
       onChange={(event) => {
         setSport(event.target.value);
         setShowSports(true);
@@ -363,7 +392,9 @@ function Home() {
           <li key={item}>
             <button
               type="button"
-              onClick={() => {
+              tabIndex={-1}
+              onMouseDown={(event) => {
+                event.preventDefault();
                 setSport(item);
                 setShowSports(false);
               }}
@@ -376,11 +407,11 @@ function Home() {
     )}
   </div>
 
-  {showSports && sport.length >= 3 && sportMatches.length === 0 && (
+  {showSports && sport.length > 0 && sportMatches.length === 0 && (
     <p className="no-match">No sport found with that name.</p>
   )}
 
-  <p className="field-hint">Enter minimum 3 letters to search.</p>
+  <p className="field-hint">Click to browse all sports, or start typing to filter.</p>
 </div>
 
                <div className="field">
@@ -396,6 +427,7 @@ function Home() {
       placeholder="eg: Melbourne CBD or 3000"
       autoComplete="off"
       value={suburb}
+      onFocus={() => setShowSports(false)}
       onChange={(event) => {
         setSuburb(event.target.value);
         setShowSuburbs(true);
@@ -408,6 +440,7 @@ function Home() {
           <li key={item}>
             <button
               type="button"
+              tabIndex={-1}
               onClick={() => {
                 setSuburb(item);
                 setShowSuburbs(false);

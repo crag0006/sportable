@@ -11,7 +11,7 @@ function getSavedSearch() {
     const saved = sessionStorage.getItem(STORAGE_KEY);
     if (saved) return JSON.parse(saved);
   } catch {
-    // Ignore broken saved data.
+   
   }
   return null;
 }
@@ -223,7 +223,7 @@ function Events() {
           })
         );
       } catch {
-        // Not critical if this fails.
+       
       }
     } catch (error) {
       setSearchError(
@@ -248,8 +248,7 @@ function Events() {
 
     try {
       sessionStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // Nothing to do if this fails.
+    } catch {      
     }
   }
 
@@ -270,7 +269,7 @@ function Events() {
       <TopBar
         links={[
           { to: "/", label: "Home" },
-          { to: "/events", label: "Events" },
+          { to: "/venues", label: "Venue search" },
         ]}
       />
 
@@ -278,7 +277,7 @@ function Events() {
         <div className="search-banner">
           <div className="search-banner-overlay">
             <p className="search-banner-text">
-              Find accessible fixtures near you, on the days that suit you.
+             No more maybes — every step, mapped out.
             </p>
           </div>
         </div>
@@ -321,7 +320,9 @@ function Events() {
   autoComplete="off"
   value={sport}
   onFocus={() => setShowSports(true)}
-  onBlur={() => setShowSports(false)}
+  onBlur={() => {
+  window.setTimeout(() => setShowSports(false), 0);
+}}
   onChange={(event) => {
     setSport(event.target.value);
     setShowSports(true);
@@ -334,6 +335,7 @@ function Events() {
       <li key={item}>
         <button
           type="button"
+          tabIndex={-1}
           onMouseDown={(event) => {
             event.preventDefault();
             setSport(item);
@@ -383,6 +385,7 @@ function Events() {
                           <li key={item}>
                             <button
                               type="button"
+                              tabIndex={-1}
                               onClick={() => {
                                 setSuburb(item);
                                 setShowSuburbs(false);
@@ -413,7 +416,7 @@ function Events() {
                   <input
                     id="event-date-from"
                     type="date"
-                    className="input"
+                    className={dateFrom ? "input" : "input input-date-empty"}
                     value={dateFrom}
                     onChange={(event) => setDateFrom(event.target.value)}
                   />
@@ -425,7 +428,7 @@ function Events() {
                   <input
                     id="event-date-to"
                     type="date"
-                    className="input"
+                    className={dateTo ? "input" : "input input-date-empty"}
                     value={dateTo}
                     min={dateFrom || undefined}
                     onChange={(event) => setDateTo(event.target.value)}
