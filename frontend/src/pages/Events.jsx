@@ -233,7 +233,7 @@ function EventCard({ event }) {
             lineHeight: "inherit",
             boxSizing: "border-box",
             cursor: "pointer",
-            alignSelf: "flex-start",
+            alignSelf: "center",
           }}
         >
           <span aria-hidden="true">{isSaved ? "★" : "☆"}</span>{" "}
@@ -258,7 +258,10 @@ function EventCard({ event }) {
         )}
 
         {!venueHref && !directionsHref && (
-          <p className="venue-unavailable-note">
+          <p
+            className="venue-unavailable-note"
+            style={{ margin: 0, alignSelf: "center" }}
+          >
             Venue details not available for this event.
           </p>
         )}
