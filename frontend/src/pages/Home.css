@@ -784,6 +784,12 @@
   font-size: 1rem;
   line-height: 1;
 }
+
+.suggestions button.suggestion-active {
+  background: #e8eefc;
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
 /* --------------------------------------------------------------------------
    Smaller screens
    -------------------------------------------------------------------------- */
