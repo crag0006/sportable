@@ -60,6 +60,71 @@ variable "source_staleness_days" {
     Set each one LONGER than its publisher's refresh cadence. Equal thresholds
     mean a single missed refresh — a public holiday, a portal outage — makes the
     UI apologise for data that is fine.
+
+    DS-09 is keyed "aaaplay": that is the extractor module name
+    (data/ingestion/extractors/aaaplay.py), the card's retrieval.raw_prefix and
+    therefore the S3 prefix the objects land under. Keying it by source id
+    would break the one rule this map has, which is that the key is what the
+    pipeline already calls the source.
   EOT
   type        = map(number)
+}
+
+# ------------------------------------------------------------------------------
+# Events (DS-09 / AAA Play)
+# ------------------------------------------------------------------------------
+
+variable "events_scope" {
+  description = <<-EOT
+    Geographic scope the events epic covers, as a plain word the API and the
+    interface can both repeat back to the user.
+
+    "victoria", not "greater_melbourne". DS-09 is a statewide publisher and the
+    card is explicit that the publisher's own region taxonomy is a reporting
+    cut and NEVER a scope boundary — roughly 213 of its 530 activities sit
+    outside Greater Melbourne, led by Geelong, Bendigo and Ballarat, and they
+    are in scope. This parameter exists so that if scope ever narrows again it
+    narrows in one auditable place rather than in a predicate somewhere in a
+    query.
+  EOT
+  type        = string
+  default     = "victoria"
+}
+
+variable "aaa_play_base_url" {
+  description = <<-EOT
+    Root of the AAA Play WordPress REST API, without a trailing slash.
+
+    A PARAMETER RATHER THAN A CONSTANT, DELIBERATELY. See the note in main.tf:
+    this is an unversioned third-party API we have no agreement with, and the
+    day it moves we want a put-parameter, not a release.
+  EOT
+  type        = string
+  default     = "https://www.aaaplay.org.au/wp-json/wp/v2"
+
+  validation {
+    # http:// would send the whole pull in clear text over the internet, and a
+    # trailing slash turns every joined path into a double slash, which
+    # WordPress answers with a redirect at best and a 404 at worst.
+    condition     = can(regex("^https://", var.aaa_play_base_url)) && !endswith(var.aaa_play_base_url, "/")
+    error_message = "aaa_play_base_url must start with https:// and must not end with a slash."
+  }
+}
+
+variable "aaa_play_page_size" {
+  description = <<-EOT
+    WordPress per_page for the DS-09 collection endpoints.
+
+    100 is the maximum the WordPress REST API accepts; asking for more returns
+    a 400, not a larger page. At 100 the full pull is eighteen requests. Lower
+    it only to be gentler on the publisher — every halving roughly doubles the
+    request count for the same bytes.
+  EOT
+  type        = number
+  default     = 100
+
+  validation {
+    condition     = var.aaa_play_page_size >= 1 && var.aaa_play_page_size <= 100
+    error_message = "aaa_play_page_size must be between 1 and 100 — WordPress rejects per_page above 100."
+  }
 }

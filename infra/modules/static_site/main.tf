@@ -125,6 +125,74 @@ resource "aws_cloudfront_function" "spa_rewrite" {
   })
 }
 
+# ------------------------------------------------------ events cache policy
+# AC4.2.5 asks for an event page in under three seconds. The events data comes
+# from DS-09, which is pulled ONCE A WEEK — so between Sunday runs every
+# /api/v1/events response is a function of a database that does not change.
+# Sending each one to Lambda, into the VPC, through PostGIS and back is paying
+# a cold start and a spatial query over and over for an answer that was
+# identical five seconds ago.
+#
+# None of the managed cache policies fit. CachingOptimized (658327ea) strips
+# query strings from the cache key, and /api/v1/events is ALL query string —
+# from, to, sport, suburb, postcode, near, radius_m, weekday, time_of_day,
+# price, page. With query strings dropped, a search for Saturday swimming in
+# Preston would be served the cached answer for a completely different filter
+# set. That is not a slow page, it is a wrong one. Hence a policy of our own.
+#
+# WHAT IS IN THE CACHE KEY, AND WHY NOTHING ELSE IS
+#   query strings  all   — they ARE the request; see above.
+#   headers        none  — this API varies its body on the path and the query
+#                          string and on nothing else. Adding headers to the
+#                          key would fragment the cache per browser for no
+#                          change in the response.
+#   cookies        none  — there is no authentication anywhere in this stack
+#                          and no endpoint sets a cookie, so there is no
+#                          per-user response that could leak to another viewer.
+#                          Revisit this line, first and immediately, if a login
+#                          is ever added.
+#
+# THE TTLs ARE SHORT ON PURPOSE, DESPITE THE WEEKLY REFRESH
+#   /api/v1/events defaults `from` to TODAY, computed at the origin. A response
+#   cached for a day would, after midnight, still be answering with yesterday's
+#   window — and the events epic's whole risk is showing somebody a session
+#   that has already happened. Five minutes bounds that error to five minutes
+#   past midnight while still collapsing the demo's and the marker's repeated
+#   requests onto one origin hit.
+#
+#   min_ttl stays 0 so the origin keeps the casting vote: a handler that sends
+#   Cache-Control: no-store for a response it knows is volatile is obeyed
+#   rather than overridden by the edge.
+resource "aws_cloudfront_cache_policy" "events_api" {
+  name    = "${var.name_prefix}-events-api"
+  comment = "Edge cache for /api/v1/events*, keyed on the full query string"
+
+  min_ttl     = 0
+  default_ttl = 300
+  max_ttl     = 3600
+
+  parameters_in_cache_key_and_forwarded_to_origin {
+    # The default_cache_behavior sets compress = true, and so does the events
+    # behaviour below. Without these two flags CloudFront would cache one
+    # object per encoding variant under a single key and could hand a gzipped
+    # body to a client that did not ask for one.
+    enable_accept_encoding_gzip   = true
+    enable_accept_encoding_brotli = true
+
+    query_strings_config {
+      query_string_behavior = "all"
+    }
+
+    headers_config {
+      header_behavior = "none"
+    }
+
+    cookies_config {
+      cookie_behavior = "none"
+    }
+  }
+}
+
 # --------------------------------------------------------------- distribution
 resource "aws_cloudfront_distribution" "site" {
   # checkov:skip=CKV_AWS_174:The viewer certificate is CloudFront's default
@@ -188,9 +256,58 @@ resource "aws_cloudfront_distribution" "site" {
     }
   }
 
-  # /api/* is evaluated BEFORE the default behaviour. Ordered behaviours are
-  # matched most-specific-first regardless of declaration order, but keeping the
-  # intent visible here matters more than relying on that.
+  # ORDER IS LOAD-BEARING FROM HERE DOWN. CloudFront evaluates ordered cache
+  # behaviours in the order they are listed and takes the FIRST pattern that
+  # matches — it does not prefer the most specific one. So /api/v1/events*,
+  # which is a subset of /api/*, has to be declared first or it would never be
+  # reached and every events request would fall through to the CachingDisabled
+  # behaviour below. Terraform emits ordered_cache_behavior blocks in the order
+  # they appear in this file, which is what makes the rule above something this
+  # configuration can rely on. Do not reorder these two blocks.
+  #
+  # Nothing else changes. /api/v1/venues, /api/v1/venues/search, /api/v1/config
+  # and every other route still match /api/* and still reach the origin on
+  # every request, with the same cache policy, origin request policy and
+  # headers policy they had before. The events routes are read-only GETs over
+  # data that refreshes once a week; the venue search is the endpoint the
+  # comment below warns about and it is deliberately left alone.
+  dynamic "ordered_cache_behavior" {
+    for_each = var.api_origin_domain == null ? [] : [1]
+
+    content {
+      # Covers /api/v1/events, /api/v1/events/sports, /api/v1/events/{id} and
+      # /api/v1/events/{id}.ics — all GETs, all public, all derived from the
+      # weekly DS-09 load.
+      path_pattern           = "/api/v1/events*"
+      target_origin_id       = "apigw"
+      viewer_protocol_policy = "redirect-to-https"
+
+      # The same method list as /api/* below, NOT a narrowed GET/HEAD one.
+      # Narrowing would make CloudFront answer a future POST /api/v1/events
+      # with a 403 MethodNotAllowed that looks like an auth failure and is not.
+      # CloudFront never caches anything but GET and HEAD regardless of what is
+      # allowed, so the wide list costs nothing and removes a trap.
+      allowed_methods = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+      cached_methods  = ["GET", "HEAD"]
+      compress        = true
+
+      # Our own policy, defined above. This is the one difference from /api/*.
+      cache_policy_id = aws_cloudfront_cache_policy.events_api.id
+
+      # Managed-AllViewerExceptHostHeader, the SAME policy the /api/* behaviour
+      # uses, and for the same reason: API Gateway rejects a request whose Host
+      # header is not its own domain. It forwards more to the origin than the
+      # cache key contains, which is allowed and is the normal shape for an API
+      # behind a cache — the narrower key is what makes the cache useful, and
+      # the API ignores the cookies and headers it is handed.
+      origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+
+      response_headers_policy_id = "67f7725c-6f97-4210-82d7-5512b31e9d03"
+    }
+  }
+
+  # /api/* is evaluated BEFORE the default behaviour, and AFTER the events
+  # behaviour above.
   dynamic "ordered_cache_behavior" {
     for_each = var.api_origin_domain == null ? [] : [1]
 

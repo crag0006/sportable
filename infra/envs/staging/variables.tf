@@ -60,3 +60,12 @@ variable "alert_emails" {
   EOT
   type        = list(string)
 }
+
+variable "lambda_pipeline_role_arn" {
+  description = <<-EOT
+    Pre-built execution role shared by the fetch, load and status builder
+    functions. Hardcoded as an ARN for the same reason lambda_execution_role_arn
+    is: this account's principals cannot create IAM roles.
+  EOT
+  type        = string
+}

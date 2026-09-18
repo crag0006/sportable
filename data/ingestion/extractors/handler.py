@@ -27,6 +27,13 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
+# Flat sibling import, not `from ingestion.extractors import aaaplay`. The fetch
+# package is flat: build_lambda.sh copies handler.py and sources/ into
+# build/fetch and nothing else, and fetch_run.py puts this directory on sys.path
+# and imports `handler` directly. A package-relative import resolves in the repo
+# and fails in both of those. Same reason `handler` itself is in the mypy
+# ignore_missing_imports list; add `aaaplay` beside it.
+import aaaplay
 import boto3
 import yaml
 from botocore.config import Config
@@ -67,6 +74,16 @@ READ_CHUNK = 1024 * 1024
 USER_AGENT = "SportAbleMelbourne-Fetch/1.0"
 
 FETCHABLE_TIERS = {"reference", "transit", "static"}
+
+# A source whose payload is assembled from many responses names a collector in
+# its card. The default is the single conditional GET every file source uses.
+DEFAULT_COLLECTOR = "http_download"
+
+# retrieval.format describes the payload written to the raw zone, which is not
+# always the extension a reader expects. DS-09 registers format: api because it
+# is retrieved from an API, but what lands is a JSON document and the filename
+# should say so.
+FORMAT_EXTENSIONS = {"api": ".json"}
 
 # A 429 means the source quota has been reached, so retrying is not useful.
 NO_RETRY_STATUS = {429}
@@ -360,7 +377,7 @@ def check_payload_shape(
     if fmt in {"zip", "kmz", "xlsx", "shp"} and not body.startswith(b"PK"):
         raise FetchError(f"{source_id} declares {fmt} but the body carries no zip signature")
 
-    if fmt == "json" and head[:1] not in (b"{", b"["):
+    if fmt in {"json", "api"} and head[:1] not in (b"{", b"["):
         raise FetchError(
             f"{source_id} declares json but the body does not begin with an object or array"
         )
@@ -502,12 +519,78 @@ def filename_for(
         filename,
     ).strip("._")
 
-    expected_extension = "." + card["retrieval"]["format"].lower()
+    fmt = card["retrieval"]["format"].lower()
+    expected_extension = FORMAT_EXTENSIONS.get(fmt, "." + fmt)
 
     if not filename or Path(filename).suffix.lower() != expected_extension:
         filename = card["retrieval"]["raw_prefix"] + expected_extension
 
     return filename
+
+
+def collect_from_api(
+    card: dict[str, Any],
+    previous: dict[str, Any] | None = None,
+) -> tuple[bytes, dict[str, Any], list[dict[str, Any]]]:
+    """Assemble a payload from many responses instead of downloading one file.
+
+    Returns the same triple as fetch_with_retry so that everything downstream —
+    the shape check, the SHA-256 comparison, the manifest, the put and the
+    quiet-week path — is shared rather than duplicated for API sources.
+
+    THERE IS NO CONDITIONAL GET HERE. WordPress sends no ETag or Last-Modified
+    on its collection endpoints, so there is nothing to send back. The full pull
+    runs every time and the SHA-256 comparison below decides whether anything is
+    written. That is not a regression: the collector sorts keys and fixes
+    separators, so an unchanged register produces a byte-identical body and the
+    existing no_change path fires exactly as it does for a 304.
+
+    `previous` is the latest manifest, and it is here because THIS SOURCE HAS NO
+    PINNED HASH. DS-01 to DS-08 register an expected_sha256 that catches a
+    truncated file; an assembled payload has no publisher-stated digest, so the
+    only thing standing between a short pull and a silently smaller register is
+    a comparison against what last week collected. The result is recorded on the
+    manifest so the next run has a baseline and so the DS-09 alarms can read it.
+    """
+    started = time.time()
+    body = aaaplay.collect()
+
+    counts = aaaplay.record_counts(body)
+
+    # The previous run is the right baseline. THE SOURCE CARD IS THE FALLBACK,
+    # and it exists because the first run, and any run after the manifest is
+    # lost, would otherwise have nothing to compare against at exactly the
+    # moment a truncated pull is most likely to be believed. The card's figures
+    # are dated and verified, so they age as the register moves — which is why
+    # the result records which of the two it used rather than treating them as
+    # interchangeable.
+    baseline_counts = (previous or {}).get("record_counts")
+    baseline = "previous_run"
+
+    if not baseline_counts:
+        baseline_counts = (card.get("coverage") or {}).get("records_by_collection")
+        baseline = "source_card"
+
+    drift = aaaplay.check_count_drift(counts, baseline_counts, baseline=baseline)
+
+    metadata: dict[str, Any] = {
+        "status": 200,
+        "etag": None,
+        "last_modified": None,
+        "content_type": "application/json",
+        "content_length": str(len(body)),
+        "content_disposition": None,
+        "final_url": card["retrieval"]["download_url"],
+        "duration_seconds": round(time.time() - started, 3),
+        "collector": "paginated_wp_api",
+        "record_counts": counts,
+        "count_drift": drift,
+    }
+
+    return body, metadata, [{"attempt": 1, "status": 200}]
+
+
+COLLECTORS = {"paginated_wp_api": collect_from_api}
 
 
 def fetch_source(
@@ -544,10 +627,22 @@ def fetch_source(
         elif previous.get("last_modified"):
             conditional["If-Modified-Since"] = previous["last_modified"]
 
-    body, response_meta, attempts = fetch_with_retry(
-        url,
-        conditional,
-    )
+    collector = retrieval.get("collector", DEFAULT_COLLECTOR)
+
+    if collector == DEFAULT_COLLECTOR:
+        body, response_meta, attempts = fetch_with_retry(
+            url,
+            conditional,
+        )
+
+    elif collector in COLLECTORS:
+        # The previous manifest goes in so the collector can compare this pull
+        # against the last one. A file source gets that comparison for free from
+        # its ETag and its pinned hash; an assembled payload has neither.
+        body, response_meta, attempts = COLLECTORS[collector](card, previous)
+
+    else:
+        raise ValueError(f"{source_id} names an unknown collector {collector!r}")
 
     manifest = {
         "source_id": source_id,
@@ -573,6 +668,14 @@ def fetch_source(
         },
         "record_count": None,
         "record_count_deferred_to": "transform",
+        # Present only for a collector that assembles a payload from many
+        # responses and can therefore count records without parsing a file
+        # format. THIS IS WHAT THE NEXT RUN COMPARES AGAINST, so it is written
+        # on every outcome, including no_change: dropping it on a quiet week
+        # would leave the following run with no baseline and a guard that
+        # silently did not run.
+        "record_counts": response_meta.get("record_counts"),
+        "count_drift": response_meta.get("count_drift"),
     }
 
     if body is None:

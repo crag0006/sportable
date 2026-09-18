@@ -2,12 +2,11 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import VenueCard, { FACILITY_INFO } from "../components/SearchVenue";
+import ReadAloud from "../components/ReadAloud";
 import "./Home.css";
 import { getSports, getSuburbs, getConfig, searchVenues } from "../api/venues";
 
-// Reads whatever search we last saved, so if someone leaves this page
-// (eg to look at one venue) and comes back, they see the same results
-// instead of a blank form. Returns null if nothing was saved yet.
+
 function getSavedSearch() {
   try {
     const saved = sessionStorage.getItem("sportable-last-search");
@@ -110,10 +109,38 @@ function Home() {
       .catch(() => setDistanceBands([250, 500, 1000]));
   }, []);
 
+  // Closes either suggestion list when clicking anywhere outside the
+  // field it belongs to. Needed because we don't close the sport
+  // dropdown on its own blur — doing that was interfering with Tab
+  // navigation (it kept knocking keyboard focus back to the very top
+  // of the page instead of letting it move on to the suburb field).
+  useEffect(() => {
+    function handleDocumentMouseDown(event) {
+      if (!event.target.closest?.(".field-inner")) {
+        setShowSports(false);
+        setShowSuburbs(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleDocumentMouseDown);
+    return () =>
+      document.removeEventListener("mousedown", handleDocumentMouseDown);
+  }, []);
+
   // Only suggest something once at least 3 characters have been typed
   function findMatches(list, typedText) {
     if (typedText.length < 3) {
       return [];
+    }
+
+    return list.filter((item) =>
+      item.toLowerCase().includes(typedText.toLowerCase())
+    );
+  }
+
+   function findSportMatches(list, typedText) {
+    if (typedText.length === 0) {
+      return list;
     }
 
     return list.filter((item) =>
@@ -197,6 +224,12 @@ function Home() {
       // Fold the form away so the results are the first thing on screen
       setShowForm(false);
 
+       try {
+        sessionStorage.setItem("sportable-last-results-page", "/venues");
+      } catch {
+        // Not critical if this fails.
+      }
+
       // Remember this search, so coming back from a venue page shows the
       // same results instead of an empty form.
       try {
@@ -254,7 +287,7 @@ function Home() {
     }
   }
 
-  const sportMatches = findMatches(sports, sport);
+  const sportMatches = findSportMatches(sports, sport);
   const suburbMatches = findMatches(suburbs, suburb);
 
   // Builds the one-line summary shown on the bar when the form is folded
@@ -281,6 +314,39 @@ function Home() {
     return text;
   }
 
+  // Builds the short spoken summary for Read Aloud (AC3.3.1) — what was
+  // searched, how many venues matched, and a pointer to the top result.
+  // Deliberately short, not a read-through of every card.
+  function buildReadAloudSummary() {
+    if (!results) {
+      return [];
+    }
+
+    const sentences = [`${buildSummaryText()}.`];
+
+    const countText =
+      results.matched.length === results.total
+        ? `${results.total} venues found.`
+        : `${results.matched.length} of ${results.total} venues found.`;
+    sentences.push(countText);
+
+    if (results.matched.length === 0) {
+      sentences.push("Try removing an amenity or choosing a bigger distance.");
+      return sentences;
+    }
+
+    const firstVenue = results.matched[0];
+    sentences.push(`Top result: ${firstVenue.name}.`);
+
+    if (results.undocumented.length > 0) {
+      sentences.push(
+        `${results.undocumented.length} more venues matched but have no published information for the facilities you selected.`
+      );
+    }
+
+    return sentences;
+  }
+
   return (
     <div className="search-page">
       {/* Top bar, the same one used on the venue detail page */}
@@ -290,12 +356,18 @@ function Home() {
 ]} />
 
       <main className="search-content">
-        {/* Photo banner, matching the venue detail page */}
-        <div className="search-banner">
-          <div className="search-banner-overlay">
-            <p className="search-banner-text">
-              No more maybes — every step, mapped out.
-            </p>
+                <div className="search-banner-wrap">
+          <div className="page-kicker">
+            <span className="page-kicker-icon" aria-hidden="true">🏟</span>
+            Venue search
+          </div>
+
+          <div className="search-banner">
+            <div className="search-banner-overlay">
+              <p className="search-banner-text">
+                No more maybes — every step, mapped out.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -351,6 +423,7 @@ function Home() {
       placeholder="eg: Basketball"
       autoComplete="off"
       value={sport}
+      onFocus={() => setShowSports(true)}
       onChange={(event) => {
         setSport(event.target.value);
         setShowSports(true);
@@ -363,7 +436,9 @@ function Home() {
           <li key={item}>
             <button
               type="button"
-              onClick={() => {
+              tabIndex={-1}
+              onMouseDown={(event) => {
+                event.preventDefault();
                 setSport(item);
                 setShowSports(false);
               }}
@@ -376,11 +451,11 @@ function Home() {
     )}
   </div>
 
-  {showSports && sport.length >= 3 && sportMatches.length === 0 && (
+  {showSports && sport.length > 0 && sportMatches.length === 0 && (
     <p className="no-match">No sport found with that name.</p>
   )}
 
-  <p className="field-hint">Enter minimum 3 letters to search.</p>
+  <p className="field-hint">Click to browse all sports, or start typing to filter.</p>
 </div>
 
                <div className="field">
@@ -396,6 +471,7 @@ function Home() {
       placeholder="eg: Melbourne CBD or 3000"
       autoComplete="off"
       value={suburb}
+      onFocus={() => setShowSports(false)}
       onChange={(event) => {
         setSuburb(event.target.value);
         setShowSuburbs(true);
@@ -408,6 +484,7 @@ function Home() {
           <li key={item}>
             <button
               type="button"
+              tabIndex={-1}
               onClick={() => {
                 setSuburb(item);
                 setShowSuburbs(false);
@@ -562,6 +639,8 @@ function Home() {
             </section>
           ) : (
             <div className="results">
+              <ReadAloud summary={buildReadAloudSummary()} />
+
               <div className="results-heading">
                 <div>
                   <h2>

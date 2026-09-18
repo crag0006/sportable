@@ -68,6 +68,7 @@ python_version = "3.12"
 # Deliberately not `strict` yet: ingestion code deals in loosely-typed payloads
 # from third-party portals, and strict mode on day one produces noise rather
 # than signal. Tighten it once the column contracts in schemas/ are settled.
+exclude = ["^build/"]
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
@@ -78,7 +79,7 @@ warn_unused_ignores = true
 # package. Revisit if the transformers grow enough that typed DataFrames would
 # genuinely catch something.
 [[tool.mypy.overrides]]
-module = ["boto3", "botocore.*", "pandas.*", "yaml"]
+module = ["boto3", "botocore.*", "geopandas", "handler", "aaaplay", "pandas.*", "yaml"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

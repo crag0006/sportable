@@ -31,15 +31,13 @@ svg {
   display: block;
 }
 
-/* Shows where you are when moving through the page with the keyboard */
+/* Makes keyboard focus easy to see */
 :focus-visible {
   outline: 3px solid #2b8c69;
   outline-offset: 2px;
 }
 
-/* --------------------------------------------------------------------------
-   Shared page furniture
-   -------------------------------------------------------------------------- */
+/* Main page layout */
 
 .app-layout {
   display: grid;
@@ -78,9 +76,7 @@ svg {
   gap: 18px;
 }
 
-/* --------------------------------------------------------------------------
-   Brand
-   -------------------------------------------------------------------------- */
+/* Brand and header */
 
 .brand {
   display: flex;
@@ -168,19 +164,12 @@ svg {
   letter-spacing: -0.04em;
 }
 
-/* --------------------------------------------------------------------------
-   Cards
-   FIXED: a comment had been dropped inside this selector list, which closed
-   the rule early. .hero-card and .section-card were left with only a top
-   border and no background at all.
-   -------------------------------------------------------------------------- */
 
 .drawer-card,
 .mini-note-card,
 .hero-card,
 .section-card,
-.map-card,
-.disclaimer-card {
+.map-card {
   background: var(--surface-alt);
   border: 1px solid #dce4e2;
   border-radius: var(--radius-xl);
@@ -188,7 +177,7 @@ svg {
   backdrop-filter: blur(8px);
 }
 
-/* A teal accent stripe across the top of each section */
+/* Adds a top accent to section cards */
 .section-card {
   border-top: 4px solid #14507a;
 }
@@ -328,9 +317,7 @@ svg {
   background: linear-gradient(180deg, #ffffff 0%, #fbfdfe 100%);
 }
 
-/* --------------------------------------------------------------------------
-   Form controls
-   -------------------------------------------------------------------------- */
+/* Search and filter controls */
 
 .panel-field {
   position: relative;
@@ -419,41 +406,6 @@ svg {
   box-shadow: 0 2px 6px rgba(20, 80, 122, 0.08);
 }
 
-/* FIXED: this used to be "display: none", which removed the radio from the
-   tab order entirely, so nobody using a keyboard could pick a distance.
-.drawer-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.drawer-btn,
-.map-control-btn {
-  border: 1px solid transparent;
-  cursor: pointer;
-}
-
-.drawer-btn {
-  height: 42px;
-  padding: 0 18px;
-  border-radius: 8px;
-  font-weight: 700;
-}
-
-.drawer-btn.ghost {
-  background: #fff;
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.drawer-btn.solid {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
-
-/* --------------------------------------------------------------------------
-   Small map preview
-   -------------------------------------------------------------------------- */
 
 .mini-note-card {
   padding: 16px 18px;
@@ -601,9 +553,7 @@ svg {
   white-space: nowrap;
 }
 
-/* --------------------------------------------------------------------------
-   Weather panel
-   -------------------------------------------------------------------------- */
+/* Weather panel */
 
 .weather-top,
 .hero-top,
@@ -654,21 +604,17 @@ svg {
   gap: 10px;
 }
 
-/* --------------------------------------------------------------------------
-   Venue hero
-   -------------------------------------------------------------------------- */
+/* Venue summary section */
 
 .hero-card,
 .section-card,
-.map-card,
-.disclaimer-card {
+.map-card {
   padding: 22px;
 }
 
 .hero-card h2,
 .section-head h3,
-.map-facilities-head h4,
-.disclaimer-card h3 {
+.map-facilities-head h4 {
   margin: 0;
   font-size: 24px;
   letter-spacing: -0.03em;
@@ -765,7 +711,7 @@ svg {
   gap: 8px;
 }
 
-/* Sport chips, matching the search results page */
+/* Sport tags */
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -783,11 +729,7 @@ svg {
   font-weight: 700;
 }
 
-/* --------------------------------------------------------------------------
-   Facility cards
-   Each state has a colour AND a symbol, because colour alone is not enough
-   for people who cannot tell the colours apart.
-   -------------------------------------------------------------------------- */
+/* Facility cards use both colour and text/symbols for accessibility */
 
 .facility-card,
 .route-item {
@@ -801,6 +743,10 @@ svg {
 
 .facility-card {
   grid-template-columns: 46px minmax(0, 1fr);
+}
+
+.facility-list {
+  margin-top: 12px;
 }
 
 .facility-within,
@@ -899,9 +845,7 @@ svg {
   white-space: nowrap;
 }
 
-/* --------------------------------------------------------------------------
-   Venue detail page
-   -------------------------------------------------------------------------- */
+/* Venue detail page */
 
 .venue-page {
   min-height: 100vh;
@@ -972,7 +916,7 @@ svg {
   gap: 18px;
 }
 
-/* A photo banner at the top of the venue detail page */
+/* Venue photo banner */
 .venue-banner {
   position: relative;
   height: 200px;
@@ -1008,9 +952,7 @@ svg {
   margin-top: 14px;
 }
 
-/* --------------------------------------------------------------------------
-   Directions map
-   -------------------------------------------------------------------------- */
+/* Directions map */
 
 .map-panel {
   position: relative;
@@ -1285,26 +1227,24 @@ svg {
   margin: 8px 0 0 0;
 }
 
-.map-legend {
-  display: flex;
-  gap: 16px;
-  margin-top: 10px;
-  font-size: 0.8rem;
-  color: #33474f;
-  flex-wrap: wrap;
-}
-
 .map-legend span {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.map-legend i {
-  width: 10px;
-  height: 10px;
+.map-legend .legend-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  display: inline-block;
+  background: var(--primary-soft);
+  border: 1px solid #d2e3ed;
+  font-size: 13px;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .manual-location-form {
@@ -1332,9 +1272,7 @@ svg {
   cursor: pointer;
 }
 
-/* --------------------------------------------------------------------------
-   Tags, summaries and notices
-   -------------------------------------------------------------------------- */
+/* Tags, summaries and notices */
 
 .item-tag {
   display: inline-flex;
@@ -1358,17 +1296,41 @@ svg {
   border: 1px solid var(--warning-border);
 }
 
+/* Keeps the disclaimer simple so it looks like a note */
 .disclaimer-card {
-  background: #fff7e8;
-  border-color: #f0d7a3;
+  background: transparent;
+  border: none;
+  border-top: 1px solid #dce4e2;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 14px 0 0;
+  margin-top: 8px;
 }
 
 .disclaimer-card h3 {
-  color: #6e4b00;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: #536368;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.disclaimer-card h3::before {
+  content: "⚠";
+  font-size: 13px;
+  line-height: 1;
+  color: #8a9699;
 }
 
 .disclaimer-card p {
-  color: #7a622d;
+  margin: 4px 0 0;
+  color: #66777a;
+  font-size: 12.5px;
+  line-height: 1.5;
 }
 
 .types-summary {
@@ -1408,9 +1370,7 @@ svg {
   font-size: 1rem;
 }
 
-/* --------------------------------------------------------------------------
-   Smaller screens
-   -------------------------------------------------------------------------- */
+/* Responsive layout for smaller screens */
 
 @media (max-width: 1180px) {
   .app-layout {

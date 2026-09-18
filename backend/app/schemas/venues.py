@@ -1,18 +1,26 @@
-"""Response models — the Iteration 1 contract the frontend is built against.
+"""Response models for search, the venue page and the corridor.
 
-Shapes follow ``frontend/src/data/Venues.js`` field for field so the interface
-needs no change to go live: ``amenities`` is an object keyed ``toilet / parking /
-stop / change``, venue ``distance`` is kilometres, amenity ``distance`` is
-metres, and the search wrapper is ``total / matched / undocumented / place``.
-Extra fields are additive and can be ignored.
+Contract v0.2 shapes, with the v0.1 fields still present during the switch
+(contract §11): a page can move one field at a time and nothing breaks the day
+this lands. Every v0.1 field is marked ``deprecated`` so Swagger shows which
+half of the object goes away at the Iteration 2 freeze.
 
-There is deliberately no combined score, rating or percentage anywhere (AC2.1.2).
+There is deliberately no combined score, rating or percentage anywhere
+(AC2.1.2, AC3.1.3).
 """
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from app.schemas.common import (
+    FacilityOut,
+    ReferencePointOut,
+    SourceRefOut,
+    VenueSummaryOut,
+)
+
+# ---------------------------------------------------------------- v0.1 bits
 State = Literal["confirmed", "recorded", "absent", "none"]
 Location = Literal["at_venue", "public_nearby", "unrecorded"]
 
@@ -22,15 +30,32 @@ class HealthOut(BaseModel):
     service: str = "sportable-api"
 
 
+class EventsConfigOut(BaseModel):
+    default_window_days: int
+    max_window_days: int
+    page_size: int
+
+
 class ConfigOut(BaseModel):
     distance_bands_m: list[int]
     default_distance_m: int
+    search_radius_m: int
+    corridor_default_m: int
     max_results: int
+    events: EventsConfigOut
+    timezone: str
+    default_stale_after_days: int
     source: str
 
 
+class SportOut(BaseModel):
+    name: str
+    venue_count: int
+    event_count: int = 0
+
+
 class SportsOut(BaseModel):
-    sports: list[str]
+    sports: list[SportOut]
 
 
 class SuburbOut(BaseModel):
@@ -48,34 +73,9 @@ class AmenityOut(BaseModel):
     distance: int | None = None  # metres; present only when state == "recorded"
 
 
-class ReferencePointOut(BaseModel):
-    label: str
-    latitude: float
-    longitude: float
-
-
-class VenueOut(BaseModel):
-    id: str
-    name: str
-    suburb: str | None
-    postcode: str | None
-    sports: list[str]
-    surface: str | None
-    distance: float  # kilometres from the reference point, one decimal
-    amenities: dict[str, AmenityOut]
-
-
-class SearchOut(BaseModel):
-    place: str
-    total: int
-    matched: list[VenueOut]
-    undocumented: list[VenueOut]
-    reference_point: ReferencePointOut
-    distance_limit_m: int
-    not_available: int
-
-
 class SourceOut(BaseModel):
+    """v0.1 provenance. v0.2 uses ``SourceRefOut`` (common)."""
+
     name: str
     published_at: str | None = None
     retrieved_at: str | None = None
@@ -97,26 +97,115 @@ class UnpublishedOut(BaseModel):
     reason: str
 
 
-class VenueCardOut(BaseModel):
-    id: str
-    name: str
-    address: str | None
-    suburb: str | None
-    postcode: str | None
-    lga: str | None
-    lat: float
-    lon: float
-    sports: list[str]
-    surface: str | None
-    amenities: dict[str, AmenityDetailOut]
-    unpublished: list[UnpublishedOut]
-    last_updated: str | None
-    # Only when the request carried ?from= — kilometres from that point, one decimal.
-    distance: float | None = None
+# ------------------------------------------------------------------ search
+class SearchVenueOut(VenueSummaryOut):
+    """One search result: the v0.2 summary plus the four tiles, with the v0.1
+    fields alongside until the switch."""
+
+    distance_m: int
+    facilities: list[FacilityOut]
+    # v0.1
+    distance: float = Field(deprecated=True, description="Kilometres. Use distance_m.")
+    surface: str | None = Field(default=None, deprecated=True, description="Use surface_types.")
+    amenities: dict[str, AmenityOut] = Field(deprecated=True, description="Use facilities.")
+
+
+class VenueOut(SearchVenueOut):
+    """Alias kept for the v0.1 import path."""
+
+
+class CountsOut(BaseModel):
+    total_for_sport: int
+    matched: int
+    undocumented: int
+    not_available: int
+
+
+class GroupOut(BaseModel):
+    label: str
+    count: int
+    results: list[SearchVenueOut]
+
+
+class SearchOut(BaseModel):
+    sport: str
+    reference_point: ReferencePointOut
+    distance_limit_m: int
+    search_radius_m: int
+    facilities_requested: list[str]
+    counts: CountsOut
+    results: list[SearchVenueOut]
+    undocumented_group: GroupOut
+    not_available_group: GroupOut
+    retrieved_at: str | None = None
+    # v0.1
+    place: str = Field(deprecated=True, description="Use reference_point.label.")
+    total: int = Field(deprecated=True, description="Use counts.total_for_sport.")
+    matched: list[SearchVenueOut] = Field(deprecated=True, description="Use results.")
+    undocumented: list[SearchVenueOut] = Field(
+        deprecated=True, description="Use undocumented_group.results."
+    )
+    not_available: int = Field(deprecated=True, description="Use counts.not_available.")
+
+
+# -------------------------------------------------------------- venue page
+class AccessLinkOut(BaseModel):
+    link: str
+    label: str
+    facility_type: str | None = None
+    status: str
+    summary: str
+
+
+class LimitItemOut(BaseModel):
+    topic: str
+    reason: str
+
+
+class LimitsOut(BaseModel):
+    heading: str
+    items: list[LimitItemOut]
+
+
+class UpcomingEventsOut(BaseModel):
+    count: int
+    next_starts_at: str | None = None
+    href: str | None = None
+
+
+class VenueCardOut(VenueSummaryOut):
+    ownership: str | None = None
+    purpose: str | None = None
+    changeroom_description: str | None = None
+    facilities: list[FacilityOut]
+    access_chain: list[AccessLinkOut]
+    limits: LimitsOut
+    sources: list[SourceRefOut]
+    upcoming_events: UpcomingEventsOut
+    # US3.3 - Read Aloud. An ordered array of short, complete sentences built
+    # from the fields above, one sentence per element so the frontend can
+    # highlight the sentence being spoken (AC3.3.3) without having to split
+    # prose on full stops that also appear in addresses and times. All four
+    # facility statuses are always present, including the unknown ones.
+    summary_sentences: list[str] = Field(default_factory=list)
+    last_updated: str | None = None
+    # Only when the request carried ?from=
+    distance_m: int | None = None
     reference_point: ReferencePointOut | None = None
+    # v0.1
+    lat: float = Field(deprecated=True, description="Use latitude.")
+    lon: float = Field(deprecated=True, description="Use longitude.")
+    surface: str | None = Field(default=None, deprecated=True, description="Use surface_types.")
+    amenities: dict[str, AmenityDetailOut] = Field(deprecated=True, description="Use facilities.")
+    unpublished: list[UnpublishedOut] = Field(
+        deprecated=True, description="Use access_chain and limits."
+    )
+    distance: float | None = Field(
+        default=None, deprecated=True, description="Kilometres. Use distance_m."
+    )
 
 
-# ------------------------------------------------------------------ corridor
+# ---------------------------------------------------------------- corridor
 CorridorTypeStatus = Literal["found", "none_within", "no_data"]
 
 
@@ -124,12 +213,16 @@ class CorridorVenueOut(BaseModel):
     id: str
     name: str
     address: str | None
-    lat: float
-    lon: float
+    latitude: float
+    longitude: float
+    href: str
+    # v0.1
+    lat: float = Field(deprecated=True, description="Use latitude.")
+    lon: float = Field(deprecated=True, description="Use longitude.")
 
 
 class CorridorPathOut(BaseModel):
-    kind: str = "straight_line"
+    kind: Literal["straight_line", "routed"] = "straight_line"
     length_m: int  # straight-line metres, NOT a travel distance
     within_m: int  # the corridor half-width applied
     coordinates: list[list[float]]  # [[lat, lon], [lat, lon]]
@@ -139,7 +232,8 @@ class CorridorTypeOut(BaseModel):
     type: str
     label: str
     count: int
-    status: CorridorTypeStatus  # found | none_within | no_data — different copy each
+    status: CorridorTypeStatus  # found | none_within | no_data - different copy each
+    message: str | None = None
 
 
 class CorridorFacilityOut(BaseModel):
@@ -147,13 +241,19 @@ class CorridorFacilityOut(BaseModel):
     type: str
     name: str | None = None
     address: str | None = None
-    lat: float
-    lon: float
+    latitude: float
+    longitude: float
     distance_from_path_m: int
     along_path_m: int
     opening_hours: str | None = None
-    mlak: bool | None = None
-    source: SourceOut | None = None
+    opening_hours_unrecorded: bool = False
+    key_required: bool | None = None
+    key_requirement_unrecorded: bool = False
+    source: SourceRefOut | None = None
+    # v0.1
+    lat: float = Field(deprecated=True, description="Use latitude.")
+    lon: float = Field(deprecated=True, description="Use longitude.")
+    mlak: bool | None = Field(default=None, deprecated=True, description="Use key_required.")
 
 
 class CorridorOut(BaseModel):
@@ -164,4 +264,5 @@ class CorridorOut(BaseModel):
     facilities: list[CorridorFacilityOut]
     checked: list[str]
     not_checked: list[str]
+    disclaimer: str
     retrieved_at: str | None = None

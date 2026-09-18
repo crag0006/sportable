@@ -1,5 +1,6 @@
 import TopBar from "../components/TopBar";
 import "./LandingPage.css";
+import Footer from "../components/Footer";
 
 function Landing() {
   return (
@@ -27,13 +28,7 @@ function Landing() {
           </main>
         </div>
       </div>
-
-      <footer className="landing-foot">
-        <p>
-          Built with Victorian open data. Always confirm access
-          details with the venue before travelling.
-        </p>
-      </footer>
+        <Footer />
     </div>
   );
 }

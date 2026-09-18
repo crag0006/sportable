@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Build the Lambda deployment packages.
+#
+# Run this before terraform, in CI and by hand alike. The ingestion module
+# points at data/build/{fetch,load,derive} and Terraform will not build them
+# for you — a plan against a missing directory fails with "source_dir does not
+# exist", which is the correct and least confusing failure.
+#
+#   ./scripts/build_lambda.sh
+#
+# WHY --platform AND --only-binary
+#   pip on Windows or macOS resolves wheels for the machine it is running on.
+#   psycopg's binary wheel is platform specific, so a package built on a laptop
+#   and uploaded to Lambda imports fine locally and fails at runtime with an
+#   undefined symbol. Forcing the manylinux platform makes the laptop build and
+#   the CI build produce the same bytes.
+# =============================================================================
+
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DATA_DIR="$(dirname "$HERE")"
+BUILD_DIR="$DATA_DIR/build"
+
+PY_VERSION="3.12"
+PLATFORM="manylinux2014_x86_64"
+
+echo "==> Building into $BUILD_DIR"
+rm -rf "$BUILD_DIR"
+mkdir -p "$BUILD_DIR"/{fetch,load,derive}
+
+pip_install() {
+  local target="$1"; shift
+  pip install \
+    --target "$target" \
+    --platform "$PLATFORM" \
+    --python-version "$PY_VERSION" \
+    --only-binary=:all: \
+    --upgrade \
+    --quiet \
+    "$@"
+}
+
+# -----------------------------------------------------------------------------
+# fetch — outside the VPC, talks to publishers and S3 only
+# -----------------------------------------------------------------------------
+# boto3 ships with the runtime and is deliberately not bundled: a second copy
+# inflates the artefact and drifts from whatever the runtime is patched to.
+
+echo "==> fetch"
+cp "$DATA_DIR/ingestion/extractors/handler.py" "$BUILD_DIR/fetch/"
+cp "$DATA_DIR/ingestion/extractors/aaaplay.py" "$BUILD_DIR/fetch/"
+
+# handler.py resolves REGISTER_DIR to /var/task/sources. The source cards are
+# the register; without them every invocation fails with "No source card found".
+mkdir -p "$BUILD_DIR/fetch/sources"
+cp "$DATA_DIR"/sources/*.yaml "$BUILD_DIR/fetch/sources/"
+
+pip_install "$BUILD_DIR/fetch" PyYAML==6.0.2
+
+# -----------------------------------------------------------------------------
+# load — inside the VPC, reads S3 and writes RDS
+# -----------------------------------------------------------------------------
+
+echo "==> load"
+cp "$DATA_DIR/ingestion/loaders/handler.py" "$BUILD_DIR/load/"
+
+mkdir -p "$BUILD_DIR/load/ingestion/transformers" "$BUILD_DIR/load/ingestion/loaders"
+touch "$BUILD_DIR/load/ingestion/__init__.py"
+touch "$BUILD_DIR/load/ingestion/transformers/__init__.py"
+touch "$BUILD_DIR/load/ingestion/loaders/__init__.py"
+
+# DS-01 and DS-02 ONLY, and the empty __init__.py above is why.
+#
+# ds04 and ds08 take GeoDataFrames and import geopandas at module scope. Copying
+# them in would not merely bloat the package — a package __init__ that imports
+# them, or an accidental import, fails at cold start with ModuleNotFoundError
+# and the failure appears to be about the source being loaded rather than about
+# a source that is not. Leaving them out makes the boundary explicit.
+#
+# The geospatial sources are loaded by hand with scripts/load_run.py through the
+# bastion tunnel. They are ABS reference layers republished annually; a weekly
+# Lambda would buy nothing and cost a container image build.
+cp "$DATA_DIR/ingestion/transformers/ds01_sport_facilities.py" "$BUILD_DIR/load/ingestion/transformers/"
+cp "$DATA_DIR/ingestion/transformers/ds02_public_toilets.py" "$BUILD_DIR/load/ingestion/transformers/"
+cp "$DATA_DIR/ingestion/loaders/loader.py" "$BUILD_DIR/load/ingestion/loaders/"
+
+# DS-09, and the extractor module it needs.
+#
+# loaders/handler.py imports BOTH of these at module scope:
+#
+#     from ingestion.extractors import aaaplay
+#     from ingestion.transformers import ds09_aaaplay as ds09
+#
+# so leaving either out is not a missing feature, it is a ModuleNotFoundError at
+# cold start that takes the whole load function down — including DS-01 and DS-02,
+# which have nothing to do with DS-09. An import at module scope makes every
+# source share the fate of the least-packaged one.
+#
+# ds09_aaaplay.py needs pandas, which the load package already installs, and its
+# crosswalk import is under TYPE_CHECKING, so nothing else has to ship for it.
+# This is why the DS-01/DS-02-only rule above is about GEOPANDAS specifically and
+# not a general rule about which transformers may be packaged.
+cp "$DATA_DIR/ingestion/transformers/ds09_aaaplay.py" "$BUILD_DIR/load/ingestion/transformers/"
+
+mkdir -p "$BUILD_DIR/load/ingestion/extractors"
+touch "$BUILD_DIR/load/ingestion/extractors/__init__.py"
+cp "$DATA_DIR/ingestion/extractors/aaaplay.py" "$BUILD_DIR/load/ingestion/extractors/"
+
+mkdir -p "$BUILD_DIR/load/sources"
+cp "$DATA_DIR"/sources/*.yaml "$BUILD_DIR/load/sources/"
+
+# The derive stage, which the loader now runs itself rather than invoking as a
+# second function: from inside this subnet there is no route to the Lambda API,
+# so the invoke hung until the timeout. See derive/run.py. These modules import
+# nothing but psycopg, which this package already installs.
+mkdir -p "$BUILD_DIR/load/derive"
+touch "$BUILD_DIR/load/derive/__init__.py"
+cp "$DATA_DIR/derive/run.py" "$BUILD_DIR/load/derive/"
+cp "$DATA_DIR/derive/status_builder.py" "$BUILD_DIR/load/derive/"
+cp "$DATA_DIR/derive/venue_match.py" "$BUILD_DIR/load/derive/"
+cp "$DATA_DIR/derive/place_geography.py" "$BUILD_DIR/load/derive/"
+
+pip_install "$BUILD_DIR/load" \
+  "psycopg[binary]==3.2.3" \
+  "pandas==2.2.3" \
+  PyYAML==6.0.2
+
+# -----------------------------------------------------------------------------
+# derive — inside the VPC, pure SQL against RDS
+# -----------------------------------------------------------------------------
+# No pandas. The status builder does its work in PostGIS, not in Python, which
+# is why this artefact is a tenth the size of the loader.
+
+echo "==> derive"
+cp "$DATA_DIR/derive/handler.py" "$BUILD_DIR/derive/"
+mkdir -p "$BUILD_DIR/derive/derive"
+
+# Every module handler.py imports, not only the status builder. venue_match and
+# place_geography are the DS-09 place stage; leaving them out does not fail the
+# build or the deploy, it fails at cold start inside the VPC, which is where it
+# went unnoticed for a week. tests/test_derive_handler.py reads this list
+# against the handler's imports so the two cannot drift apart again.
+cp "$DATA_DIR/derive/run.py" "$BUILD_DIR/derive/derive/"
+cp "$DATA_DIR/derive/status_builder.py" "$BUILD_DIR/derive/derive/"
+cp "$DATA_DIR/derive/venue_match.py" "$BUILD_DIR/derive/derive/"
+cp "$DATA_DIR/derive/place_geography.py" "$BUILD_DIR/derive/derive/"
+touch "$BUILD_DIR/derive/derive/__init__.py"
+
+pip_install "$BUILD_DIR/derive" "psycopg[binary]==3.2.3"
+
+# -----------------------------------------------------------------------------
+# Report
+# -----------------------------------------------------------------------------
+# Lambda's hard limit is 250 MB unzipped. Printing the sizes here means the
+# limit is hit at build time with an obvious cause, rather than at deploy time
+# as a RequestEntityTooLarge from the API.
+
+echo
+echo "==> Package sizes (Lambda limit: 250 MB unzipped)"
+for pkg in fetch load derive; do
+  size=$(du -sm "$BUILD_DIR/$pkg" | cut -f1)
+  printf "    %-8s %4s MB\n" "$pkg" "$size"
+  if [ "$size" -gt 250 ]; then
+    echo "    ERROR: $pkg exceeds the Lambda limit. Use a container image."
+    exit 1
+  fi
+done
+
+echo
+echo "==> Done."

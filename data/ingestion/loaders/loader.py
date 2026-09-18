@@ -11,6 +11,14 @@ The loader handles three main things:
 - Checking that records are inside the Greater Melbourne boundary.
 - Writing records in an idempotent way so the pipeline can be rerun safely.
 - Stopping the load if too many rows are quarantined.
+
+Rejected rows go to TWO places, and the reason is the abort path. The
+``quarantine`` table is the better home for a load that commits: a person
+diagnosing a bad transform wants SQL. But ``write_quarantine`` inserts inside
+the load transaction, ``check_rejection_rate`` raises above the threshold, and
+``connect`` rolls back on any exception — so on the one path where the rows
+matter most, they are discarded with everything else. The optional
+``quarantine_sink`` writes them somewhere outside the transaction first.
 """
 
 from __future__ import annotations
@@ -20,7 +28,7 @@ import logging
 from collections.abc import Iterable, Sequence
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 import pandas as pd
 import psycopg
@@ -304,16 +312,43 @@ def _upsert(
     return len(rows)
 
 
+class QuarantineSink(Protocol):
+    """Somewhere outside the database to put rejected rows.
+
+    Implemented by the Lambda handler over S3. Kept as a protocol so this module
+    keeps its one dependency on psycopg and never imports boto3 — the handler
+    owns AWS, this layer owns the database.
+    """
+
+    def __call__(self, *, load_run_id: int, source_id: str, frame: pd.DataFrame) -> str | None: ...
+
+
 def write_quarantine(
     conn,
     load_run_id: int,
     source_id: str,
     frame: pd.DataFrame,
+    sink: QuarantineSink | None = None,
 ) -> int:
-    """Store rejected rows in the quarantine table."""
+    """Store rejected rows in the quarantine table, and in ``sink`` if given.
+
+    The sink is written FIRST and its failure is never allowed to fail the load.
+    Losing the evidence is bad; losing the load because the evidence could not be
+    filed is worse, and the table write still happens either way.
+    """
 
     if frame.empty:
         return 0
+
+    if sink is not None:
+        try:
+            sink(load_run_id=load_run_id, source_id=source_id, frame=frame)
+        except Exception:  # deliberately broad - see the docstring
+            LOG.exception(
+                "Could not write %s rejected rows to the quarantine sink. "
+                "Continuing: the table write below is unaffected.",
+                len(frame),
+            )
 
     records = [
         (
@@ -361,8 +396,10 @@ def check_rejection_rate(
         raise LoadAbortedError(
             f"{source_id} quarantined {quarantined:,} of {total:,} rows ({rate}%), "
             f"above the {threshold}% threshold. The load has been "
-            f"abandoned. Inspect the quarantine table before rerunning; do not "
-            f"raise the threshold to make this pass."
+            f"abandoned. The rows are in the quarantine BUCKET, not the "
+            f"quarantine table: this abort rolls the transaction back. Inspect "
+            f"them before rerunning; do not raise the threshold to make this "
+            f"pass."
         )
 
     return rate
@@ -467,6 +504,7 @@ def load_venues(
     venue_sports: pd.DataFrame,
     quarantine: pd.DataFrame,
     rows_read: int,
+    sink: QuarantineSink | None = None,
 ) -> LoadOutcome:
     """Load venues and their associated sports."""
 
@@ -520,6 +558,7 @@ def load_venues(
         load_run_id,
         source_id,
         quarantine,
+        sink=sink,
     )
 
     rate = check_rejection_rate(
@@ -546,6 +585,7 @@ def load_postal_areas(
     postal_areas: pd.DataFrame,
     quarantine: pd.DataFrame,
     rows_read: int,
+    sink: QuarantineSink | None = None,
 ) -> LoadOutcome:
     """Load the DS-08 postal area data."""
 
@@ -594,6 +634,7 @@ def load_postal_areas(
         load_run_id,
         source_id,
         quarantine,
+        sink=sink,
     )
 
     rate = check_rejection_rate(
@@ -620,6 +661,7 @@ def load_amenities(
     amenities: pd.DataFrame,
     quarantine: pd.DataFrame,
     rows_read: int,
+    sink: QuarantineSink | None = None,
 ) -> LoadOutcome:
     """Load DS-02, DS-03 or DS-04 amenity data."""
 
@@ -642,6 +684,291 @@ def load_amenities(
         load_run_id,
         source_id,
         quarantine,
+        sink=sink,
+    )
+
+    rate = check_rejection_rate(
+        source_id,
+        loaded,
+        quarantined,
+    )
+
+    return LoadOutcome(
+        load_run_id=load_run_id,
+        source_id=source_id,
+        rows_read=rows_read,
+        rows_loaded=loaded,
+        rows_quarantined=quarantined,
+        quarantine_rate_pct=rate,
+        outside_scope=len(rejected),
+    )
+
+
+# ---------------------------------------------------------------------------
+# DS-09 programs
+#
+# APPEND THIS BLOCK TO ingestion/loaders/loader.py, after load_amenities.
+# It uses _upsert, _tuples, clip_to_scope, write_quarantine,
+# check_rejection_rate and LoadOutcome, all already defined in that file.
+# ---------------------------------------------------------------------------
+
+PROGRAM_ORGANISATION_COLUMNS = [
+    "organisation_id",
+    "source_id",
+    "load_run_id",
+    "publisher_key",
+    "name",
+    "website_url",
+    "source_url",
+    "publisher_last_updated",
+    "retrieved_at",
+]
+
+PROGRAM_VENUE_COLUMNS = [
+    "program_venue_id",
+    "source_id",
+    "load_run_id",
+    "publisher_key",
+    "name",
+    "full_address",
+    "suburb_name",
+    "postcode",
+    "publisher_lga_label",
+    "latitude",
+    "longitude",
+    "publisher_place_ref",
+    "accessible_car_spaces",
+    "website_url",
+    "source_url",
+    "publisher_last_updated",
+    "retrieved_at",
+    "venue_id",
+    "match_distance_m",
+    "match_name_similarity",
+]
+
+# venue_matched is absent on purpose. It is GENERATED ALWAYS in the database,
+# and naming a generated column in an INSERT is an error.
+PROGRAM_VENUE_ATTRIBUTE_COLUMNS = [
+    "program_venue_id",
+    "attribute_key",
+    "attribute_label",
+    "source_id",
+    "load_run_id",
+]
+
+PROGRAM_COLUMNS = [
+    "program_id",
+    "source_id",
+    "load_run_id",
+    "publisher_key",
+    "name",
+    "description",
+    "starts_at",
+    "ends_at",
+    "recurrence_weekdays",
+    "recurrence_time_of_day",
+    "is_free",
+    "price_label",
+    "age_ranges",
+    "welcoming",
+    "environment",
+    "program_venue_id",
+    "organisation_id",
+    "latitude",
+    "longitude",
+    "publisher_lga_label",
+    "publisher_region_label",
+    "registration_url",
+    "source_url",
+    "publisher_last_updated",
+    "retrieved_at",
+]
+
+# `kind` is omitted so the column default of 'program' applies. DS-09 publishes
+# nothing else, and spelling it out here would be the first place somebody
+# changed when they wanted to force a dated row through.
+PROGRAM_ACCESS_NEED_COLUMNS = [
+    "program_id",
+    "access_need_key",
+    "access_need_label",
+    "source_id",
+    "load_run_id",
+]
+
+PROGRAM_SPORT_COLUMNS = [
+    "program_id",
+    "sport_key",
+    "sport_label",
+    "source_id",
+    "load_run_id",
+]
+
+
+def _replace_children(
+    conn,
+    table: str,
+    parent_column: str,
+    parent_ids: Sequence[str],
+    columns: Sequence[str],
+    frame: pd.DataFrame,
+) -> int:
+    """Delete a parent's tag rows, then insert the current set.
+
+    WHY NOT AN UPSERT. An upsert adds and updates but never removes. If a
+    provider deletes the wheelchair tag from a programme, an upsert leaves
+    yesterday's row in place and the site goes on claiming a published yes that
+    the publisher has withdrawn. For a product whose whole argument is that it
+    reports what the publisher actually says, a stale positive is the worst
+    shape of error available.
+
+    The delete is scoped to the parents in this payload, so a partial load
+    cannot clear tags belonging to rows it did not touch.
+    """
+    if not parent_ids:
+        return 0
+
+    with conn.cursor() as cur:
+        cur.execute(
+            f"DELETE FROM {table} WHERE {parent_column} = ANY(%s)",
+            (list(parent_ids),),
+        )
+
+    if frame.empty:
+        return 0
+
+    rows = _tuples(frame, columns)
+
+    if not rows:
+        return 0
+
+    placeholders = ", ".join(["%s"] * len(columns))
+
+    with conn.cursor() as cur:
+        cur.executemany(
+            f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})",
+            rows,
+        )
+
+    return len(rows)
+
+
+def load_programs(
+    conn,
+    load_run_id: int,
+    source_id: str,
+    result,
+    rows_read: int,
+    sink: QuarantineSink | None = None,
+) -> LoadOutcome:
+    """Load DS-09 programmes, their places, providers and tags.
+
+    `result` is the TransformResult returned by ds09_aaaplay.transform.
+
+    SCOPE IS DECIDED ON THE PROGRAMME, NOT THE PLACE. The programme is what a
+    person searches for, so it is the thing clipped against the boundary. The
+    places, providers and tags that come with it are then selected by reference
+    from the programmes that survived, rather than being clipped separately.
+    Clipping them independently would let a place fall outside the boundary
+    while the programme standing on it fell inside, which leaves the programme
+    pointing at a row that was never inserted and fails the whole load on a
+    foreign key.
+
+    INSERT ORDER FOLLOWS THE FOREIGN KEYS: providers and places first, because
+    a programme references both; tags last, because they reference a programme.
+    """
+    kept, rejected = clip_to_scope(conn, result.programs)
+
+    # Everything else is selected by reference from the programmes that survived.
+    program_ids = list(kept["program_id"]) if len(kept) else []
+
+    venue_ids = {v for v in kept["program_venue_id"] if isinstance(v, str)} if len(kept) else set()
+    organisation_ids = (
+        {o for o in kept["organisation_id"] if isinstance(o, str)} if len(kept) else set()
+    )
+
+    venues = result.program_venues
+    venues = venues[venues["program_venue_id"].isin(venue_ids)] if len(venues) else venues
+
+    organisations = result.organisations
+    organisations = (
+        organisations[organisations["organisation_id"].isin(organisation_ids)]
+        if len(organisations)
+        else organisations
+    )
+
+    attributes = result.venue_attributes
+    attributes = (
+        attributes[attributes["program_venue_id"].isin(venue_ids)]
+        if len(attributes)
+        else attributes
+    )
+
+    needs = result.program_access_needs
+    needs = needs[needs["program_id"].isin(program_ids)] if len(needs) else needs
+
+    sports = result.program_sports
+    sports = sports[sports["program_id"].isin(program_ids)] if len(sports) else sports
+
+    _upsert(
+        conn,
+        "program_organisation",
+        PROGRAM_ORGANISATION_COLUMNS,
+        ["organisation_id"],
+        _tuples(organisations, PROGRAM_ORGANISATION_COLUMNS),
+    )
+
+    _upsert(
+        conn,
+        "program_venue",
+        PROGRAM_VENUE_COLUMNS,
+        ["program_venue_id"],
+        _tuples(venues, PROGRAM_VENUE_COLUMNS),
+        geometry_from=("longitude", "latitude"),
+    )
+
+    _replace_children(
+        conn,
+        "program_venue_attribute",
+        "program_venue_id",
+        sorted(venue_ids),
+        PROGRAM_VENUE_ATTRIBUTE_COLUMNS,
+        attributes,
+    )
+
+    loaded = _upsert(
+        conn,
+        "program",
+        PROGRAM_COLUMNS,
+        ["program_id"],
+        _tuples(kept, PROGRAM_COLUMNS),
+        geometry_from=("longitude", "latitude"),
+    )
+
+    _replace_children(
+        conn,
+        "program_access_need",
+        "program_id",
+        program_ids,
+        PROGRAM_ACCESS_NEED_COLUMNS,
+        needs,
+    )
+
+    _replace_children(
+        conn,
+        "program_sport",
+        "program_id",
+        program_ids,
+        PROGRAM_SPORT_COLUMNS,
+        sports,
+    )
+
+    quarantined = write_quarantine(
+        conn,
+        load_run_id,
+        source_id,
+        result.quarantine,
+        sink=sink,
     )
 
     rate = check_rejection_rate(

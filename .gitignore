@@ -13,6 +13,11 @@ uv.lock.bak
 
 # Node
 node_modules/
+
+# Playwright accessibility-gate output. The report and the traces are rebuilt by
+# every run and are large; the browser binaries live outside the repo.
+frontend/playwright-report/
+frontend/test-results/
 dist/
 .vite/
 
@@ -65,3 +70,6 @@ infra/modules/*/.build/
 # payloads that are re-fetchable on demand and must never enter git history —
 # once committed, a 40 MB shapefile is in every clone forever.
 data/_raw/
+
+ssm-tunnel.json
+data/build/
