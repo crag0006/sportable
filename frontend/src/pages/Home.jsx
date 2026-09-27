@@ -3,13 +3,7 @@ import TopBar from "../components/TopBar";
 import VenueCard, { FACILITY_INFO } from "../components/SearchVenue";
 import ReadAloud from "../components/ReadAloud";
 import "./Home.css";
-import {
-  getSports,
-  getSuburbs,
-  getConfig,
-  searchVenues,
-} from "../api/venues";
-
+import { getSports, getSuburbs, getConfig, searchVenues } from "../api/venues";
 
 function getSavedSearch() {
   try {
@@ -25,7 +19,6 @@ function getSavedSearch() {
   return null;
 }
 
-
 // Turns 1000 into "1km" and 500 into "500m".
 function formatDistanceLabel(meters) {
   if (meters >= 1000) {
@@ -35,49 +28,32 @@ function formatDistanceLabel(meters) {
   return meters + "m";
 }
 
-
 function Home() {
   // Sport and suburb lists from the backend
   const [sports, setSports] = useState([]);
   const [suburbs, setSuburbs] = useState([]);
 
   // Distance choices
-  const [distanceBands, setDistanceBands] = useState([
-    250,
-    500,
-    1000,
-  ]);
+  const [distanceBands, setDistanceBands] = useState([250, 500, 1000]);
 
   // Search form values
-  const [sport, setSport] = useState(
-    () => getSavedSearch()?.sport ?? ""
-  );
+  const [sport, setSport] = useState(() => getSavedSearch()?.sport ?? "");
 
-  const [suburb, setSuburb] = useState(
-    () => getSavedSearch()?.suburb ?? ""
-  );
+  const [suburb, setSuburb] = useState(() => getSavedSearch()?.suburb ?? "");
 
   // Amenity filters
-  const [toilet, setToilet] = useState(
-    () => getSavedSearch()?.toilet ?? false
-  );
+  const [toilet, setToilet] = useState(() => getSavedSearch()?.toilet ?? false);
 
   const [parking, setParking] = useState(
     () => getSavedSearch()?.parking ?? false
   );
 
-  const [stop, setStop] = useState(
-    () => getSavedSearch()?.stop ?? false
-  );
+  const [stop, setStop] = useState(() => getSavedSearch()?.stop ?? false);
 
-  const [change, setChange] = useState(
-    () => getSavedSearch()?.change ?? false
-  );
+  const [change, setChange] = useState(() => getSavedSearch()?.change ?? false);
 
   // Distance filter
-  const [limit, setLimit] = useState(
-    () => getSavedSearch()?.limit ?? ""
-  );
+  const [limit, setLimit] = useState(() => getSavedSearch()?.limit ?? "");
 
   // Suggestion dropdown visibility
   const [showSports, setShowSports] = useState(false);
@@ -85,11 +61,9 @@ function Home() {
 
   // Keeps track of which dropdown option is highlighted
   // when the user uses the keyboard.
-  const [sportHighlight, setSportHighlight] =
-    useState(-1);
+  const [sportHighlight, setSportHighlight] = useState(-1);
 
-  const [suburbHighlight, setSuburbHighlight] =
-    useState(-1);
+  const [suburbHighlight, setSuburbHighlight] = useState(-1);
 
   // Search results
   const [results, setResults] = useState(
@@ -97,43 +71,30 @@ function Home() {
   );
 
   // Show/hide search form
-  const [showForm, setShowForm] = useState(
-    () => !getSavedSearch()?.results
-  );
+  const [showForm, setShowForm] = useState(() => !getSavedSearch()?.results);
 
   // Form validation message
   const [formError, setFormError] = useState("");
 
   // Search loading/error states
-  const [isSearching, setIsSearching] =
-    useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
-  const [searchError, setSearchError] =
-    useState("");
+  const [searchError, setSearchError] = useState("");
 
   // Missing information section
-  const [showMissing, setShowMissing] =
-    useState(false);
+  const [showMissing, setShowMissing] = useState(false);
 
   // Number of venue cards shown
-  const [visibleCount, setVisibleCount] =
-    useState(
-      () => getSavedSearch()?.visibleCount ?? 5
-    );
-
+  const [visibleCount, setVisibleCount] = useState(
+    () => getSavedSearch()?.visibleCount ?? 5
+  );
 
   // Load sports, suburbs and distance options
   useEffect(() => {
     getSports()
       .then((data) => setSports(data))
       .catch(() =>
-        setSports([
-          "Badminton",
-          "Basketball",
-          "Netball",
-          "Swimming",
-          "Tennis",
-        ])
+        setSports(["Badminton", "Basketball", "Netball", "Swimming", "Tennis"])
       );
 
     getSuburbs()
@@ -145,19 +106,14 @@ function Home() {
           "Fitzroy",
           "North Melbourne",
           "Preston",
-          "Kensington",
+          "Kensington"
         ])
       );
 
     getConfig()
-      .then((data) =>
-        setDistanceBands(data.distanceBandsM)
-      )
-      .catch(() =>
-        setDistanceBands([250, 500, 1000])
-      );
+      .then((data) => setDistanceBands(data.distanceBandsM))
+      .catch(() => setDistanceBands([250, 500, 1000]));
   }, []);
-
 
   // Close dropdowns when clicking outside the fields
   useEffect(() => {
@@ -171,18 +127,11 @@ function Home() {
       }
     }
 
-    document.addEventListener(
-      "mousedown",
-      handleDocumentMouseDown
-    );
+    document.addEventListener("mousedown", handleDocumentMouseDown);
 
     return () =>
-      document.removeEventListener(
-        "mousedown",
-        handleDocumentMouseDown
-      );
+      document.removeEventListener("mousedown", handleDocumentMouseDown);
   }, []);
-
 
   // Suburb suggestions only appear after 3 characters
   function findMatches(list, typedText) {
@@ -191,12 +140,9 @@ function Home() {
     }
 
     return list.filter((item) =>
-      item
-        .toLowerCase()
-        .includes(typedText.toLowerCase())
+      item.toLowerCase().includes(typedText.toLowerCase())
     );
   }
-
 
   // Sport field can show all sports when empty
   function findSportMatches(list, typedText) {
@@ -205,19 +151,13 @@ function Home() {
     }
 
     return list.filter((item) =>
-      item
-        .toLowerCase()
-        .includes(typedText.toLowerCase())
+      item.toLowerCase().includes(typedText.toLowerCase())
     );
   }
 
+  const sportMatches = findSportMatches(sports, sport);
 
-  const sportMatches =
-    findSportMatches(sports, sport);
-
-  const suburbMatches =
-    findMatches(suburbs, suburb);
-
+  const suburbMatches = findMatches(suburbs, suburb);
 
   // Keyboard navigation for Sport suggestions
   function handleSportKeyDown(event) {
@@ -261,9 +201,7 @@ function Home() {
       event.preventDefault();
 
       if (sportHighlight >= 0) {
-        setSport(
-          sportMatches[sportHighlight]
-        );
+        setSport(sportMatches[sportHighlight]);
 
         setShowSports(false);
         setSportHighlight(-1);
@@ -281,13 +219,9 @@ function Home() {
     }
   }
 
-
   // Keyboard navigation for Suburb suggestions
   function handleSuburbKeyDown(event) {
-    if (
-      !showSuburbs ||
-      suburbMatches.length === 0
-    ) {
+    if (!showSuburbs || suburbMatches.length === 0) {
       return;
     }
 
@@ -326,9 +260,7 @@ function Home() {
       event.preventDefault();
 
       if (suburbHighlight >= 0) {
-        setSuburb(
-          suburbMatches[suburbHighlight]
-        );
+        setSuburb(suburbMatches[suburbHighlight]);
 
         setShowSuburbs(false);
         setSuburbHighlight(-1);
@@ -346,15 +278,12 @@ function Home() {
     }
   }
 
-
   // Search venues
   async function handleSearch(event) {
     event.preventDefault();
 
     if (sport === "" && suburb === "") {
-      setFormError(
-        "Choose a sport and a suburb or postcode."
-      );
+      setFormError("Choose a sport and a suburb or postcode.");
       return;
     }
 
@@ -364,9 +293,7 @@ function Home() {
     }
 
     if (suburb === "") {
-      setFormError(
-        "Choose a suburb or postcode."
-      );
+      setFormError("Choose a suburb or postcode.");
       return;
     }
 
@@ -407,21 +334,19 @@ function Home() {
         parking,
         stop,
         change,
-        limit,
+        limit
       });
 
       const newResults = {
         total: data.total,
         matched: data.matched,
         undocumented: data.undocumented,
-        undocumentedLabel:
-          data.undocumentedLabel,
+        undocumentedLabel: data.undocumentedLabel,
         place: data.place,
         searchedSport: sport,
         searchedPlace: suburb,
         searchedLimit: limit,
-        selectedAmenities:
-          selectedAmenities,
+        selectedAmenities: selectedAmenities
       };
 
       setResults(newResults);
@@ -431,10 +356,7 @@ function Home() {
       setShowForm(false);
 
       try {
-        sessionStorage.setItem(
-          "sportable-last-results-page",
-          "/venues"
-        );
+        sessionStorage.setItem("sportable-last-results-page", "/venues");
       } catch {
         // Not critical
       }
@@ -452,7 +374,7 @@ function Home() {
             change,
             limit,
             results: newResults,
-            visibleCount: 5,
+            visibleCount: 5
           })
         );
       } catch {
@@ -467,7 +389,6 @@ function Home() {
       setIsSearching(false);
     }
   }
-
 
   // Clear all search values
   function handleClear() {
@@ -494,14 +415,11 @@ function Home() {
     setSuburbHighlight(-1);
 
     try {
-      sessionStorage.removeItem(
-        "sportable-last-search"
-      );
+      sessionStorage.removeItem("sportable-last-search");
     } catch {
       // Nothing to do
     }
   }
-
 
   // Search summary
   function buildSummaryText() {
@@ -509,34 +427,22 @@ function Home() {
       return "";
     }
 
-    let text =
-      results.searchedSport +
-      " near " +
-      results.searchedPlace;
+    let text = results.searchedSport + " near " + results.searchedPlace;
 
     if (results.searchedLimit !== "") {
       text =
         text +
         " · " +
-        formatDistanceLabel(
-          Number(results.searchedLimit)
-        ) +
+        formatDistanceLabel(Number(results.searchedLimit)) +
         " facility limit";
     }
 
-    if (
-      results.selectedAmenities.length > 0
-    ) {
-      text =
-        text +
-        " · " +
-        results.selectedAmenities.length +
-        " amenities";
+    if (results.selectedAmenities.length > 0) {
+      text = text + " · " + results.selectedAmenities.length + " amenities";
     }
 
     return text;
   }
-
 
   // Short Read Aloud summary
   function buildReadAloudSummary() {
@@ -544,36 +450,26 @@ function Home() {
       return [];
     }
 
-    const sentences = [
-      `${buildSummaryText()}.`,
-    ];
+    const sentences = [`${buildSummaryText()}.`];
 
     const countText =
-      results.matched.length ===
-      results.total
+      results.matched.length === results.total
         ? `${results.total} venues found.`
         : `${results.matched.length} of ${results.total} venues found.`;
 
     sentences.push(countText);
 
     if (results.matched.length === 0) {
-      sentences.push(
-        "Try removing an amenity or choosing a bigger distance."
-      );
+      sentences.push("Try removing an amenity or choosing a bigger distance.");
 
       return sentences;
     }
 
-    const firstVenue =
-      results.matched[0];
+    const firstVenue = results.matched[0];
 
-    sentences.push(
-      `Top result: ${firstVenue.name}.`
-    );
+    sentences.push(`Top result: ${firstVenue.name}.`);
 
-    if (
-      results.undocumented.length > 0
-    ) {
+    if (results.undocumented.length > 0) {
       sentences.push(
         `${results.undocumented.length} more venues matched but have no published information for the facilities you selected.`
       );
@@ -582,78 +478,51 @@ function Home() {
     return sentences;
   }
 
-
   return (
-    <div className="search-page">
-
+    <div>
       <TopBar
         links={[
           {
             to: "/",
-            label: "Home",
+            label: "Home"
           },
           {
             to: "/events",
-            label: "Events",
-          },
+            label: "Events"
+          }
         ]}
       />
 
+      <div className="search-page">
+        <main className="search-content">
+          <div className="search-banner-wrap">
+            <h1 className="page-heading">Venue Search</h1>
 
-      <main className="search-content">
-
-        <div className="search-banner-wrap">
-
-          <div className="page-kicker">
-            <span
-              className="page-kicker-icon"
-              aria-hidden="true"
-            >
-              🏟
-            </span>
-
-            Venue search
-          </div>
-
-
-          <div className="search-banner">
-            <div className="search-banner-overlay">
-
-              <p className="search-banner-text">
-                No more maybes — every step,
-                mapped out.
-              </p>
-
+            <div className="search-banner">
+              <div className="search-banner-overlay">
+                <p className="search-banner-text">
+                  No more maybes — every step, mapped out.
+                </p>
+              </div>
             </div>
           </div>
 
-        </div>
-
-
-        {/* Search summary after a search */}
-        {results !== null &&
-          !showForm && (
+          {/* Search summary after a search */}
+          {results !== null && !showForm && (
             <div className="search-summary-bar">
-
               <div>
-                <span className="search-summary-label">
-                  Your search
-                </span>
+                <span className="search-summary-label">Your search</span>
 
                 <strong className="search-summary-text">
                   {buildSummaryText()}
                 </strong>
               </div>
 
-
               <div className="search-summary-actions">
-
                 <button
                   type="button"
                   className="edit-search-button"
-                  onClick={() =>
-                    setShowForm(true)
-                  }
+                  onClick={() => setShowForm(true)}
                 >
                   Edit search
                 </button>
@@ -665,789 +534,454 @@ function Home() {
                 >
                   Clear
                 </button>
-
               </div>
             </div>
           )}
 
+          {/* Search form */}
+          {showForm && (
+            <section className="search-card">
+              <h1 className="search-title">Find a venue</h1>
 
-        {/* Search form */}
-        {showForm && (
-          <section className="search-card">
+              <form onSubmit={handleSearch}>
+                <div className="search-row">
+                  {/* SPORT */}
+                  <div className="field">
+                    <label htmlFor="sport">
+                      Sport <span className="required">*</span>
+                    </label>
 
-            <h1 className="search-title">
-              Find a venue
-            </h1>
+                    <div className="field-inner">
+                      <input
+                        id="sport"
+                        type="text"
+                        className="input"
+                        placeholder="eg: Basketball"
+                        autoComplete="off"
+                        value={sport}
+                        role="combobox"
+                        aria-expanded={showSports && sportMatches.length > 0}
+                        aria-controls="sport-suggestions"
+                        aria-autocomplete="list"
+                        aria-activedescendant={
+                          sportHighlight >= 0
+                            ? `sport-option-${sportHighlight}`
+                            : undefined
+                        }
+                        onFocus={() => {
+                          setShowSports(true);
+                          setShowSuburbs(false);
+                          setSportHighlight(-1);
+                        }}
+                        onChange={(event) => {
+                          setSport(event.target.value);
 
+                          setShowSports(true);
 
-            <form onSubmit={handleSearch}>
+                          setSportHighlight(-1);
+                        }}
+                        onKeyDown={handleSportKeyDown}
+                      />
 
-              <div className="search-row">
-
-                {/* SPORT */}
-                <div className="field">
-
-                  <label htmlFor="sport">
-                    Sport{" "}
-                    <span className="required">
-                      *
-                    </span>
-                  </label>
-
-
-                  <div className="field-inner">
-
-                    <input
-                      id="sport"
-                      type="text"
-                      className="input"
-                      placeholder="eg: Basketball"
-                      autoComplete="off"
-                      value={sport}
-
-                      role="combobox"
-
-                      aria-expanded={
-                        showSports &&
-                        sportMatches.length >
-                          0
-                      }
-
-                      aria-controls="sport-suggestions"
-
-                      aria-autocomplete="list"
-
-                      aria-activedescendant={
-                        sportHighlight >= 0
-                          ? `sport-option-${sportHighlight}`
-                          : undefined
-                      }
-
-                      onFocus={() => {
-                        setShowSports(true);
-                        setShowSuburbs(false);
-                        setSportHighlight(-1);
-                      }}
-
-                      onChange={(event) => {
-                        setSport(
-                          event.target.value
-                        );
-
-                        setShowSports(true);
-
-                        setSportHighlight(-1);
-                      }}
-
-                      onKeyDown={
-                        handleSportKeyDown
-                      }
-                    />
-
-
-                    {showSports &&
-                      sportMatches.length >
-                        0 && (
+                      {showSports && sportMatches.length > 0 && (
                         <ul
                           id="sport-suggestions"
                           className="suggestions"
                           role="listbox"
                           aria-label="Sport suggestions"
                         >
+                          {sportMatches.map((item, index) => (
+                            <li key={item} role="presentation">
+                              <button
+                                id={`sport-option-${index}`}
+                                type="button"
+                                role="option"
+                                aria-selected={sportHighlight === index}
+                                tabIndex={-1}
+                                className={
+                                  sportHighlight === index
+                                    ? "suggestion-active"
+                                    : ""
+                                }
+                                onMouseEnter={() => setSportHighlight(index)}
+                                onMouseDown={(event) => {
+                                  event.preventDefault();
 
-                          {sportMatches.map(
-                            (item, index) => (
-                              <li
-                                key={item}
-                                role="presentation"
+                                  setSport(item);
+
+                                  setShowSports(false);
+
+                                  setSportHighlight(-1);
+                                }}
                               >
-
-                                <button
-                                  id={`sport-option-${index}`}
-                                  type="button"
-                                  role="option"
-
-                                  aria-selected={
-                                    sportHighlight ===
-                                    index
-                                  }
-
-                                  tabIndex={-1}
-
-                                  className={
-                                    sportHighlight ===
-                                    index
-                                      ? "suggestion-active"
-                                      : ""
-                                  }
-
-                                  onMouseEnter={() =>
-                                    setSportHighlight(
-                                      index
-                                    )
-                                  }
-
-                                  onMouseDown={(
-                                    event
-                                  ) => {
-                                    event.preventDefault();
-
-                                    setSport(item);
-
-                                    setShowSports(
-                                      false
-                                    );
-
-                                    setSportHighlight(
-                                      -1
-                                    );
-                                  }}
-                                >
-                                  {item}
-                                </button>
-
-                              </li>
-                            )
-                          )}
-
+                                {item}
+                              </button>
+                            </li>
+                          ))}
                         </ul>
                       )}
+                    </div>
 
+                    {showSports &&
+                      sport.length > 0 &&
+                      sportMatches.length === 0 && (
+                        <p className="no-match">
+                          No sport found with that name.
+                        </p>
+                      )}
+
+                    <p className="field-hint">
+                      Click to browse all sports, or start typing to filter.
+                    </p>
                   </div>
 
+                  {/* SUBURB */}
+                  <div className="field">
+                    <label htmlFor="suburb">
+                      Suburb or postcode <span className="required">*</span>
+                    </label>
 
-                  {showSports &&
-                    sport.length > 0 &&
-                    sportMatches.length ===
-                      0 && (
-                      <p className="no-match">
-                        No sport found with
-                        that name.
-                      </p>
-                    )}
+                    <div className="field-inner">
+                      <input
+                        id="suburb"
+                        type="text"
+                        className="input"
+                        placeholder="eg: Melbourne CBD or 3000"
+                        autoComplete="off"
+                        value={suburb}
+                        role="combobox"
+                        aria-expanded={showSuburbs && suburbMatches.length > 0}
+                        aria-controls="suburb-suggestions"
+                        aria-autocomplete="list"
+                        aria-activedescendant={
+                          suburbHighlight >= 0
+                            ? `suburb-option-${suburbHighlight}`
+                            : undefined
+                        }
+                        onFocus={() => {
+                          setShowSports(false);
+                          setSportHighlight(-1);
+                        }}
+                        onChange={(event) => {
+                          setSuburb(event.target.value);
 
+                          setShowSuburbs(true);
 
-                  <p className="field-hint">
-                    Click to browse all sports,
-                    or start typing to filter.
-                  </p>
+                          setSuburbHighlight(-1);
+                        }}
+                        onKeyDown={handleSuburbKeyDown}
+                      />
 
-                </div>
-
-
-                {/* SUBURB */}
-                <div className="field">
-
-                  <label htmlFor="suburb">
-                    Suburb or postcode{" "}
-                    <span className="required">
-                      *
-                    </span>
-                  </label>
-
-
-                  <div className="field-inner">
-
-                    <input
-                      id="suburb"
-                      type="text"
-                      className="input"
-                      placeholder="eg: Melbourne CBD or 3000"
-                      autoComplete="off"
-                      value={suburb}
-
-                      role="combobox"
-
-                      aria-expanded={
-                        showSuburbs &&
-                        suburbMatches.length >
-                          0
-                      }
-
-                      aria-controls="suburb-suggestions"
-
-                      aria-autocomplete="list"
-
-                      aria-activedescendant={
-                        suburbHighlight >= 0
-                          ? `suburb-option-${suburbHighlight}`
-                          : undefined
-                      }
-
-                      onFocus={() => {
-                        setShowSports(false);
-                        setSportHighlight(-1);
-                      }}
-
-                      onChange={(event) => {
-                        setSuburb(
-                          event.target.value
-                        );
-
-                        setShowSuburbs(true);
-
-                        setSuburbHighlight(
-                          -1
-                        );
-                      }}
-
-                      onKeyDown={
-                        handleSuburbKeyDown
-                      }
-                    />
-
-
-                    {showSuburbs &&
-                      suburbMatches.length >
-                        0 && (
+                      {showSuburbs && suburbMatches.length > 0 && (
                         <ul
                           id="suburb-suggestions"
                           className="suggestions"
                           role="listbox"
                           aria-label="Suburb suggestions"
                         >
+                          {suburbMatches.map((item, index) => (
+                            <li key={item} role="presentation">
+                              <button
+                                id={`suburb-option-${index}`}
+                                type="button"
+                                role="option"
+                                aria-selected={suburbHighlight === index}
+                                tabIndex={-1}
+                                className={
+                                  suburbHighlight === index
+                                    ? "suggestion-active"
+                                    : ""
+                                }
+                                onMouseEnter={() => setSuburbHighlight(index)}
+                                onMouseDown={(event) => {
+                                  event.preventDefault();
 
-                          {suburbMatches.map(
-                            (item, index) => (
-                              <li
-                                key={item}
-                                role="presentation"
+                                  setSuburb(item);
+
+                                  setShowSuburbs(false);
+
+                                  setSuburbHighlight(-1);
+                                }}
                               >
-
-                                <button
-                                  id={`suburb-option-${index}`}
-                                  type="button"
-                                  role="option"
-
-                                  aria-selected={
-                                    suburbHighlight ===
-                                    index
-                                  }
-
-                                  tabIndex={-1}
-
-                                  className={
-                                    suburbHighlight ===
-                                    index
-                                      ? "suggestion-active"
-                                      : ""
-                                  }
-
-                                  onMouseEnter={() =>
-                                    setSuburbHighlight(
-                                      index
-                                    )
-                                  }
-
-                                  onMouseDown={(
-                                    event
-                                  ) => {
-                                    event.preventDefault();
-
-                                    setSuburb(item);
-
-                                    setShowSuburbs(
-                                      false
-                                    );
-
-                                    setSuburbHighlight(
-                                      -1
-                                    );
-                                  }}
-                                >
-                                  {item}
-                                </button>
-
-                              </li>
-                            )
-                          )}
-
+                                {item}
+                              </button>
+                            </li>
+                          ))}
                         </ul>
                       )}
+                    </div>
 
+                    {showSuburbs &&
+                      suburb.length >= 3 &&
+                      suburbMatches.length === 0 && (
+                        <p className="no-match">
+                          Try a Greater Melbourne suburb or postcode.
+                        </p>
+                      )}
+
+                    <p className="field-hint">
+                      Enter minimum 3 letters or numbers to search.
+                    </p>
                   </div>
-
-
-                  {showSuburbs &&
-                    suburb.length >= 3 &&
-                    suburbMatches.length ===
-                      0 && (
-                      <p className="no-match">
-                        Try a Greater Melbourne
-                        suburb or postcode.
-                      </p>
-                    )}
-
-
-                  <p className="field-hint">
-                    Enter minimum 3 letters or
-                    numbers to search.
-                  </p>
-
                 </div>
 
-              </div>
+                {/* Amenities and distance */}
+                <div className="search-row">
+                  <fieldset className="search-group">
+                    <legend className="section-title">Amenities</legend>
 
+                    <div className="checks">
+                      <label className="check">
+                        <input
+                          type="checkbox"
+                          checked={toilet}
+                          onChange={(event) => setToilet(event.target.checked)}
+                        />
+                        Accessible toilet
+                      </label>
 
-              {/* Amenities and distance */}
-              <div className="search-row">
+                      <label className="check">
+                        <input
+                          type="checkbox"
+                          checked={parking}
+                          onChange={(event) => setParking(event.target.checked)}
+                        />
+                        Accessible parking
+                      </label>
 
-                <fieldset className="search-group">
+                      <label className="check">
+                        <input
+                          type="checkbox"
+                          checked={stop}
+                          onChange={(event) => setStop(event.target.checked)}
+                        />
+                        Step-free transport stop
+                      </label>
 
-                  <legend className="section-title">
-                    Amenities
-                  </legend>
+                      <label className="check">
+                        <input
+                          type="checkbox"
+                          checked={change}
+                          onChange={(event) => setChange(event.target.checked)}
+                        />
+                        Accessible change facility
+                      </label>
+                    </div>
+                  </fieldset>
 
+                  <fieldset className="search-group">
+                    <legend className="section-title">
+                      Preferred distance to a facility
+                    </legend>
 
-                  <div className="checks">
-
-                    <label className="check">
-                      <input
-                        type="checkbox"
-                        checked={toilet}
-                        onChange={(event) =>
-                          setToilet(
-                            event.target
-                              .checked
-                          )
-                        }
-                      />
-
-                      Accessible toilet
-                    </label>
-
-
-                    <label className="check">
-                      <input
-                        type="checkbox"
-                        checked={parking}
-                        onChange={(event) =>
-                          setParking(
-                            event.target
-                              .checked
-                          )
-                        }
-                      />
-
-                      Accessible parking
-                    </label>
-
-
-                    <label className="check">
-                      <input
-                        type="checkbox"
-                        checked={stop}
-                        onChange={(event) =>
-                          setStop(
-                            event.target
-                              .checked
-                          )
-                        }
-                      />
-
-                      Step-free transport stop
-                    </label>
-
-
-                    <label className="check">
-                      <input
-                        type="checkbox"
-                        checked={change}
-                        onChange={(event) =>
-                          setChange(
-                            event.target
-                              .checked
-                          )
-                        }
-                      />
-
-                      Accessible change facility
-                    </label>
-
-                  </div>
-                </fieldset>
-
-
-                <fieldset className="search-group">
-
-                  <legend className="section-title">
-                    Preferred distance to a
-                    facility
-                  </legend>
-
-
-                  <div className="distance-options">
-
-                    {distanceBands.map(
-                      (band) => (
+                    <div className="distance-options">
+                      {distanceBands.map((band) => (
                         <label
                           key={band}
-
                           className={
-                            limit ===
-                            String(band)
+                            limit === String(band)
                               ? "distance-option selected-distance"
                               : "distance-option"
                           }
-
-                          onClick={(
-                            event
-                          ) => {
+                          onClick={(event) => {
                             // Clicking the selected option again clears it.
-                            if (
-                              limit ===
-                              String(band)
-                            ) {
+                            if (limit === String(band)) {
                               event.preventDefault();
 
                               setLimit("");
                             }
                           }}
                         >
-
                           <input
                             type="radio"
                             name="limit"
                             value={band}
-
-                            checked={
-                              limit ===
-                              String(band)
-                            }
-
-                            onChange={(
-                              event
-                            ) =>
-                              setLimit(
-                                event.target
-                                  .value
-                              )
-                            }
+                            checked={limit === String(band)}
+                            onChange={(event) => setLimit(event.target.value)}
                           />
 
-                          {formatDistanceLabel(
-                            band
-                          )}
-
+                          {formatDistanceLabel(band)}
                         </label>
-                      )
-                    )}
-
-                  </div>
-                </fieldset>
-
-              </div>
-
-
-              {/* Form validation error */}
-              {formError !== "" && (
-                <p
-                  className="form-error"
-                  role="alert"
-                >
-                  {formError}
-                </p>
-              )}
-
-
-              {/* Search/network error */}
-              {searchError !== "" && (
-                <p
-                  className="form-error"
-                  role="alert"
-                >
-                  {searchError}
-                </p>
-              )}
-
-
-              <div className="buttons">
-
-                <button
-                  type="button"
-                  className="clear-button"
-                  onClick={handleClear}
-                >
-                  Clear
-                </button>
-
-
-                <button
-                  type="submit"
-                  className="search-button"
-                  disabled={isSearching}
-                >
-                  {isSearching
-                    ? "Searching…"
-                    : "Search venues"}
-                </button>
-
-              </div>
-
-            </form>
-          </section>
-        )}
-
-
-        {/* Search results */}
-        <div aria-live="polite">
-
-          {results === null ? (
-
-            <section className="results-empty">
-
-              <h2>
-                Nothing searched yet
-              </h2>
-
-              <p>
-                Choose a sport and a location,
-                tick the facilities you need,
-                then select Search venues.
-              </p>
-
-            </section>
-
-          ) : (
-
-            <div className="results">
-
-              <ReadAloud
-                summary={
-                  buildReadAloudSummary()
-                }
-              />
-
-
-              <div className="results-heading">
-
-                <div>
-
-                  <h2>
-                    {results.matched
-                      .length ===
-                    results.total
-                      ? `${results.total} venues found`
-                      : `${results.matched.length} of ${results.total} venues found`}
-                  </h2>
-
-
-                  <p>
-                    {results.searchedSport}{" "}
-                    venues near{" "}
-                    {results.searchedPlace}
-                  </p>
-
+                      ))}
+                    </div>
+                  </fieldset>
                 </div>
 
-
-                {results.searchedLimit !==
-                  "" && (
-                  <span className="filter-badge">
-                    {formatDistanceLabel(
-                      Number(
-                        results.searchedLimit
-                      )
-                    )}{" "}
-                    facility limit
-                  </span>
+                {/* Form validation error */}
+                {formError !== "" && (
+                  <p className="form-error" role="alert">
+                    {formError}
+                  </p>
                 )}
 
-              </div>
-
-
-              {results.matched.length ===
-                0 && (
-                <div className="empty-card">
-
-                  <h3>
-                    No matching venues
-                  </h3>
-
-                  <p>
-                    Try removing an amenity or
-                    choosing a bigger distance.
+                {/* Search/network error */}
+                {searchError !== "" && (
+                  <p className="form-error" role="alert">
+                    {searchError}
                   </p>
+                )}
 
+                <div className="buttons">
+                  <button
+                    type="button"
+                    className="clear-button"
+                    onClick={handleClear}
+                  >
+                    Clear
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="search-button"
+                    disabled={isSearching}
+                  >
+                    {isSearching ? "Searching…" : "Search venues"}
+                  </button>
                 </div>
-              )}
+              </form>
+            </section>
+          )}
 
+          {/* Search results */}
+          <div aria-live="polite">
+            {results === null ? (
+              <section className="results-empty">
+                <h2>Nothing searched yet</h2>
 
-              {results.matched
-                .slice(0, visibleCount)
-                .map((venue) => (
+                <p>
+                  Choose a sport and a location, tick the facilities you need,
+                  then select Search venues.
+                </p>
+              </section>
+            ) : (
+              <div className="results">
+                <ReadAloud summary={buildReadAloudSummary()} />
+
+                <div className="results-heading">
+                  <div>
+                    <h2>
+                      {results.matched.length === results.total
+                        ? `${results.total} venues found`
+                        : `${results.matched.length} of ${results.total} venues found`}
+                    </h2>
+
+                    <p>
+                      {results.searchedSport} venues near{" "}
+                      {results.searchedPlace}
+                    </p>
+                  </div>
+
+                  {results.searchedLimit !== "" && (
+                    <span className="filter-badge">
+                      {formatDistanceLabel(Number(results.searchedLimit))}{" "}
+                      facility limit
+                    </span>
+                  )}
+                </div>
+
+                {results.matched.length === 0 && (
+                  <div className="empty-card">
+                    <h3>No matching venues</h3>
+
+                    <p>
+                      Try removing an amenity or choosing a bigger distance.
+                    </p>
+                  </div>
+                )}
+
+                {results.matched.slice(0, visibleCount).map((venue) => (
                   <VenueCard
                     key={venue.id}
                     venue={venue}
-                    limit={
-                      results.searchedLimit
-                    }
+                    limit={results.searchedLimit}
                   />
                 ))}
 
-
-              {visibleCount <
-                results.matched.length && (
-                <button
-                  type="button"
-                  className="view-more-button"
-
-                  onClick={() =>
-                    setVisibleCount(
-                      visibleCount + 5
-                    )
-                  }
-                >
-                  View more venues (
-                  {results.matched.length -
-                    visibleCount}{" "}
-                  more)
-                </button>
-              )}
-
-
-              {/* Facility status legend */}
-              {results.matched.length > 0 && (
-                <div className="legend">
-
-                  <div className="legend-item">
-
-                    <span
-                      className="legend-box available-box"
-                      aria-hidden="true"
-                    />
-
-                    Within selected distance
-
-                  </div>
-
-
-                  <div className="legend-item">
-
-                    <span
-                      className="legend-box problem-box"
-                      aria-hidden="true"
-                    />
-
-                    Outside distance /
-                    unavailable
-
-                  </div>
-
-
-                  <div className="legend-item">
-
-                    <span
-                      className="legend-box unknown-box"
-                      aria-hidden="true"
-                    />
-
-                    No published information
-
-                  </div>
-
-                </div>
-              )}
-
-
-              {/* Venues with missing information */}
-              {results.undocumented.length >
-                0 && (
-                <div className="missing-section">
-
+                {visibleCount < results.matched.length && (
                   <button
                     type="button"
-                    className="missing-toggle"
-
-                    onClick={() =>
-                      setShowMissing(
-                        !showMissing
-                      )
-                    }
+                    className="view-more-button"
+                    onClick={() => setVisibleCount(visibleCount + 5)}
                   >
-                    {results.undocumentedLabel ||
-                      "Missing accessibility information"}{" "}
-                    (
-                    {
-                      results.undocumented
-                        .length
-                    }
-                    ){" "}
-                    {showMissing
-                      ? "▲"
-                      : "▼"}
+                    View more venues ({results.matched.length - visibleCount}{" "}
+                    more)
                   </button>
+                )}
 
+                {/* Facility status legend */}
+                {results.matched.length > 0 && (
+                  <div className="legend">
+                    <div className="legend-item">
+                      <span
+                        className="legend-box available-box"
+                        aria-hidden="true"
+                      />
+                      Within selected distance
+                    </div>
 
-                  {showMissing &&
-                    results.undocumented.map(
-                      (venue) => {
+                    <div className="legend-item">
+                      <span
+                        className="legend-box problem-box"
+                        aria-hidden="true"
+                      />
+                      Outside distance / unavailable
+                    </div>
 
+                    <div className="legend-item">
+                      <span
+                        className="legend-box unknown-box"
+                        aria-hidden="true"
+                      />
+                      No published information
+                    </div>
+                  </div>
+                )}
+
+                {/* Venues with missing information */}
+                {results.undocumented.length > 0 && (
+                  <div className="missing-section">
+                    <button
+                      type="button"
+                      className="missing-toggle"
+                      onClick={() => setShowMissing(!showMissing)}
+                    >
+                      {results.undocumentedLabel ||
+                        "Missing accessibility information"}{" "}
+                      ({results.undocumented.length}) {showMissing ? "▲" : "▼"}
+                    </button>
+
+                    {showMissing &&
+                      results.undocumented.map((venue) => {
                         const missingFacilities =
-                          results.selectedAmenities.filter(
-                            (key) => {
-                              const item =
-                                venue
-                                  .amenities[
-                                  key
-                                ];
+                          results.selectedAmenities.filter((key) => {
+                            const item = venue.amenities[key];
 
-                              return (
-                                !item ||
-                                item.state ===
-                                  "none"
-                              );
-                            }
-                          );
-
+                            return !item || item.state === "none";
+                          });
 
                         return (
-                          <div
-                            className="missing-venue"
-                            key={venue.id}
-                          >
+                          <div className="missing-venue" key={venue.id}>
+                            <strong>{venue.name}</strong>
 
-                            <strong>
-                              {venue.name}
-                            </strong>
-
-
-                            {missingFacilities.map(
-                              (key) => (
-                                <p key={key}>
-                                  {
-                                    FACILITY_INFO[
-                                      key
-                                    ].fullName
-                                  }{" "}
-                                  information is
-                                  not available.
-                                  Please contact
-                                  the venue to
-                                  confirm before
-                                  visiting.
-                                </p>
-                              )
-                            )}
-
+                            {missingFacilities.map((key) => (
+                              <p key={key}>
+                                {FACILITY_INFO[key].fullName} information is not
+                                available. Please contact the venue to confirm
+                                before visiting.
+                              </p>
+                            ))}
                           </div>
                         );
-                      }
-                    )}
-
-                </div>
-              )}
-
-            </div>
-          )}
-
-        </div>
-
-      </main>
-
+                      })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
-
 
 export default Home;
