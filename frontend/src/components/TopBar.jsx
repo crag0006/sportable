@@ -1,9 +1,6 @@
 import { Link } from "react-router-dom";
 import "./TopBar.css";
 
-// The same bar sits at the top of every page. Keeping it in one file
-// means it cannot drift apart between pages.
-// "links" is a list like [{ to: "/venues", label: "Venue search" }]
 function TopBar({ links }) {
   return (
     <header className="site-topbar">
@@ -31,6 +28,7 @@ function TopBar({ links }) {
           </div>
         </Link>
 
+        {links && links.length > 0 && (
         <nav className="site-nav" aria-label="Main">
           {links.map((link) => (
             <Link key={link.to} to={link.to} className="site-nav-link">
@@ -38,6 +36,7 @@ function TopBar({ links }) {
             </Link>
           ))}
         </nav>
+  )}
       </div>
     </header>
   );
