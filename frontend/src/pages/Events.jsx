@@ -173,7 +173,7 @@ function getEventFacilityStatusSymbol(state) {
 }
 
 function EventCard({ event }) {
-  const distanceLabel = formatEventDistance(event.distance_m);
+  // const distanceLabel = formatEventDistance(event.distance_m);
 
   const venue = event.venue || {};
   const links = event.links || {};
@@ -238,9 +238,9 @@ function EventCard({ event }) {
           )}
         </div>
 
-        {distanceLabel && (
+        {/* {distanceLabel && (
           <span className="distance-pill">{distanceLabel}</span>
-        )}
+        )} */}
       </div>
 
       {facilities.length > 0 && (
