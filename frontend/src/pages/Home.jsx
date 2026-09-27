@@ -496,7 +496,7 @@ function Home() {
       <div className="search-page">
         <main className="search-content">
           <div className="search-banner-wrap">
-            <h1 className="page-heading">Venue Search</h1>
+            <h2 className="page-heading">Venue Search</h2>
 
             <div className="search-banner">
               <div className="search-banner-overlay">
