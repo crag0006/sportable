@@ -1,16 +1,13 @@
 import TopBar from "../components/TopBar";
+import { Link } from "react-router-dom";
 import "./LandingPage.css";
 import Footer from "../components/Footer";
 
 function Landing() {
   return (
-    <div>
-      <TopBar
-        links={[
-          { to: "/venues", label: "Venue search" },
-          { to: "/events", label: "Events" },
-        ]}
-      />
+    <div className="landing-page">
+      
+      <TopBar links={[]} />
 
       <div className="landing">
         <div className="landing-shade">
@@ -25,10 +22,20 @@ function Landing() {
               yes or no, we show the measured distance to the
               facilities you depend on.
             </p>
+
+            <div className="landing-buttons">
+              <Link to="/venues" className="landing-btn landing-btn--primary">
+                Venue search
+              </Link>
+              <Link to="/events" className="landing-btn landing-btn--secondary">
+                Events
+              </Link>
+            </div>
           </main>
         </div>
       </div>
-        <Footer />
+
+      <Footer/>
     </div>
   );
 }
