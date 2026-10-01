@@ -1,7 +1,24 @@
-
 .search-page {
   min-height: 100vh;
   background: linear-gradient(180deg, #eaf4f2 0%, #f6f8f7 45%, #eef5f4 100%);
+}
+
+.site-topbar {
+  position: relative;
+  background: linear-gradient(
+      120deg,
+      rgba(12, 28, 45, 0.92),
+      rgba(12, 28, 45, 0.86)
+    ),
+    url("/images/image.jpg") center center / cover no-repeat;
+  padding: 1rem 2rem;
+}
+
+.site-topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
 }
 
 .site-brand {
@@ -167,14 +184,6 @@
 
 .input:focus {
   border-color: #14507a;
-}
-
-.input::placeholder {
-  color: #8a9699;
-}
-
-.input-date-empty {
-  color: #8a9699;
 }
 
 /* The red star next to a required field label */
@@ -609,13 +618,12 @@
   color: #66777a;
   line-height: 1.5;
 }
-.event-top,
-.event-venue {
-  flex-direction: column;
-}
 
 /* --------------------------------------------------------------------------
    Event cards (Events page results)
+   Reuses the same white-card/pill/chip language as the rest of the app —
+   see .chip and .distance-pill in main.css — rather than inventing a new
+   visual style just for this page.
    -------------------------------------------------------------------------- */
 
 .event-card {
@@ -624,10 +632,6 @@
   background: #fff;
   border: 1px solid #dde5e3;
   border-radius: 14px;
-}
-
-.event-card .amenity-grid {
-  margin-top: 16px;
 }
 
 .event-card:first-of-type {
@@ -730,34 +734,6 @@
   background-color: #eef5fa;
 }
 
-.venue-unavailable-note {
-  margin-top: 10px;
-  padding: 10px 12px;
-  background: #fff4e5;
-  border: 1px solid #f3c98b;
-  border-radius: 8px;
-  color: #8a5a00;
-  font-size: 0.9rem;
-}
-
-.search-banner-wrap {
-  position: relative;
-}
-
-.page-heading {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #0c1c2d;
-  margin: 0 0 1rem 0;
-}
-
-.suggestions button.suggestion-active {
-  background: #e8eefc;
-  outline: 2px solid currentColor;
-  outline-offset: -2px;
-}
-
-
 /* --------------------------------------------------------------------------
    Smaller screens
    -------------------------------------------------------------------------- */
@@ -770,6 +746,11 @@
   .results-heading {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .event-top,
+  .event-venue {
+    flex-direction: column;
   }
 }
 
