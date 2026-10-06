@@ -33,6 +33,14 @@
 resource "aws_security_group" "bedrock_endpoint" {
   count = var.enable_bedrock_endpoint ? 1 : 0
 
+  # checkov:skip=CKV2_AWS_5:It IS attached — to the endpoint ENI created at the
+  #   bottom of this same file, through security_group_ids on
+  #   aws_vpc_endpoint.bedrock_runtime. The check recognises EC2 instances and
+  #   network interfaces as attachment targets and does not recognise a VPC
+  #   endpoint, so this is a false positive rather than the "created and
+  #   forgotten" group the rule is looking for. Unlike the other three skips of
+  #   this check in the network module, this one will not become true later and
+  #   should not be removed.
   name        = "${var.name_prefix}-bedrock-vpce-sg"
   description = "Bedrock interface endpoint: HTTPS from the in-VPC Lambdas only"
   vpc_id      = aws_vpc.this.id

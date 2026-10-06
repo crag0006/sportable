@@ -125,6 +125,17 @@ resource "aws_apigatewayv2_integration" "assistant" {
 resource "aws_apigatewayv2_route" "assistant" {
   count = var.enable_assistant ? 1 : 0
 
+  # checkov:skip=CKV_AWS_309:Public by design, for the same reason as the
+  #   $default route above: the product has no accounts, and asking the people
+  #   it exists for to sign in would be a barrier. The check cannot express an
+  #   authorization type of NONE being the correct answer.
+  #
+  #   This route is different from $default in one way that matters, so the
+  #   compensating control is different too. Every request here can invoke a
+  #   model, so abuse costs money rather than just capacity. It is capped at
+  #   its own throttle — see route_settings in gateway.tf, 2 rps against the
+  #   stage default of 50 — and out-of-scope questions are refused without any
+  #   model call at all, so the cheapest path is also the most common one.
   api_id    = aws_apigatewayv2_api.this.id
   route_key = "POST ${var.assistant_route_path}"
   target    = "integrations/${aws_apigatewayv2_integration.assistant[0].id}"
