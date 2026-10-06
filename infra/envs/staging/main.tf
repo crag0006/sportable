@@ -28,6 +28,11 @@ module "network" {
   # instance. An empty subnet costs nothing.
   private_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
 
+  # Epic 6. The assistant runs inside the VPC and Bedrock is an AWS API like
+  # any other, so without this endpoint its calls hang until the function
+  # times out rather than failing. ~USD $7.30/month, one AZ only.
+  enable_bedrock_endpoint = true
+
   allowed_ssh_cidrs = var.allowed_ssh_cidrs
 }
 
@@ -95,6 +100,15 @@ module "api" {
   # parameters from it at APPLY time, so they must exist first — Terraform
   # cannot infer that from a path string.
   ssm_prefix = "/sportable/staging"
+
+  # ------------------------------------------------------------- Epic 6
+  # The assistant is a second function on the same archive, with its own
+  # route and its own — much lower — throttle.
+  #
+  # Set together with module.network.enable_bedrock_endpoint. Enabling this
+  # without the endpoint deploys a function whose Bedrock calls hang until the
+  # timeout, which looks like a slow bug rather than a missing route.
+  enable_assistant = true
 
   depends_on = [module.app_config]
 }

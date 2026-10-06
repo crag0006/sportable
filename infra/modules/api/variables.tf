@@ -170,3 +170,91 @@ variable "ssm_prefix" {
   EOT
   type        = string
 }
+
+# ------------------------------------------------------------- Access Assistant
+# Epic 6. Everything below is inert unless enable_assistant is true.
+
+variable "enable_assistant" {
+  description = <<-EOT
+    Create the Access Assistant function, its route and its throttle.
+
+    Off by default: prod and iteration-1 call this module and neither runs an
+    assistant. Enabling it in an environment whose network module has
+    enable_bedrock_endpoint = false will deploy a function that cannot reach
+    Bedrock — the call will hang rather than fail, so set both together.
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "assistant_route_path" {
+  description = "Path for the assistant route. Used by both the route and its throttle, so they cannot drift apart."
+  type        = string
+  default     = "/api/v1/assistant"
+}
+
+variable "assistant_memory_mb" {
+  description = "Memory for the assistant function. A starting point to tune against measured latency, not a considered figure."
+  type        = number
+  default     = 1024
+}
+
+variable "assistant_timeout_seconds" {
+  description = "Function timeout. Longer than the API's because a model call is slower than a database read."
+  type        = number
+  default     = 30
+}
+
+variable "assistant_integration_timeout_ms" {
+  description = "API Gateway integration timeout. Below the function timeout, so the function decides the outcome rather than the gateway."
+  type        = number
+  default     = 29000
+}
+
+variable "assistant_throttle_rate_limit" {
+  description = <<-EOT
+    Steady-state requests per second for the assistant route ALONE.
+
+    Deliberately far below the stage default. Every request here can invoke a
+    model and the endpoint is public and unauthenticated, so this number is the
+    cost ceiling. Raise it only with a spend alarm in place and an eye on the
+    credit balance.
+  EOT
+  type        = number
+  default     = 2
+}
+
+variable "assistant_throttle_burst_limit" {
+  description = "Burst allowance for the assistant route. Enough for a person typing quickly, not enough for a loop."
+  type        = number
+  default     = 10
+}
+
+variable "bedrock_text_model_id" {
+  description = "Model for intent and slot extraction. Confirmed available in ap-southeast-2."
+  type        = string
+  default     = "anthropic.claude-haiku-4-5-20251001-v1:0"
+}
+
+variable "bedrock_embedding_model_id" {
+  description = "Model for embeddings, at ingest and per query. Confirmed available in ap-southeast-2."
+  type        = string
+  default     = "amazon.titan-embed-text-v2:0"
+}
+
+variable "assistant_config" {
+  description = <<-EOT
+    Assistant tunables, passed as one JSON blob the way SEARCH_CONFIG already
+    is: retrieval depth, the relevance floor, token ceilings and the daily
+    invocation cap. Resolved at apply time so a threshold changes with a
+    pipeline run rather than a code change.
+  EOT
+  type        = map(string)
+  default = {
+    retrieval_top_k      = "4"
+    relevance_floor      = "0.35"
+    max_input_tokens     = "2000"
+    max_output_tokens    = "500"
+    daily_invocation_cap = "2000"
+  }
+}
