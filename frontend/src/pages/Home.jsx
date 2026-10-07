@@ -454,7 +454,7 @@ function Home() {
 
     const countText =
       results.matched.length === results.total
-        ? `${results.total} venues found.`
+        ? `${results.total} venues match your search.`
         : `${results.matched.length} of ${results.total} venues found.`;
 
     sentences.push(countText);
@@ -496,7 +496,7 @@ function Home() {
       <div className="search-page">
         <main className="search-content">
           <div className="search-banner-wrap">
-            <h2 className="page-heading">Venue Search</h2>
+            <h2 className="page-heading">Explore sports venues with access information</h2>
 
             <div className="search-banner">
               <div className="search-banner-overlay">
@@ -524,7 +524,7 @@ function Home() {
                   className="edit-search-button"
                   onClick={() => setShowForm(true)}
                 >
-                  Edit search
+                  Update filters
                 </button>
 
                 <button
@@ -541,7 +541,7 @@ function Home() {
           {/* Search form */}
           {showForm && (
             <section className="search-card">
-              <h1 className="search-title">Find a venue</h1>
+              <h1 className="search-title">Search for a venue</h1>
 
               <form onSubmit={handleSearch}>
                 <div className="search-row">
@@ -728,7 +728,7 @@ function Home() {
                 {/* Amenities and distance */}
                 <div className="search-row">
                   <fieldset className="search-group">
-                    <legend className="section-title">Amenities</legend>
+                    <legend className="section-title">Choose your access needs:</legend>
 
                     <div className="checks">
                       <label className="check">
@@ -771,7 +771,7 @@ function Home() {
 
                   <fieldset className="search-group">
                     <legend className="section-title">
-                      Preferred distance to a facility
+                      Choose a distance limit:
                     </legend>
 
                     <div className="distance-options">

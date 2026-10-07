@@ -532,9 +532,8 @@ function Events() {
       <main className="search-content">
 
                 <div className="search-banner-wrap">
-          <div className="page-kicker">
-            <span className="page-kicker-icon" aria-hidden="true">📅</span>
-            Events
+          <div className="page-kicker">            
+            Explore sports events
           </div>
 
           <div className="search-banner">
@@ -555,7 +554,7 @@ function Events() {
 
             <div className="search-summary-actions">
               <button type="button" className="edit-search-button" onClick={() => setShowForm(true)}>
-                Edit search
+                Update filters
               </button>
               <button type="button" className="clear-button" onClick={handleClear}>
                 Clear
@@ -566,7 +565,7 @@ function Events() {
 
         {showForm && (
           <section className="search-card">
-            <h1 className="search-title">Find an event</h1>
+            <h1 className="search-title">Search for an event</h1>
 
             <form onSubmit={handleSearch}>
               <div className="search-row">
@@ -673,10 +672,11 @@ function Events() {
                   <p className="field-hint">Enter minimum 3 letters or numbers to search.</p>
                 </div>
               </div>
-
+              <div className="date-section">
+                <p className="date-section-title">Choose your dates</p>
               <div className="search-row">
                 <div className="field">
-                  <label htmlFor="event-date-from">Date from</label>
+                  <label htmlFor="event-date-from">From</label>
                   <input
                     id="event-date-from"
                     type="date"
@@ -687,7 +687,7 @@ function Events() {
                 </div>
 
                 <div className="field">
-                  <label htmlFor="event-date-to">Date to</label>
+                  <label htmlFor="event-date-to">To</label>
                   <input
                     id="event-date-to"
                     type="date"
@@ -697,6 +697,7 @@ function Events() {
                     onChange={(event) => setDateTo(event.target.value)}
                   />
                 </div>
+              </div>
               </div>
 
               {formError !== "" && (

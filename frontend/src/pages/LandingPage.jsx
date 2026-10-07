@@ -13,22 +13,19 @@ function Landing() {
         <div className="landing-shade">
           <main className="landing-main">
             <h1 className="landing-headline">
-              No limits. Just possibilities.
+              Find a sports venue or event that works for you.
             </h1>
 
             <p className="landing-intro">
-              SportAble helps people with mobility access needs find
-              sports venues across Greater Melbourne. Instead of a
-              yes or no, we show the measured distance to the
-              facilities you depend on.
+              Search sports venues and events, and check nearby accessibility facilities before you travel.
             </p>
 
             <div className="landing-buttons">
               <Link to="/venues" className="landing-btn landing-btn--primary">
-                Venue search
+                Find a Venue
               </Link>
               <Link to="/events" className="landing-btn landing-btn--secondary">
-                Events
+                Find an Event
               </Link>
             </div>
           </main>
