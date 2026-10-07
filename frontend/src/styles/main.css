@@ -1101,6 +1101,17 @@ svg {
     0 0 0 12px rgba(20, 80, 122, 0.08);
 }
 
+.date-section-title {
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.page-kicker {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 16px 0;
+}
+
 .user-pulse {
   position: absolute;
   left: calc(13% - 10px);
