@@ -3,6 +3,10 @@
 What is read from where, and why:
 
 - ``sport_vocabulary``     the sport list (AC1.1.1: only sports with venues)
+- ``program_sport_vocabulary`` publisher sport terms resolved to that list
+                           through the reviewed crosswalk (data/sql/012).
+                           Every sport question about a programme is asked
+                           here, never of ``program_sport`` directly
 - ``search_location``      typed suburb or postcode to a named point (AC1.1.3)
 - ``venue_card``           one row per venue with the four tiles flattened;
                            search reads this and nothing else
@@ -18,7 +22,6 @@ point and the corridor. Distances are on ``geography`` so the result is
 metres, straight-line, the same basis as the builder's ``distance_m``.
 """
 
-import json
 from collections import defaultdict
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -53,18 +56,45 @@ SRID = 7844
 PLAIN_LABEL = r"regexp_replace(label, '\s*\([^)]*\)$', '')"
 
 # ------------------------------------------------------------------ sports
+# AC1.1.1 says the list holds sports that exist in loaded venues. Two changes
+# to how that is read, both from the crosswalk:
+#
+#   1. The event count is counted through vocab_sport, not by comparing the
+#      publisher's label to the venue name. Seventeen terms are spelled
+#      differently on the two sides — Aqua aerobics is Swimming, Ultimate
+#      (frisbee) is Flying Disk — and every one of them counted zero before.
+#   2. A sport the crosswalk ADDS is offered too, with venue_count 0, when
+#      programmes exist for it. Boccia, Goalball and Adaptive climbing are real
+#      sports that no DS-01 venue records, and they are the ones this project's
+#      users are most likely to look for. A sport with neither a venue nor a
+#      programme is still not offered.
 SQL_SPORTS = """
-SELECT sv.sport AS name, sv.venue_count,
-       (SELECT count(DISTINCT ps.program_id)
-          FROM program_sport ps
-          JOIN program p ON p.program_id = ps.program_id
-         WHERE lower(ps.sport_label) = lower(sv.sport)
-           AND (p.kind = 'program' OR p.starts_at > now())) AS event_count
-  FROM sport_vocabulary sv
+WITH event_counts AS (
+    SELECT psv.vocab_sport AS sport,
+           count(DISTINCT psv.program_id) AS event_count
+      FROM program_sport_vocabulary psv
+      JOIN program p ON p.program_id = psv.program_id
+     WHERE psv.vocab_sport IS NOT NULL
+       AND (p.kind = 'program' OR p.starts_at > now())
+     GROUP BY 1
+),
+offered AS (
+    SELECT sv.sport AS name, sv.venue_count
+      FROM sport_vocabulary sv
+     UNION ALL
+    SELECT e.sport, 0
+      FROM event_counts e
+     WHERE NOT EXISTS (SELECT 1 FROM sport_vocabulary sv
+                        WHERE lower(sv.sport) = lower(e.sport))
+)
+SELECT o.name, o.venue_count,
+       coalesce(e.event_count, 0) AS event_count
+  FROM offered o
+  LEFT JOIN event_counts e ON lower(e.sport) = lower(o.name)
  WHERE %(q)s::text IS NULL
-    OR lower(sv.sport) LIKE '%%' || lower(%(q)s) || '%%'
-    OR similarity(lower(sv.sport), lower(%(q)s)) > 0.3
- ORDER BY sv.sport
+    OR lower(o.name) LIKE '%%' || lower(%(q)s) || '%%'
+    OR similarity(lower(o.name), lower(%(q)s)) > 0.3
+ ORDER BY o.name
 """
 
 # ------------------------------------------------------------------ places
@@ -240,19 +270,25 @@ EVENT_LISTABLE = """
     (p.kind = 'program' OR %(include_past)s OR p.starts_at > %(now)s)
 """
 
-# The publisher's sport labels, and the first one that is also a name in our
-# sport vocabulary (so the events page and the venue search share a list).
-# The alias map covers the handful of AAA Play terms that name a sport the
-# facilities list spells differently; anything else is shown as published.
-SPORT_ALIASES: dict[str, str] = {
-    "football (soccer)": "soccer",
-    "afl": "australian rules football",
-    "tenpin bowling": "ten pin bowling",
-    "bowls": "lawn bowls",
-    "gym": "fitness / gymnasium workouts",
-    "general fitness": "fitness / gymnasium workouts",
-    "bike riding, bmx & cycling": "cycling",
-}
+# The publisher's sport labels and the vocabulary sports they name, from the
+# reviewed crosswalk (data/sql/012). NOT a dict in this file: the mapping is
+# data, it is reviewed line by line with a recorded reason, and it is
+# many-to-many. "Tennis" names both Tennis (Outdoor) and Tennis (Indoor)
+# because the publisher does not say which, and "Bike riding, BMX & cycling"
+# names Cycling and BMX; a one-to-one dict here could express neither, and the
+# seven entries it did hold covered seven of the twenty-five terms that need
+# translating.
+#
+# Three kinds of row need distinguishing, which is why vocab and labels are
+# aggregated separately below:
+#   vocab_sport IS NOT NULL   a sport in the venue vocabulary, or one the
+#                             crosswalk adds (Boccia, Goalball — real sports
+#                             that no DS-01 venue records)
+#   relation = 'not_a_sport'  Art, Playground, Special Olympics. Not offered as
+#                             a sport; the programme still lists
+#   unreviewed                a term the publisher added since the last review.
+#                             Shown as published rather than dropped, which is
+#                             what the crosswalk's LEFT JOIN is for
 
 EVENT_COLUMNS = """
        p.program_id AS event_id, p.source_id, p.kind::text AS kind, p.name AS title,
@@ -284,15 +320,19 @@ EVENT_FROM = """
   LEFT JOIN program_venue pv ON pv.program_venue_id = p.program_venue_id
   LEFT JOIN program_organisation o ON o.organisation_id = p.organisation_id
   LEFT JOIN LATERAL (
-       SELECT array_agg(ps.sport_label ORDER BY ps.sport_label) AS labels,
-              (SELECT sv.sport FROM program_sport ps2
-                 JOIN sport_vocabulary sv
-                   ON lower(sv.sport) = lower(ps2.sport_label)
-                   OR lower(sv.sport) = coalesce(%(aliases)s::jsonb ->> lower(ps2.sport_label), '')
-                WHERE ps2.program_id = p.program_id
-                ORDER BY ps2.sport_label LIMIT 1) AS vocab
-         FROM program_sport ps
-        WHERE ps.program_id = p.program_id
+       -- DISTINCT because the crosswalk is many-to-many: "Tennis" is two rows,
+       -- so the label would otherwise appear twice. ORDER BY because
+       -- sport_raw is labels[0] and an unordered array makes that arbitrary.
+       SELECT array_agg(DISTINCT psv.sport_label ORDER BY psv.sport_label)
+                FILTER (WHERE psv.relation IS DISTINCT FROM 'not_a_sport')  AS labels,
+              array_remove(
+                  array_agg(DISTINCT psv.vocab_sport ORDER BY psv.vocab_sport),
+                  NULL
+              )                                                             AS vocabs,
+              -- One name for the card. The filter uses vocabs, all of them.
+              min(psv.vocab_sport)                                          AS vocab
+         FROM program_sport_vocabulary psv
+        WHERE psv.program_id = p.program_id
   ) sp ON true
   LEFT JOIN LATERAL (
        SELECT array_agg(n.access_need_label ORDER BY n.access_need_label) AS labels
@@ -300,8 +340,6 @@ EVENT_FROM = """
         WHERE n.program_id = p.program_id
   ) needs ON true
 """
-
-_ALIASES_JSON = json.dumps(SPORT_ALIASES)
 
 SQL_EVENTS = f"""
 WITH ref AS (
@@ -317,8 +355,13 @@ SELECT {EVENT_COLUMNS},
    AND (p.kind = 'program'
         OR (p.starts_at AT TIME ZONE 'Australia/Melbourne')::date
            BETWEEN %(date_from)s AND %(date_to)s)
+   -- Every vocabulary sport the crosswalk gives this programme, not just the
+   -- one on the card: a Tennis programme answers both Tennis (Indoor) and
+   -- Tennis (Outdoor). The publisher's own labels still match too, so a filter
+   -- built from the events list keeps working for an unreviewed term.
    AND (%(sports)s::text[] IS NULL
-        OR lower(sp.vocab) = ANY(%(sports)s)
+        OR EXISTS (SELECT 1 FROM unnest(sp.vocabs) AS v(sport)
+                    WHERE lower(v.sport) = ANY(%(sports)s))
         OR EXISTS (SELECT 1 FROM unnest(sp.labels) AS l(label)
                     WHERE lower(l.label) = ANY(%(sports)s)))
    AND (%(venue_id)s::text IS NULL OR pv.venue_id = %(venue_id)s)
@@ -340,16 +383,31 @@ SELECT {EVENT_COLUMNS}, NULL::double precision AS distance_m
  WHERE p.program_id = %(id)s
 """
 
+# One row per sport per programme, not per programme: a programme carrying two
+# sports belongs under both, and a term the crosswalk splits belongs under each
+# half. Joined straight to the view rather than through EVENT_FROM's aggregate
+# for that reason.
+#
+# A term decided to be not a sport (Art, Playground) yields no name and drops
+# out. An unreviewed term keeps its published label, so a taxonomy change
+# upstream shows up as a new filter option rather than as events that silently
+# cannot be filtered for.
 SQL_EVENT_SPORTS = f"""
-SELECT coalesce(sp.vocab, sp.labels[1]) AS name, count(*) AS event_count
-  {EVENT_FROM}
- WHERE {EVENT_LISTABLE}
-   AND (p.kind = 'program'
-        OR (p.starts_at AT TIME ZONE 'Australia/Melbourne')::date
-           BETWEEN %(date_from)s AND %(date_to)s)
-   AND coalesce(sp.vocab, sp.labels[1]) IS NOT NULL
- GROUP BY 1
- ORDER BY 1
+SELECT name, count(DISTINCT program_id) AS event_count
+  FROM (
+    SELECT p.program_id,
+           coalesce(psv.vocab_sport,
+                    CASE WHEN psv.unreviewed THEN psv.sport_label END) AS name
+      FROM program p
+      JOIN program_sport_vocabulary psv ON psv.program_id = p.program_id
+     WHERE {EVENT_LISTABLE}
+       AND (p.kind = 'program'
+            OR (p.starts_at AT TIME ZONE 'Australia/Melbourne')::date
+               BETWEEN %(date_from)s AND %(date_to)s)
+  ) named
+ WHERE name IS NOT NULL
+ GROUP BY name
+ ORDER BY name
 """
 
 SQL_UPCOMING_AT_VENUE = f"""
@@ -665,7 +723,6 @@ class PostgresVenueRepository:
             "time_of_day": list(filters.time_of_day) or None,
             "price": filters.price,
             "limit": filters.limit,
-            "aliases": _ALIASES_JSON,
         }
         with connection() as conn:
             rows = conn.execute(SQL_EVENTS, params).fetchall()
@@ -673,7 +730,7 @@ class PostgresVenueRepository:
         return [_event(r, venues.get(r["venue_id"])) for r in rows]
 
     def get_event(self, event_id: str) -> EventRow | None:
-        params = {"id": event_id, "now": datetime.now(UTC), "aliases": _ALIASES_JSON}
+        params = {"id": event_id, "now": datetime.now(UTC)}
         with connection() as conn:
             row = conn.execute(SQL_EVENT, params).fetchone()
             if row is None:
@@ -687,7 +744,6 @@ class PostgresVenueRepository:
             "date_to": date_to,
             "now": now,
             "include_past": False,
-            "aliases": _ALIASES_JSON,
         }
         with connection() as conn:
             rows = conn.execute(SQL_EVENT_SPORTS, params).fetchall()

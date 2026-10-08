@@ -4,11 +4,10 @@ import TopBar from "../components/TopBar";
 import { getConfig, getVenue } from "../api/venues";
 import FacilityCard from "../components/FacilityCard";
 import VenueHero from "../components/VenueHero";
+import ReadAloud from "../components/ReadAloud";
 import { FACILITY_INFO, VENUES as HOME_VENUES } from "../data/homepageVenues";
 import { venueFacilities, venueDetailData } from "../data/venueData";
 
-// This page shows all the details for ONE venue — the page you land on
-// after clicking "View venue" on a search result card.
 
 // Each amenity (toilet, parking, transport stop, change facility) needs
 // a small icon next to it. This says which icon to use for each one.
@@ -42,10 +41,18 @@ function formatAddress(venue) {
   return "Address not published";
 }
 
-// Looks up the backup text for one facility, in case the backend didn't
-// send us anything useful for it.
 function getFacilityFallback(key) {
   return FACILITY_CONTENT_FALLBACK[key] ?? null;
+}
+
+// Looks up the backup text for one facility, in case the backend didn't
+// send us anything useful for it.
+function getBackToResultsHref() {
+  try {
+    return sessionStorage.getItem("sportable-last-results-page") || "/venues";
+  } catch {
+    return "/venues";
+  }
 }
 
 // Works out the status of one amenity (toilet, parking, etc):
@@ -240,6 +247,36 @@ function buildFallbackHero(venue) {
   };
 }
 
+// Builds the short spoken summary for Read Aloud (AC3.3.1) — the venue name
+// and address, the summary panels already shown at the top of the page, and
+// a one-line rundown of each facility. Deliberately short: this reads the
+// important accessibility facts, not the whole page.
+function buildReadAloudSummary(heroData, facilities) {
+  const sentences = [];
+
+  if (heroData?.title) {
+    sentences.push(`${heroData.title}.`);
+  }
+
+  if (heroData?.address) {
+    sentences.push(`${heroData.address}.`);
+  }
+
+  (heroData?.panels ?? []).forEach((panel) => {
+    if (panel.body) {
+      sentences.push(`${panel.label}: ${panel.body}`);
+    }
+  });
+
+  facilities.forEach((facility) => {
+    if (facility.title && facility.pillText) {
+      sentences.push(`${facility.title}: ${facility.pillText}.`);
+    }
+  });
+
+  return sentences;
+}
+
 function VenueDetailPage() {
   // Reads the venue id straight out of the web address.
   const { id } = useParams();
@@ -296,7 +333,7 @@ function VenueDetailPage() {
     return {
       eyebrow: "Venue detail",
       title: venue.name,
-      address: formatAddress(venue),      
+      address: formatAddress(venue),
       tags: [...(venue.sports ?? []), venue.surface, venue.lga].filter(Boolean),
       panels: buildSummary(venue),
     };
@@ -310,12 +347,17 @@ function VenueDetailPage() {
     return buildFacilityCards(displayVenue, config?.default_distance_m ?? 500);
   }, [config, displayVenue]);
 
+  const readAloudSummary = useMemo(
+    () => buildReadAloudSummary(heroData, facilities),
+    [heroData, facilities]
+  );
+
   return (
     <div className="venue-page">
       {/* Slim top bar — logo on the left, back button on the right.
           This replaces the old tall sidebar that left empty space. */}
-     <TopBar links={[
-  { to: "/venues", label: "Back to search results" },
+        <TopBar links={[
+  { to: getBackToResultsHref(), label: "Back to search results" },
   { to: "/", label: "Home" },
 ]} />
 
@@ -328,6 +370,10 @@ function VenueDetailPage() {
     </div>
   </div>
         <VenueHero hero={heroData} venueId={id} />
+
+        <section className="section-card">
+          <ReadAloud summary={readAloudSummary} />
+        </section>
 
         {error && !fallbackVenue && (
           <section className="section-card">

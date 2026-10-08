@@ -26,10 +26,24 @@ export const FACILITY_INFO = {
   },
 };
 
+// Builds a Google Maps "directions to" link. Leaving the origin out means
+// Google Maps uses the visitor's current location automatically (it will
+// ask for location permission if needed) — travelmode=walking because
+// that's how people using this app are getting around.
+function buildMapsUrl(lat, lon) {
+  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=walking`;
+}
+
 function VenueCard({ venue, limit }) {
   const facilityKeys = Object.keys(
     venue.amenities
   );
+
+  const hasVenueCoordinates =
+    venue.latitude !== undefined &&
+    venue.latitude !== null &&
+    venue.longitude !== undefined &&
+    venue.longitude !== null;
 
   // Works out what to show for one amenity, like the toilet or parking.
   // The backend sends one of these states for each amenity:
@@ -134,7 +148,15 @@ facilityKeys.forEach((key) => {
   return (
     <div className="venue-card">
       {/* Venue name and distance */}
-      <div className="venue-top">
+      <div
+        className="venue-top"
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: "12px",
+        }}
+      >
         <div>
           <h2 className="venue-name">
             {venue.name}
@@ -143,7 +165,40 @@ facilityKeys.forEach((key) => {
           <p className="venue-location">
             {venue.suburb} {venue.postcode}
           </p>
-        </div>       
+        </div>
+
+        {/* Opens Google Maps directions to the venue itself. This is
+            accurate for facilities recorded "at the venue" — it is not a
+            substitute for a link to an off-site facility, since the API
+            doesn't currently return that facility's own location, only
+            its distance. */}
+        {hasVenueCoordinates && (
+          <a
+            href={buildMapsUrl(venue.latitude, venue.longitude)}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open directions to ${venue.name} in Google Maps`}
+            title="Open in Google Maps"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "8px 12px",
+              fontFamily: "inherit",
+              fontSize: "0.82rem",
+              fontWeight: 700,
+              color: "#14507a",
+              backgroundColor: "#fff",
+              border: "1px solid #14507a",
+              borderRadius: "999px",
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            <span aria-hidden="true">🧭</span> Map
+          </a>
+        )}
       </div>
 
       {/* Sports */}

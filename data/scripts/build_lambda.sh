@@ -86,8 +86,41 @@ cp "$DATA_DIR/ingestion/transformers/ds01_sport_facilities.py" "$BUILD_DIR/load/
 cp "$DATA_DIR/ingestion/transformers/ds02_public_toilets.py" "$BUILD_DIR/load/ingestion/transformers/"
 cp "$DATA_DIR/ingestion/loaders/loader.py" "$BUILD_DIR/load/ingestion/loaders/"
 
+# DS-09, and the extractor module it needs.
+#
+# loaders/handler.py imports BOTH of these at module scope:
+#
+#     from ingestion.extractors import aaaplay
+#     from ingestion.transformers import ds09_aaaplay as ds09
+#
+# so leaving either out is not a missing feature, it is a ModuleNotFoundError at
+# cold start that takes the whole load function down — including DS-01 and DS-02,
+# which have nothing to do with DS-09. An import at module scope makes every
+# source share the fate of the least-packaged one.
+#
+# ds09_aaaplay.py needs pandas, which the load package already installs, and its
+# crosswalk import is under TYPE_CHECKING, so nothing else has to ship for it.
+# This is why the DS-01/DS-02-only rule above is about GEOPANDAS specifically and
+# not a general rule about which transformers may be packaged.
+cp "$DATA_DIR/ingestion/transformers/ds09_aaaplay.py" "$BUILD_DIR/load/ingestion/transformers/"
+
+mkdir -p "$BUILD_DIR/load/ingestion/extractors"
+touch "$BUILD_DIR/load/ingestion/extractors/__init__.py"
+cp "$DATA_DIR/ingestion/extractors/aaaplay.py" "$BUILD_DIR/load/ingestion/extractors/"
+
 mkdir -p "$BUILD_DIR/load/sources"
 cp "$DATA_DIR"/sources/*.yaml "$BUILD_DIR/load/sources/"
+
+# The derive stage, which the loader now runs itself rather than invoking as a
+# second function: from inside this subnet there is no route to the Lambda API,
+# so the invoke hung until the timeout. See derive/run.py. These modules import
+# nothing but psycopg, which this package already installs.
+mkdir -p "$BUILD_DIR/load/derive"
+touch "$BUILD_DIR/load/derive/__init__.py"
+cp "$DATA_DIR/derive/run.py" "$BUILD_DIR/load/derive/"
+cp "$DATA_DIR/derive/status_builder.py" "$BUILD_DIR/load/derive/"
+cp "$DATA_DIR/derive/venue_match.py" "$BUILD_DIR/load/derive/"
+cp "$DATA_DIR/derive/place_geography.py" "$BUILD_DIR/load/derive/"
 
 pip_install "$BUILD_DIR/load" \
   "psycopg[binary]==3.2.3" \
@@ -103,10 +136,19 @@ pip_install "$BUILD_DIR/load" \
 echo "==> derive"
 cp "$DATA_DIR/derive/handler.py" "$BUILD_DIR/derive/"
 mkdir -p "$BUILD_DIR/derive/derive"
+
+# Every module handler.py imports, not only the status builder. venue_match and
+# place_geography are the DS-09 place stage; leaving them out does not fail the
+# build or the deploy, it fails at cold start inside the VPC, which is where it
+# went unnoticed for a week. tests/test_derive_handler.py reads this list
+# against the handler's imports so the two cannot drift apart again.
+cp "$DATA_DIR/derive/run.py" "$BUILD_DIR/derive/derive/"
 cp "$DATA_DIR/derive/status_builder.py" "$BUILD_DIR/derive/derive/"
 cp "$DATA_DIR/derive/chunker.py"        "$BUILD_DIR/derive/derive/"
 cp "$DATA_DIR/derive/embedder.py"       "$BUILD_DIR/derive/derive/"
 cp "$DATA_DIR/derive/chunk_index.py"    "$BUILD_DIR/derive/derive/"
+cp "$DATA_DIR/derive/venue_match.py" "$BUILD_DIR/derive/derive/"
+cp "$DATA_DIR/derive/place_geography.py" "$BUILD_DIR/derive/derive/"
 touch "$BUILD_DIR/derive/derive/__init__.py"
 
 pip_install "$BUILD_DIR/derive" "psycopg[binary]==3.2.3"

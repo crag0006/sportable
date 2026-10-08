@@ -28,6 +28,11 @@ module "network" {
   # instance. An empty subnet costs nothing.
   private_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
 
+  # Epic 6. The assistant runs inside the VPC and Bedrock is an AWS API like
+  # any other, so without this endpoint its calls hang until the function
+  # times out rather than failing. ~USD $7.30/month, one AZ only.
+  enable_bedrock_endpoint = true
+
   allowed_ssh_cidrs = var.allowed_ssh_cidrs
 }
 
@@ -96,6 +101,15 @@ module "api" {
   # cannot infer that from a path string.
   ssm_prefix = "/sportable/staging"
 
+  # ------------------------------------------------------------- Epic 6
+  # The assistant is a second function on the same archive, with its own
+  # route and its own — much lower — throttle.
+  #
+  # Set together with module.network.enable_bedrock_endpoint. Enabling this
+  # without the endpoint deploys a function whose Bedrock calls hang until the
+  # timeout, which looks like a slow bug rather than a missing route.
+  enable_assistant = true
+
   depends_on = [module.app_config]
 }
 
@@ -117,14 +131,45 @@ module "app_config" {
   # Each threshold is longer than its publisher's cadence, so one missed refresh
   # does not make the UI apologise for data that is fine.
   #   vic_sport_rec, public_toilets_nptm, ptv_gtfs  publish weekly  -> 14 days
+  #   aaaplay                                       publishes weekly -> 14 days
   #   osm                                           publishes monthly -> 45 days
   # Keys must match the extractor module names in data/ingestion/extractors/.
+  #
+  # "aaaplay", not "DS-09": the key is the extractor module name
+  # (extractors/aaaplay.py), which is also the card's retrieval.raw_prefix and
+  # so the S3 prefix the objects land under. DS-09's card says cadence: weekly,
+  # and the rule this map follows is threshold > cadence, so 14 — the same
+  # fortnight the other weekly publishers get. Setting it to 7 would mark the
+  # programmes stale the instant one Sunday run was missed, which is the
+  # failure mode this map exists to avoid.
+  #
+  # `osm` was removed on 15 Sep 2026: there is no OpenStreetMap source card in
+  # data/sources/, so the key set a threshold for a source that does not exist.
+  # DS-05 is openrouteservice, which ADR-003 records as not used.
+  #
+  # The three file sources keep 14 days even though Iteration 2 loads them ONCE.
+  # The threshold is measured against the publisher's date, so a one-time load
+  # will cross it and show "possibly out of date" on those facts. That is the
+  # correct answer, not a misconfiguration: we are not refetching, so the fact
+  # may genuinely be out of date. Do not raise these to silence the banner.
   source_staleness_days = {
     vic_sport_rec       = 14
     public_toilets_nptm = 14
     ptv_gtfs            = 14
-    osm                 = 45
+    aaaplay             = 14
   }
+
+  # Events (DS-09). Passed explicitly rather than left to the module defaults so
+  # that the values this environment actually publishes are readable here,
+  # beside the search settings, rather than one file away.
+  #
+  # The base URL in particular is the one string in this stack most likely to
+  # need changing under time pressure: AAA Play is an unversioned third-party
+  # WordPress API with no contract with us. Because it is a parameter, moving it
+  # is `aws ssm put-parameter --overwrite`, not a rebuild and a release.
+  events_scope       = "victoria"
+  aaa_play_base_url  = "https://www.aaaplay.org.au/wp-json/wp/v2"
+  aaa_play_page_size = 100
 }
 
 module "observability" {

@@ -5,6 +5,9 @@ output "parameter_names" {
       aws_ssm_parameter.distance_bands.name,
       aws_ssm_parameter.default_band.name,
       aws_ssm_parameter.max_results.name,
+      aws_ssm_parameter.events_scope.name,
+      aws_ssm_parameter.aaa_play_base_url.name,
+      aws_ssm_parameter.aaa_play_page_size.name,
     ],
     [for p in aws_ssm_parameter.staleness : p.name],
   )

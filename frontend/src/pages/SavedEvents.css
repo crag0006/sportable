@@ -1,0 +1,33 @@
+
+.saved-events-note {
+  margin: 4px 0 16px 0;
+  color: #3f545e;
+  font-size: 0.9rem;
+}
+
+.saved-events-export-button {
+  margin-top: 4px;
+}
+
+.saved-events-browse-link {
+  display: inline-block;
+  margin-top: 12px;
+  text-decoration: none;
+}
+
+.saved-event-remove-button {
+  height: 38px;
+  padding: 0 14px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #96231f;
+  background-color: #fff;
+  border: 1px solid #e3b5b3;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.saved-event-remove-button:hover {
+  background-color: #fdf3f2;
+}

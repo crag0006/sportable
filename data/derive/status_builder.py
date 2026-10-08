@@ -80,6 +80,11 @@ UNPUBLISHED_DETAIL = {
     ),
 }
 
+# place_vocabulary is deliberately not in this list. It reads the columns
+# place_geography writes, so refreshing it here would refresh it before those
+# columns are derived; place_geography.build() refreshes it afterwards instead.
+# (Migration 010's comment asks for it to be added here. That was written before
+# the place stage existed and is superseded by the ordering in derive/handler.)
 READ_MODEL_VIEWS = ("venue_card", "sport_vocabulary", "search_location")
 
 

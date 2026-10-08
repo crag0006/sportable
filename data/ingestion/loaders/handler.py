@@ -40,8 +40,10 @@ import logging
 import os
 import re
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote_plus
 
 import boto3
 import pandas as pd
@@ -51,6 +53,7 @@ from psycopg.rows import dict_row
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from derive import run
 from ingestion.extractors import aaaplay
 from ingestion.loaders import loader
 from ingestion.transformers import ds01_sport_facilities as ds01
@@ -62,14 +65,80 @@ LOG.setLevel(logging.INFO)
 
 REGISTER_DIR = Path(os.environ.get("REGISTER_DIR", "/var/task/sources"))
 RAW_BUCKET = os.environ["RAW_BUCKET"]
-SSM_DB_URL_PARAM = os.environ["SSM_DB_URL_PARAM"]
-DERIVE_FUNCTION = os.environ.get("DERIVE_FUNCTION", "")
+
+# Passed in by Terraform, read from SSM on the CI runner at apply time. NOT read
+# from SSM here: this function sits in a private subnet whose only way out is an
+# S3 gateway endpoint, so an SSM call hangs until the timeout rather than
+# failing. That is the trade T5-config-observability already made for the API's
+# DATABASE_URL, for the same reason and the same price.
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+
+# The fallback for a hand-run from a laptop or the bastion, where there IS a
+# route to SSM. Empty in the deployed function.
+SSM_DB_URL_PARAM = os.environ.get("SSM_DB_URL_PARAM", "")
+
+# Rejected rows are written here BEFORE the rejection-rate check. An abort rolls
+# the load transaction back, taking the quarantine TABLE rows with it, so on the
+# one path where the evidence matters most the table is empty. S3 is outside the
+# transaction. Unset means no sink and the table-only behaviour, which is what
+# load_run.py does over the tunnel.
+QUARANTINE_BUCKET = os.environ.get("QUARANTINE_BUCKET", "")
 
 SUPPORTED = {"DS-01", "DS-02", "DS-09"}
 
 s3 = boto3.client("s3")
 ssm = boto3.client("ssm")
-lam = boto3.client("lambda")
+
+
+def database_url() -> str:
+    if DATABASE_URL:
+        return DATABASE_URL
+
+    if not SSM_DB_URL_PARAM:
+        raise RuntimeError("Neither DATABASE_URL nor SSM_DB_URL_PARAM is set.")
+
+    return str(ssm.get_parameter(Name=SSM_DB_URL_PARAM, WithDecryption=True)["Parameter"]["Value"])
+
+
+def quarantine_to_s3(*, load_run_id: int, source_id: str, frame: pd.DataFrame) -> str | None:
+    """Write rejected rows to the quarantine bucket as newline-delimited JSON.
+
+    NDJSON rather than a single array so a very large rejection set can be read
+    with `aws s3 cp ... - | head`, which is what an operator does first.
+
+    The key carries the load run id, so the objects from one aborted load group
+    together and a rerun cannot overwrite the evidence from the run before it.
+    """
+
+    if not QUARANTINE_BUCKET:
+        return None
+
+    key = f"{source_id}/dt={datetime.now(UTC).date().isoformat()}/load_run_{load_run_id}.ndjson"
+    body = "\n".join(
+        json.dumps(
+            {
+                "load_run_id": load_run_id,
+                "source_id": source_id,
+                "natural_key": row.get("natural_key"),
+                "reason": row["reason"],
+                "detail": row.get("detail"),
+                "payload": row.get("payload") or {},
+            },
+            default=str,
+        )
+        for _, row in frame.iterrows()
+    )
+
+    s3.put_object(
+        Bucket=QUARANTINE_BUCKET,
+        Key=key,
+        Body=body.encode("utf-8"),
+        ContentType="application/x-ndjson",
+    )
+    log(
+        "QUARANTINE_WRITTEN", source_id=source_id, load_run_id=load_run_id, key=key, rows=len(frame)
+    )
+    return key
 
 
 def log(event: str, **fields: Any) -> None:
@@ -134,8 +203,14 @@ def load_register() -> dict[str, dict[str, Any]]:
 
 
 def parse_key(key: str) -> tuple[str, str, str]:
-    """Split '<prefix>/dt=<date>/<filename>' into its three parts."""
-    parts = key.split("/")
+    """Split '<prefix>/dt=<date>/<filename>' into its three parts.
+
+    The key is decoded first. S3 event notifications URL-encode the object key,
+    so the '=' of the partition arrives as '%3D' and the key in the event is not
+    the key in the bucket. Decoding an already-decoded key is a no-op, so the
+    CLI runner, which passes the key verbatim, is unaffected.
+    """
+    parts = unquote_plus(key).split("/")
 
     if len(parts) != 3 or not parts[1].startswith("dt="):
         raise ValueError(f"Unexpected raw key layout: {key}")
@@ -253,6 +328,7 @@ def run_load(
             )
             outcome = loader.load_venues(
                 conn,
+                sink=quarantine_to_s3,
                 load_run_id=load_run_id,
                 source_id=source_id,
                 venues=venue_result.venues,
@@ -276,6 +352,7 @@ def run_load(
             )
             outcome = loader.load_programs(
                 conn,
+                sink=quarantine_to_s3,
                 load_run_id=load_run_id,
                 source_id=source_id,
                 result=program_result,
@@ -286,6 +363,7 @@ def run_load(
             amenity_result = ds02.transform(tabular(raw), load_run_id=load_run_id)
             outcome = loader.load_amenities(
                 conn,
+                sink=quarantine_to_s3,
                 load_run_id=load_run_id,
                 source_id=source_id,
                 amenities=amenity_result.amenities,
@@ -340,7 +418,11 @@ def handle_record(
     record: dict[str, Any],
     register: dict[str, dict[str, Any]],
 ) -> dict[str, Any] | None:
-    key = record["s3"]["object"]["key"]
+    # Decoded here, at the edge, because everything below treats this as the
+    # key in the bucket: it is downloaded with it and it is written to
+    # load_run.raw_object_key as provenance. An event key is URL-encoded, so
+    # 'dt=' arrives as 'dt%3D' and both of those uses would be wrong.
+    key = unquote_plus(record["s3"]["object"]["key"])
 
     # Manifests are written on every run, including runs that landed nothing.
     # They are provenance, not payload, and there is no transformer for them.
@@ -370,7 +452,7 @@ def handle_record(
 
     log("PAYLOAD_READ", source_id=source_id, key=key, rows=rows_read(raw), sha256=sha[:12])
 
-    dsn = ssm.get_parameter(Name=SSM_DB_URL_PARAM, WithDecryption=True)["Parameter"]["Value"]
+    dsn = database_url()
 
     # The connection is a transaction. Everything below either commits together
     # or rolls back together, so a failure halfway through cannot leave the
@@ -397,16 +479,31 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         if outcome:
             results.append(outcome)
 
-    # The derive step is invoked once per handler call, not once per record, and
-    # only if something actually landed. It recomputes status for every venue,
-    # so running it twice for two records in one event would do the same work
-    # twice and produce the same answer.
-    if results and DERIVE_FUNCTION:
-        lam.invoke(
-            FunctionName=DERIVE_FUNCTION,
-            InvocationType="Event",
-            Payload=json.dumps({"load_run_id": results[-1]["load_run_id"]}).encode(),
-        )
-        log("DERIVE_INVOKED", function=DERIVE_FUNCTION, load_run_id=results[-1]["load_run_id"])
+    # The derive step runs once per handler call, not once per record, and only
+    # if something actually landed. It recomputes status for every venue, so
+    # running it twice for two records in one event would do the same work twice
+    # and produce the same answer.
+    #
+    # RUN HERE, NOT INVOKED. lambda:InvokeFunction is a call to the AWS control
+    # plane and this function cannot reach it from its subnet; the invoke hung
+    # until the timeout instead of failing. See derive/run.py.
+    #
+    # In its own connection, opened after the load transaction above has
+    # committed, so a derive failure cannot roll the load back.
+    if results:
+        load_run_id = results[-1]["load_run_id"]
+
+        # DS-09 writes to the program tables only, and nothing it carries can
+        # produce a facility status, so a DS-09-only event skips the venue
+        # stages. The place stage still runs: its programmes have to be matched
+        # to venues and given a suburb before the events page can use them.
+        venue_stages = any(r["source_id"] != "DS-09" for r in results)
+
+        with psycopg.connect(database_url(), row_factory=dict_row) as conn:
+            derived = run.derive_all(
+                conn, load_run_id=load_run_id, venue_stages=venue_stages, log=log
+            )
+
+        return {"loaded": results, "derived": derived}
 
     return {"loaded": results}

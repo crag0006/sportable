@@ -1,0 +1,1156 @@
+# ============================================================================
+# ds09_sport_vocabulary.yaml — AAA Play activity_type to the venue sport vocabulary
+#
+# WHAT THIS IS
+#     One reviewed row per AAA Play activity_type term, saying which sport or
+#     sports in the venue vocabulary it means. program_sport.sport_key holds the
+#     publisher's own term; this file is what turns that term into something a
+#     venue sport search can match, and what records the terms that deliberately
+#     do not match anything.
+#
+# WHY A FILE AND NOT A REGEX
+#     Every shortcut that suggests itself here is wrong on real data.
+#     Lower-casing and comparing misses "Calisthenics" against "Callisthenics".
+#     Prefix matching maps "Gym" onto "Gymnastics". Fuzzy matching maps "Boccia"
+#     onto "Bocce", which are different games, and onto "Bowls", which is a
+#     different game again. A regex would do all three silently and nobody would
+#     find out until a wheelchair user was sent to a bowling green. The mapping
+#     was generated once against the live taxonomy, then read line by line, and
+#     the reading is what this file records.
+#
+# WHAT IT COMPLEMENTS
+#     backend/app/repositories/postgres.py carries a SPORT_ALIASES dict of seven
+#     entries, applied in SQL at query time. Every one of those seven is
+#     reproduced here and marked, so the two cannot disagree. This file goes
+#     further in the one way that matters: SPORT_ALIASES is one-to-one, so it
+#     cannot express "Bike riding, BMX & cycling" meaning BOTH Cycling and BMX,
+#     and it cannot express "Tennis" meaning both of the vocabulary's two tennis
+#     entries. Those are the misses it is silently making today. Migration
+#     012_sport_crosswalk.sql loads this file's rows into a table so the join is
+#     many-to-many and a search for either sport finds the programme.
+#
+# THE JUDGEMENT CALL THIS FILE EXISTS FOR
+#     ADAPTIVE AND PARA SPORTS ARE NEVER FOLDED INTO THEIR NON-ADAPTIVE PARENTS.
+#     Boccia is not Bowls. Adaptive climbing is not Bouldering. Walking and
+#     rolling is not walking. Floor curling has no parent in the register at all.
+#     Goalball is not an indoor ball sport with a smaller court. On a product
+#     built for wheelchair users, collapsing an adaptive sport into the sport it
+#     was adapted from is not tidying a vocabulary, it is deleting the reason the
+#     programme exists and sending somebody to a venue that cannot host them.
+#     Those terms are ADDED to the vocabulary as sports in their own right, with
+#     relation added_adaptive, and they carry no row to a parent. If a later
+#     change proposes mapping one of them onto a parent to make a search result
+#     tidier, that change is wrong.
+#
+# HTML ENTITIES
+#     Two terms arrive HTML-encoded from the WordPress API, "Bike riding, BMX
+#     &amp; cycling" and "Billiards, snooker &amp; pool". `term` below holds the
+#     DECODED text, because the transformer decodes once at transform time
+#     through _text() and the entity must never reach a screen or a key. Do not
+#     re-add the entity to this file to make it match a raw API response.
+#
+# RELATIONS
+#     exact           Same sport, same wording as the venue vocabulary.
+#     alias           Same sport, different wording.
+#     narrower        A more specific form of a broader vocabulary sport whose
+#                     venues genuinely host it. Used only where the broader entry
+#                     is a real parent, never where it is a sibling.
+#     compound        One publisher label naming several vocabulary sports.
+#     split           One publisher term covering several vocabulary entries that
+#                     the vocabulary distinguishes and the publisher does not.
+#     added           A real sport the venue vocabulary does not contain. Enters
+#                     the vocabulary as its own entry rather than being folded
+#                     into a sibling.
+#     added_adaptive  As added, and deliberately NOT folded into a non-adaptive
+#                     parent. See above.
+#     not_a_sport     A published term that is not a sport. Kept as published
+#                     under its own label, given no vocabulary entry.
+#     unmapped        Could not be resolved. No term is in this state today. The
+#                     state exists because a term that appears upstream and is
+#                     absent from this file is quarantined as SCHEMA_VIOLATION by
+#                     the transformer rather than dropped, and the fix is to add
+#                     it here with a reviewed relation.
+#
+# maps_to IS A LIST ON PURPOSE. Several terms carry more than one entry and an
+# empty list is a decision, not a gap; see relation and note on each row.
+#
+# venue_vocabulary BELOW is the distinct Sports Played values from the DS-01
+# workbook of 17 December 2024, case-folded to one spelling each. It is carried
+# in this file so the crosswalk can be checked against the vocabulary it targets
+# without a database and without the 3.6 MB workbook, which is not committed.
+# It is a snapshot for review, NOT the runtime vocabulary: the runtime list is
+# the sport_vocabulary materialised view, which holds only the sports of venues
+# actually loaded.
+#
+# HOW TO CHANGE IT
+#     Add or edit the row, run `uv run pytest tests/test_ds09_sport_crosswalk.py`
+#     in data/, and update 012_sport_crosswalk.sql so the seeded rows still
+#     match. The test compares the two and fails if they drift.
+# ============================================================================
+
+crosswalk_id: CW-01
+title: AAA Play activity_type to the venue sport vocabulary
+source_id: DS-09
+target: venue_sport.sport, surfaced as the sport_vocabulary materialised view
+target_source_id: DS-01
+publisher_taxonomy: activity_type
+publisher_taxonomy_terms: 82
+
+reviewed:
+  generated_from: >-
+    Live pull of https://www.aaaplay.org.au/wp-json/wp/v2/activity_type?per_page=100, 15 September 2026, all 82 terms, with term
+    id, slug and activity count as published.
+  vocabulary_from: >-
+    Distinct Sports Played values in sheet wholeIFMD of the DS-01 workbook published 17 December 2024, 84 raw values reducing to
+    80 after case-folding four duplicate spellings.
+  reviewed_on: 2026-09-15
+  method: >-
+    Generated once by joining the two lists, then read term by term and decided by hand. Every relation other than exact was
+    written with a reason, and the reasons are in the file rather than in a commit message because the next person to touch this
+    will be reading the file.
+
+venue_vocabulary:
+  - "AFL (Indoor)"
+  - "Aerobics"
+  - "Archery"
+  - "Athletics"
+  - "Australian Rules Football"
+  - "BMX"
+  - "Badminton"
+  - "Baseball"
+  - "Basketball"
+  - "Beach Volleyball"
+  - "Bocce"
+  - "Body Building"
+  - "Boxing"
+  - "Callisthenics"
+  - "Canoe Polo"
+  - "Canoeing"
+  - "Carpet Bowls"
+  - "Cricket"
+  - "Cricket (Indoor)"
+  - "Croquet"
+  - "Cycling"
+  - "Dancing"
+  - "Disk Golf"
+  - "Diving"
+  - "Equestrian"
+  - "Fencing"
+  - "Fitness / Gymnasium Workouts"
+  - "Flying Disk"
+  - "Gaelic Football"
+  - "Go Karting"
+  - "Golf"
+  - "Gridiron"
+  - "Gymnastics"
+  - "Hockey"
+  - "Ice Hockey"
+  - "Inline Hockey"
+  - "Jet Skiing"
+  - "Judo"
+  - "Karate"
+  - "Lacrosse"
+  - "Lawn Bowls"
+  - "Martial Arts"
+  - "Modern Pentathlon"
+  - "Motor Cycling"
+  - "Motor Sports"
+  - "Netball"
+  - "Netball (Indoor)"
+  - "Open Space"
+  - "Orienteering"
+  - "Polo"
+  - "Polocrosse"
+  - "Power Boating"
+  - "Rock Climbing / Abseiling (Indoor)"
+  - "Rodeo"
+  - "Roller Sports - Other"
+  - "Rowing"
+  - "Rugby League"
+  - "Rugby Union"
+  - "Sailing"
+  - "Shooting Sports"
+  - "Skating"
+  - "Snooker / Billiards / Pool"
+  - "Soccer"
+  - "Soccer (Indoor Soccer / Futsal)"
+  - "Softball"
+  - "Squash / Racquetball"
+  - "Surf Life Saving"
+  - "Swimming"
+  - "Table Tennis"
+  - "Tae Kwon Do"
+  - "Team Handball"
+  - "Ten Pin Bowling"
+  - "Tennis (Indoor)"
+  - "Tennis (Outdoor)"
+  - "Touch Football"
+  - "Underwater Hockey"
+  - "Volleyball"
+  - "Water Polo"
+  - "Water Skiing"
+  - "Wheelchair Sports"
+
+terms:
+  - term: "Adaptive climbing"
+    term_key: adaptive_climbing
+    publisher_slug: adaptive-climbing
+    publisher_term_id: 1319
+    activity_count: 1
+    relation: added_adaptive
+    maps_to:
+      - "Adaptive climbing"
+    note: >-
+      NOT Rock Climbing and NOT Bouldering. Adaptive climbing is climbing re-engineered around the climber: hauling
+      systems, seated ascenders, trained belayers. Folding it into a climbing gym's listing would tell a wheelchair
+      user that any bouldering wall will do, which is the exact error this crosswalk exists to prevent. It enters
+      the vocabulary as its own sport.
+
+  - term: "AFL"
+    term_key: afl
+    publisher_slug: afl
+    publisher_term_id: 1330
+    activity_count: 36
+    relation: alias
+    maps_to:
+      - "Australian Rules Football"
+    note: >-
+      The register's venue vocabulary writes the sport out in full. Same sport, different wording. Matches the
+      backend SPORT_ALIASES entry.
+
+  - term: "Aqua aerobics"
+    term_key: aqua_aerobics
+    publisher_slug: aqua-aerobics
+    publisher_term_id: 1313
+    activity_count: 3
+    relation: narrower
+    maps_to:
+      - "Swimming"
+    note: >-
+      Held in a pool, so a Swimming venue genuinely hosts it. Deliberately NOT mapped to Aerobics, which would send
+      someone to a dry gym floor. The publisher label still displays, so the water is not lost from the screen.
+
+  - term: "Archery"
+    term_key: archery
+    publisher_slug: archery
+    publisher_term_id: 1312
+    activity_count: 1
+    relation: exact
+    maps_to:
+      - "Archery"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Art"
+    term_key: art
+    publisher_slug: art
+    publisher_term_id: 1358
+    activity_count: 4
+    relation: not_a_sport
+    maps_to: []
+    note: >-
+      A creative programme, not a sport. Kept as published under its own label and given no vocabulary entry,
+      because offering Art in a sport typeahead that is backed by playing surfaces would be misleading. See the
+      program_sport table comment: some terms are not sports and are kept as published rather than filtered.
+
+  - term: "Artistic swimming"
+    term_key: artistic_swimming
+    publisher_slug: artistic-swimming
+    publisher_term_id: 1317
+    activity_count: 1
+    relation: narrower
+    maps_to:
+      - "Swimming"
+    note: >-
+      A distinct sport, but a pool is a pool: a Swimming venue hosts it.
+
+  - term: "Athletics"
+    term_key: athletics
+    publisher_slug: athletics
+    publisher_term_id: 1274
+    activity_count: 55
+    relation: exact
+    maps_to:
+      - "Athletics"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Badminton"
+    term_key: badminton
+    publisher_slug: badminton
+    publisher_term_id: 1291
+    activity_count: 5
+    relation: exact
+    maps_to:
+      - "Badminton"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Baseball"
+    term_key: baseball
+    publisher_slug: baseball
+    publisher_term_id: 1338
+    activity_count: 1
+    relation: exact
+    maps_to:
+      - "Baseball"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Basketball"
+    term_key: basketball
+    publisher_slug: basketball
+    publisher_term_id: 1298
+    activity_count: 55
+    relation: exact
+    maps_to:
+      - "Basketball"
+    note: >-
+      Same sport, same wording. The taxonomy has no wheelchair basketball term, so the publisher's own PlayOn
+      wheelchair basketball programmes sit under this one. That is the publisher's grain and is not corrected here:
+      inventing a term the source does not publish would be inventing a positive. The programme's own label and
+      access-need tags carry the detail.
+
+  - term: "Biathlon"
+    term_key: biathlon
+    publisher_slug: biathlon
+    publisher_term_id: 1293
+    activity_count: 0
+    relation: added
+    maps_to:
+      - "Biathlon"
+    note: >-
+      Cross-country skiing and rifle shooting as one event. Neither Shooting Sports nor any snow sport in the venue
+      vocabulary is a parent of it, and Modern Pentathlon is a different sport. Enters as its own entry. No
+      activity carries it today.
+
+  - term: "Bike riding, BMX & cycling"
+    term_key: bike_riding_bmx_cycling
+    publisher_slug: bike-riding-bmx-cycling
+    publisher_term_id: 1333
+    activity_count: 5
+    relation: compound
+    maps_to:
+      - "Cycling"
+      - "BMX"
+    note: >-
+      One publisher label naming two vocabulary sports, which is why this file exists: the backend SPORT_ALIASES
+      dict is one-to-one and can only reach Cycling, so a BMX search silently misses these programmes today. Both
+      rows are emitted so a search for either sport finds the programme. Mountain biking is a separate publisher
+      term and is not folded in here.
+
+  - term: "Billiards, snooker & pool"
+    term_key: billiards_snooker_pool
+    publisher_slug: billiards-snooker-pool
+    publisher_term_id: 1322
+    activity_count: 0
+    relation: alias
+    maps_to:
+      - "Snooker / Billiards / Pool"
+    note: >-
+      Three cue games in one publisher label and the same three in one vocabulary entry, in a different order. One
+      row, not three. The label arrives HTML-encoded as 'Billiards, snooker &amp; pool' and is decoded once at
+      transform time.
+
+  - term: "Bocce"
+    term_key: bocce
+    publisher_slug: bocce
+    publisher_term_id: 1326
+    activity_count: 8
+    relation: exact
+    maps_to:
+      - "Bocce"
+    note: >-
+      Same sport, same wording. NOT Boccia. The two sit next to each other in this taxonomy and are different
+      games; see the Boccia entry.
+
+  - term: "Boccia"
+    term_key: boccia
+    publisher_slug: boccia
+    publisher_term_id: 1277
+    activity_count: 4
+    relation: added_adaptive
+    maps_to:
+      - "Boccia"
+    note: >-
+      BOCCIA IS NOT BOWLS AND IS NOT BOCCE. It is a Paralympic sport designed for athletes with severe physical
+      impairment, played seated on an indoor court, with ramps and assistants permitted. Bowls and bocce are
+      outdoor green and court games with no such provision. Mapping Boccia onto either would erase the one sport in
+      this taxonomy built for the people this product is built for, and would send a Boccia player to a bowling
+      green. It enters the vocabulary as its own sport.
+
+  - term: "Bouldering"
+    term_key: bouldering
+    publisher_slug: bouldering
+    publisher_term_id: 1328
+    activity_count: 0
+    relation: narrower
+    maps_to:
+      - "Rock Climbing / Abseiling (Indoor)"
+    note: >-
+      Rope-free climbing at low height, hosted by the same indoor climbing venues the vocabulary entry describes.
+      Not an adaptive sport, so folding it into its parent loses nothing. Adaptive climbing is handled separately
+      and is NOT folded here.
+
+  - term: "Bowls"
+    term_key: bowls
+    publisher_slug: bowls
+    publisher_term_id: 1344
+    activity_count: 6
+    relation: alias
+    maps_to:
+      - "Lawn Bowls"
+    note: >-
+      Matches the backend SPORT_ALIASES entry. Deliberately not also mapped to Carpet Bowls: the vocabulary
+      distinguishes an outdoor green from an indoor carpet and the publisher does not, and mapping to both would
+      put every lawn bowls programme in a carpet bowls search.
+
+  - term: "Boxing"
+    term_key: boxing
+    publisher_slug: boxing
+    publisher_term_id: 1316
+    activity_count: 5
+    relation: exact
+    maps_to:
+      - "Boxing"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Bushwalking hiking or walking"
+    term_key: bushwalking_hiking_or_walking
+    publisher_slug: bushwalking-hiking-or-walking
+    publisher_term_id: 1300
+    activity_count: 31
+    relation: added
+    maps_to:
+      - "Bushwalking, hiking or walking"
+    note: >-
+      The venue vocabulary is a register of built sport facilities and has no walking entry at all; Open Space is a
+      land classification, not a sport. Enters as its own entry. DISTINCT FROM 'Walking and rolling', which is the
+      publisher's wheelchair-inclusive term and keeps its own entry.
+
+  - term: "Calisthenics"
+    term_key: calisthenics
+    publisher_slug: calisthenics
+    publisher_term_id: 1340
+    activity_count: 3
+    relation: alias
+    maps_to:
+      - "Callisthenics"
+    note: >-
+      Same sport, spelled with one l by the publisher and two by the venue register. A string comparison misses
+      this; a reviewed file does not.
+
+  - term: "Camps"
+    term_key: camps
+    publisher_slug: camps
+    publisher_term_id: 1272
+    activity_count: 2
+    relation: not_a_sport
+    maps_to: []
+    note: >-
+      A way of delivering a programme, not a sport. No vocabulary entry.
+
+  - term: "Canoeing"
+    term_key: canoeing
+    publisher_slug: canoeing
+    publisher_term_id: 1283
+    activity_count: 1
+    relation: exact
+    maps_to:
+      - "Canoeing"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Circus"
+    term_key: circus
+    publisher_slug: circus
+    publisher_term_id: 1367
+    activity_count: 2
+    relation: not_a_sport
+    maps_to: []
+    note: >-
+      A performing art. No vocabulary entry.
+
+  - term: "Cricket"
+    term_key: cricket
+    publisher_slug: cricket
+    publisher_term_id: 1337
+    activity_count: 9
+    relation: exact
+    maps_to:
+      - "Cricket"
+    note: >-
+      Mapped to the unqualified vocabulary entry only. Cricket (Indoor) is a separate entry and the publisher does
+      not record the distinction, so claiming it would be an invented positive.
+
+  - term: "Croquet"
+    term_key: croquet
+    publisher_slug: croquet
+    publisher_term_id: 1284
+    activity_count: 6
+    relation: exact
+    maps_to:
+      - "Croquet"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Dance"
+    term_key: dance
+    publisher_slug: dance
+    publisher_term_id: 1323
+    activity_count: 16
+    relation: alias
+    maps_to:
+      - "Dancing"
+    note: >-
+      Same activity, different wording.
+
+  - term: "Darts"
+    term_key: darts
+    publisher_slug: darts
+    publisher_term_id: 1288
+    activity_count: 1
+    relation: added
+    maps_to:
+      - "Darts"
+    note: >-
+      Absent from the venue vocabulary, which registers playing surfaces and not club rooms. Enters as its own
+      entry.
+
+  - term: "Diving"
+    term_key: diving
+    publisher_slug: diving
+    publisher_term_id: 1304
+    activity_count: 0
+    relation: exact
+    maps_to:
+      - "Diving"
+    note: >-
+      Same sport, same wording. Springboard and platform diving, not scuba; the venue register uses the term the
+      same way.
+
+  - term: "Dragon boat"
+    term_key: dragon_boat
+    publisher_slug: dragon-boat
+    publisher_term_id: 1290
+    activity_count: 0
+    relation: added
+    maps_to:
+      - "Dragon boat"
+    note: >-
+      A crewed paddling sport of its own. Canoeing and Rowing are siblings, not parents, and a rowing shed is not a
+      dragon boat club. Enters as its own entry.
+
+  - term: "Equestrian"
+    term_key: equestrian
+    publisher_slug: equestrian
+    publisher_term_id: 1305
+    activity_count: 4
+    relation: exact
+    maps_to:
+      - "Equestrian"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Fencing"
+    term_key: fencing
+    publisher_slug: fencing
+    publisher_term_id: 1347
+    activity_count: 0
+    relation: exact
+    maps_to:
+      - "Fencing"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Fishing"
+    term_key: fishing
+    publisher_slug: fishing
+    publisher_term_id: 1314
+    activity_count: 2
+    relation: added
+    maps_to:
+      - "Fishing"
+    note: >-
+      Absent from the venue vocabulary. Enters as its own entry.
+
+  - term: "Floor curling"
+    term_key: floor_curling
+    publisher_slug: floor-curling
+    publisher_term_id: 1346
+    activity_count: 1
+    relation: added_adaptive
+    maps_to:
+      - "Floor curling"
+    note: >-
+      An adapted, indoor, seated-playable form of curling used widely in disability and seniors programmes. The
+      venue vocabulary has no curling entry of any kind, and the nearest bowls entries are a different game on a
+      different surface. Enters as its own sport.
+
+  - term: "Football (soccer)"
+    term_key: football_soccer
+    publisher_slug: football-soccer
+    publisher_term_id: 1320
+    activity_count: 56
+    relation: alias
+    maps_to:
+      - "Soccer"
+    note: >-
+      Matches the backend SPORT_ALIASES entry. Mapped to the unqualified vocabulary entry only; Soccer (Indoor
+      Soccer / Futsal) is a separate entry and the publisher does not say which is meant.
+
+  - term: "General fitness"
+    term_key: general_fitness
+    publisher_slug: general-fitness
+    publisher_term_id: 1335
+    activity_count: 26
+    relation: alias
+    maps_to:
+      - "Fitness / Gymnasium Workouts"
+    note: >-
+      Matches the backend SPORT_ALIASES entry.
+
+  - term: "Goalball"
+    term_key: goalball
+    publisher_slug: goalball
+    publisher_term_id: 1341
+    activity_count: 1
+    relation: added_adaptive
+    maps_to:
+      - "Goalball"
+    note: >-
+      A Paralympic sport created for blind and vision-impaired athletes, played with a bell ball on a tactile-
+      marked court by players wearing eyeshades. It has no non-adaptive parent anywhere in the venue vocabulary and
+      must not be filed under an indoor ball sport. Enters as its own sport.
+
+  - term: "Golf"
+    term_key: golf
+    publisher_slug: golf
+    publisher_term_id: 1295
+    activity_count: 7
+    relation: exact
+    maps_to:
+      - "Golf"
+    note: >-
+      Same sport, same wording. Disk Golf is a separate vocabulary entry and a different game.
+
+  - term: "Gridiron"
+    term_key: gridiron
+    publisher_slug: gridiron
+    publisher_term_id: 1308
+    activity_count: 0
+    relation: exact
+    maps_to:
+      - "Gridiron"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Gym"
+    term_key: gym
+    publisher_slug: gym
+    publisher_term_id: 1307
+    activity_count: 15
+    relation: alias
+    maps_to:
+      - "Fitness / Gymnasium Workouts"
+    note: >-
+      Matches the backend SPORT_ALIASES entry. NOT Gymnastics, which the shared prefix makes a genuine hazard for a
+      string matcher.
+
+  - term: "Gymnastics"
+    term_key: gymnastics
+    publisher_slug: gymnastics
+    publisher_term_id: 1292
+    activity_count: 14
+    relation: exact
+    maps_to:
+      - "Gymnastics"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Hockey"
+    term_key: hockey
+    publisher_slug: hockey
+    publisher_term_id: 1282
+    activity_count: 1
+    relation: exact
+    maps_to:
+      - "Hockey"
+    note: >-
+      Field hockey in both registers. Ice Hockey, Inline Hockey and Underwater Hockey are separate vocabulary
+      entries and none of them is meant here.
+
+  - term: "Ice hockey"
+    term_key: ice_hockey
+    publisher_slug: ice-hockey
+    publisher_term_id: 1324
+    activity_count: 0
+    relation: exact
+    maps_to:
+      - "Ice Hockey"
+    note: >-
+      Same sport, different capitalisation.
+
+  - term: "Ice skating"
+    term_key: ice_skating
+    publisher_slug: ice-skating
+    publisher_term_id: 1301
+    activity_count: 0
+    relation: narrower
+    maps_to:
+      - "Skating"
+    note: >-
+      The venue vocabulary's Skating entry is not qualified and covers both ice rinks and skate parks, so it
+      genuinely hosts this. The ambiguity is the venue register's, recorded here rather than resolved by guesswork.
+
+  - term: "Judo"
+    term_key: judo
+    publisher_slug: judo
+    publisher_term_id: 1303
+    activity_count: 0
+    relation: exact
+    maps_to:
+      - "Judo"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Karate"
+    term_key: karate
+    publisher_slug: karate
+    publisher_term_id: 1297
+    activity_count: 0
+    relation: exact
+    maps_to:
+      - "Karate"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Lacrosse"
+    term_key: lacrosse
+    publisher_slug: lacrosse
+    publisher_term_id: 1289
+    activity_count: 1
+    relation: exact
+    maps_to:
+      - "Lacrosse"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Martial arts"
+    term_key: martial_arts
+    publisher_slug: martial-arts
+    publisher_term_id: 1306
+    activity_count: 1
+    relation: exact
+    maps_to:
+      - "Martial Arts"
+    note: >-
+      Same activity, different capitalisation.
+
+  - term: "Motor sport"
+    term_key: motor_sport
+    publisher_slug: motor-sport
+    publisher_term_id: 1302
+    activity_count: 0
+    relation: alias
+    maps_to:
+      - "Motor Sports"
+    note: >-
+      Same activity, singular against plural.
+
+  - term: "Mountain biking"
+    term_key: mountain_biking
+    publisher_slug: mountain-biking
+    publisher_term_id: 1299
+    activity_count: 0
+    relation: added
+    maps_to:
+      - "Mountain biking"
+    note: >-
+      Deliberately not folded into Cycling. The venue vocabulary's Cycling entry is velodromes and road circuits,
+      which do not host mountain biking, and BMX is a different discipline again. Enters as its own entry.
+
+  - term: "Netball"
+    term_key: netball
+    publisher_slug: netball
+    publisher_term_id: 1331
+    activity_count: 24
+    relation: exact
+    maps_to:
+      - "Netball"
+    note: >-
+      Mapped to the unqualified vocabulary entry only; Netball (Indoor) is a separate entry and the publisher does
+      not record the distinction.
+
+  - term: "Performing arts"
+    term_key: performing_arts
+    publisher_slug: performing-arts
+    publisher_term_id: 1315
+    activity_count: 2
+    relation: not_a_sport
+    maps_to: []
+    note: >-
+      Not a sport. No vocabulary entry.
+
+  - term: "Petanque"
+    term_key: petanque
+    publisher_slug: petanque
+    publisher_term_id: 1287
+    activity_count: 1
+    relation: added
+    maps_to:
+      - "Petanque"
+    note: >-
+      A sibling of Bocce, not a child of it: different balls, different terrain, different rules. The vocabulary
+      has Bocce and nothing else in the boules family, and a sibling is not a parent, so this enters as its own
+      entry rather than being folded into a game it is not.
+
+  - term: "Pickleball"
+    term_key: pickleball
+    publisher_slug: pickleball
+    publisher_term_id: 1342
+    activity_count: 7
+    relation: added
+    maps_to:
+      - "Pickleball"
+    note: >-
+      Absent from a venue register last published in December 2024, which is the fastest-growing sport in the
+      country not being in the vocabulary rather than the programmes being wrong. Often played on converted tennis
+      and badminton courts, but those are siblings and not parents. Enters as its own entry.
+
+  - term: "Playground"
+    term_key: playground
+    publisher_slug: playground
+    publisher_term_id: 1343
+    activity_count: 1
+    relation: not_a_sport
+    maps_to: []
+    note: >-
+      A place, not a sport. Valuable on a listing and meaningless in a sport typeahead. No vocabulary entry.
+
+  - term: "Rock climbing"
+    term_key: rock_climbing
+    publisher_slug: rock-climbing
+    publisher_term_id: 1311
+    activity_count: 0
+    relation: alias
+    maps_to:
+      - "Rock Climbing / Abseiling (Indoor)"
+    note: >-
+      The same sport. The venue entry carries an (Indoor) qualifier the publisher does not, which is recorded here
+      rather than treated as a reason to leave the term unmapped. Adaptive climbing is NOT mapped here.
+
+  - term: "Rowing"
+    term_key: rowing
+    publisher_slug: rowing
+    publisher_term_id: 1329
+    activity_count: 0
+    relation: exact
+    maps_to:
+      - "Rowing"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Rugby - touch"
+    term_key: rugby_touch
+    publisher_slug: rugby-touch
+    publisher_term_id: 1325
+    activity_count: 0
+    relation: alias
+    maps_to:
+      - "Touch Football"
+    note: >-
+      Same game, named for the code by the publisher and for the game by the venue register.
+
+  - term: "Rugby league"
+    term_key: rugby_league
+    publisher_slug: rugby-league
+    publisher_term_id: 1296
+    activity_count: 0
+    relation: exact
+    maps_to:
+      - "Rugby League"
+    note: >-
+      Same sport, different capitalisation.
+
+  - term: "Rugby union"
+    term_key: rugby_union
+    publisher_slug: rugby-union
+    publisher_term_id: 1294
+    activity_count: 1
+    relation: exact
+    maps_to:
+      - "Rugby Union"
+    note: >-
+      Same sport, different capitalisation.
+
+  - term: "Sailing"
+    term_key: sailing
+    publisher_slug: sailing
+    publisher_term_id: 1279
+    activity_count: 8
+    relation: exact
+    maps_to:
+      - "Sailing"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Shooting"
+    term_key: shooting
+    publisher_slug: shooting
+    publisher_term_id: 1321
+    activity_count: 1
+    relation: alias
+    maps_to:
+      - "Shooting Sports"
+    note: >-
+      Same activity, different wording.
+
+  - term: "Skateboarding"
+    term_key: skateboarding
+    publisher_slug: skateboarding
+    publisher_term_id: 1327
+    activity_count: 1
+    relation: narrower
+    maps_to:
+      - "Skating"
+    note: >-
+      Skate parks are registered under the venue vocabulary's unqualified Skating entry, which therefore genuinely
+      hosts this.
+
+  - term: "Skiing"
+    term_key: skiing
+    publisher_slug: skiing
+    publisher_term_id: 1278
+    activity_count: 1
+    relation: added
+    maps_to:
+      - "Skiing"
+    note: >-
+      No snow sport of any kind in the venue vocabulary, which is a register of built facilities. Enters as its own
+      entry.
+
+  - term: "Snorkeling"
+    term_key: snorkeling
+    publisher_slug: snorkeling
+    publisher_term_id: 1368
+    activity_count: 1
+    relation: added
+    maps_to:
+      - "Snorkeling"
+    note: >-
+      Open water rather than a pool lane, and the vocabulary's Diving entry is springboard diving, not underwater.
+      Enters as its own entry.
+
+  - term: "Snowboarding"
+    term_key: snowboarding
+    publisher_slug: snowboarding
+    publisher_term_id: 1271
+    activity_count: 0
+    relation: added
+    maps_to:
+      - "Snowboarding"
+    note: >-
+      See Skiing. Enters as its own entry.
+
+  - term: "Snowshoeing"
+    term_key: snowshoeing
+    publisher_slug: snowshoeing
+    publisher_term_id: 1339
+    activity_count: 0
+    relation: added
+    maps_to:
+      - "Snowshoeing"
+    note: >-
+      See Skiing. Enters as its own entry.
+
+  - term: "Softball"
+    term_key: softball
+    publisher_slug: softball
+    publisher_term_id: 1310
+    activity_count: 0
+    relation: exact
+    maps_to:
+      - "Softball"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Special Olympics"
+    term_key: special_olympics
+    publisher_slug: special-olympics
+    publisher_term_id: 1345
+    activity_count: 50
+    relation: not_a_sport
+    maps_to: []
+    note: >-
+      A multi-sport movement for people with intellectual disability, not a sport, and the second most used term in
+      the taxonomy. It is kept as published and given no vocabulary entry: the programmes underneath it carry their
+      real sports as additional terms, and inventing a Special Olympics row in a sport list would put a programme
+      brand next to netball in a typeahead. A facet for it belongs in the product, not in the sport vocabulary.
+
+  - term: "Squash"
+    term_key: squash
+    publisher_slug: squash
+    publisher_term_id: 1275
+    activity_count: 0
+    relation: alias
+    maps_to:
+      - "Squash / Racquetball"
+    note: >-
+      Same sport, paired with racquetball.
+
+  - term: "Surfing"
+    term_key: surfing
+    publisher_slug: surfing
+    publisher_term_id: 1286
+    activity_count: 2
+    relation: added
+    maps_to:
+      - "Surfing"
+    note: >-
+      Surf Life Saving is a different activity with different clubs, so it is not a parent. Enters as its own
+      entry.
+
+  - term: "Swimming"
+    term_key: swimming
+    publisher_slug: swimming
+    publisher_term_id: 1334
+    activity_count: 20
+    relation: exact
+    maps_to:
+      - "Swimming"
+    note: >-
+      Same sport, same wording.
+
+  - term: "Table tennis"
+    term_key: table_tennis
+    publisher_slug: table-tennis
+    publisher_term_id: 1309
+    activity_count: 4
+    relation: exact
+    maps_to:
+      - "Table Tennis"
+    note: >-
+      Same sport, different capitalisation.
+
+  - term: "Tennis"
+    term_key: tennis
+    publisher_slug: tennis
+    publisher_term_id: 1280
+    activity_count: 22
+    relation: split
+    maps_to:
+      - "Tennis (Outdoor)"
+      - "Tennis (Indoor)"
+    note: >-
+      THE VOCABULARY HAS NO UNQUALIFIED TENNIS ENTRY. Both rows are emitted because choosing one would hide every
+      venue of the other kind from a tennis programme, and the publisher does not record which is meant. This is
+      the other case the one-to-one SPORT_ALIASES dict cannot express.
+
+  - term: "Tenpin bowling"
+    term_key: tenpin_bowling
+    publisher_slug: tenpin-bowling
+    publisher_term_id: 1270
+    activity_count: 28
+    relation: alias
+    maps_to:
+      - "Ten Pin Bowling"
+    note: >-
+      Same sport, spaced differently. Matches the backend SPORT_ALIASES entry.
+
+  - term: "Triathlon"
+    term_key: triathlon
+    publisher_slug: triathlon
+    publisher_term_id: 1318
+    activity_count: 1
+    relation: added
+    maps_to:
+      - "Triathlon"
+    note: >-
+      Swim, ride and run as one event. Its three legs are separate vocabulary entries and none is a parent. Modern
+      Pentathlon is a different sport. Enters as its own entry.
+
+  - term: "Ultimate (frisbee)"
+    term_key: ultimate_frisbee
+    publisher_slug: ultimate-frisbee
+    publisher_term_id: 1281
+    activity_count: 1
+    relation: narrower
+    maps_to:
+      - "Flying Disk"
+    note: >-
+      The venue register's Flying Disk entry is the generic disc-sport classification and hosts this. Disk Golf is
+      the other disc sport and is a separate entry.
+
+  - term: "Volleyball"
+    term_key: volleyball
+    publisher_slug: volleyball
+    publisher_term_id: 1332
+    activity_count: 4
+    relation: exact
+    maps_to:
+      - "Volleyball"
+    note: >-
+      Same sport, same wording. Beach Volleyball is a separate vocabulary entry and the publisher does not say the
+      sand is meant.
+
+  - term: "Walking and rolling"
+    term_key: walking_and_rolling
+    publisher_slug: walking-and-rolling
+    publisher_term_id: 1285
+    activity_count: 23
+    relation: added_adaptive
+    maps_to:
+      - "Walking and rolling"
+    note: >-
+      'ROLLING' IS THE WHEELCHAIR, AND IT IS THE WHOLE POINT OF THE TERM. Folding this into Bushwalking hiking or
+      walking would delete the one word in the taxonomy that tells a wheelchair user the route was thought about
+      for them. Twenty-three programmes carry it. Enters as its own sport, separate from the walking term.
+
+  - term: "Water polo"
+    term_key: water_polo
+    publisher_slug: water-polo
+    publisher_term_id: 1336
+    activity_count: 1
+    relation: exact
+    maps_to:
+      - "Water Polo"
+    note: >-
+      Same sport, different capitalisation.
+
+  - term: "Water skiing"
+    term_key: water_skiing
+    publisher_slug: water-skiing
+    publisher_term_id: 1269
+    activity_count: 0
+    relation: exact
+    maps_to:
+      - "Water Skiing"
+    note: >-
+      Same sport, different capitalisation.
+
+  - term: "Weightlifting"
+    term_key: weightlifting
+    publisher_slug: weightlifting
+    publisher_term_id: 1273
+    activity_count: 0
+    relation: narrower
+    maps_to:
+      - "Fitness / Gymnasium Workouts"
+    note: >-
+      A gym is a genuine parent here: the vocabulary entry is where the equipment is. Body Building is a sibling
+      and is not used.
+
+  - term: "Wrestling"
+    term_key: wrestling
+    publisher_slug: wrestling
+    publisher_term_id: 1276
+    activity_count: 0
+    relation: added
+    maps_to:
+      - "Wrestling"
+    note: >-
+      The venue register treats combat sports as siblings rather than children of Martial Arts, which sits beside
+      Boxing, Judo, Karate and Tae Kwon Do rather than above them. Wrestling is absent, so it enters as its own
+      entry.

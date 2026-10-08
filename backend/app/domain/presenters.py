@@ -21,6 +21,7 @@ from app.domain.facilities import (
 )
 from app.domain.geo import haversine_m
 from app.domain.provenance import SourceRef, source_ref
+from app.domain.summary import venue_summary_sentences
 from app.repositories.protocols import (
     ChainRow,
     CorridorResult,
@@ -516,7 +517,7 @@ def venue_card_out(
         reference_point = reference_out(reference)
     tiles = facilities_out(venue, limit_m, stale_default, with_detail=True)
     by_kind: dict[str, FacilityOut] = {t.type: t for t in tiles}
-    return VenueCardOut(
+    card = VenueCardOut(
         id=venue.venue_id,
         name=venue.name,
         address=venue.address,
@@ -546,6 +547,11 @@ def venue_card_out(
         unpublished=_unpublished_compat(venue.chain),
         distance=distance_km,
     )
+    # US3.3. Composed from the finished card, not from ``venue``: the spoken
+    # summary is then physically incapable of describing a facility at a
+    # different distance band, or a field, that the page does not show.
+    card.summary_sentences = venue_summary_sentences(card)
+    return card
 
 
 # ----------------------------------------------------------------- sources

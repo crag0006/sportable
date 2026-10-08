@@ -11,25 +11,34 @@ in the repository rather than in someone's memory of a chat thread.
 |---|---|---|---|
 | [ADR-001](ADR-001-terraform-over-cdk-and-sam.md) | Terraform, not AWS CDK or SAM | Accepted | 1 Sep 2026 |
 | [ADR-002](ADR-002-gateway-endpoint-over-nat.md) | An S3 Gateway Endpoint instead of a NAT Gateway | Accepted | 1 Sep 2026 |
-| ADR-003 | The path between a starting point and a venue | **Not yet written** | — |
+| [ADR-003](ADR-003-straight-line-corridor-over-routing.md) | A straight-line corridor, not a route | Accepted | 15 Sep 2026 |
+| [ADR-004](ADR-004-victorian-scope-over-greater-melbourne.md) | Victorian scope for every source, on a column still named `in_greater_melbourne` | Accepted — already in effect | 15 Sep 2026 |
+| [ADR-005](ADR-005-aaa-play-over-playhq.md) | AAA Play as the events source, not PlayHQ | Accepted | 15 Sep 2026 |
+| [ADR-006](ADR-006-provider-claims-are-not-confirmed.md) | An AAA Play facility claim never produces a `confirmed` status | **Proposed** — the build enforces it; task D5 says otherwise | 15 Sep 2026 |
 
-## ADR-003 is outstanding, and it blocks other people
+## Two of these are not settled, and both block other people
 
-US2.2 and US2.3 both need a path between the user's starting point and the
-venue, and nobody has decided where that path comes from. §4.2 of the Epics
-document flags it as a dependency to settle early, because it changes what the
-Frontend team is able to draw.
+**ADR-006 is the one to read first.** The build refuses to turn an AAA Play
+`true` into a `confirmed` facility status, and task D5 of the Iteration 2
+document says it should. D5, D7, D8 and D9 all depend on which way that goes,
+so building them before it is settled wastes more than the discussion costs.
+Either the document changes or the build does; it should not be settled in a
+commit message.
 
-There is also an infrastructure constraint on it that is easy to miss: **map
-tiles and routing are different problems.** OpenStreetMap tiles are fetched by
-the browser and cost us nothing. Computing a walking route is a separate
-service, and if it were called from our API it would need outbound internet from
-inside the VPC — which [ADR-002](ADR-002-gateway-endpoint-over-nat.md)
-deliberately does not provide.
+**ADR-004 records something that already happened.** The spatial clip widened
+from the 31 Greater Melbourne councils to the whole of Victoria on
+14 September 2026, by repurposing the column task D2 explicitly said not to
+repurpose. Venues went from 129 to 3,896, so the Epic 1 venue search does not
+return what it returned before. The ADR states the trade honestly and the team
+still owes an answer on whether to absorb it or back it out.
 
-That leaves two viable shapes: a straight-line corridor computed in PostGIS, or
-routing done client-side in the browser with the resulting path posted to our
-API. Both are free. Writing it up is deferred by decision, not oversight.
+ADR-003 was flagged as outstanding here through Iteration 1 and is now written.
+The infrastructure constraint behind it is still worth knowing, because it is
+easy to miss: **map tiles and routing are different problems.** OpenStreetMap
+tiles are fetched by the browser and cost us nothing. Computing a walking route
+is a separate service, and if it were called from our API it would need outbound
+internet from inside the VPC — which
+[ADR-002](ADR-002-gateway-endpoint-over-nat.md) deliberately does not provide.
 
 ## Writing a new one
 

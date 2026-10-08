@@ -13,6 +13,11 @@ uv.lock.bak
 
 # Node
 node_modules/
+
+# Playwright accessibility-gate output. The report and the traces are rebuilt by
+# every run and are large; the browser binaries live outside the repo.
+frontend/playwright-report/
+frontend/test-results/
 dist/
 .vite/
 

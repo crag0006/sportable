@@ -52,6 +52,9 @@ CARD_KEYS = {
     "limits",
     "sources",
     "upcoming_events",
+    # US3.3 - the Read Aloud payload. Part of the page's own shape, not an
+    # add-on: see tests/unit/test_summary.py for what it must contain.
+    "summary_sentences",
     "last_updated",
     # v0.1, until the freeze
     "lat",

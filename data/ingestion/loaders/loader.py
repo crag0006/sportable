@@ -11,6 +11,14 @@ The loader handles three main things:
 - Checking that records are inside the Greater Melbourne boundary.
 - Writing records in an idempotent way so the pipeline can be rerun safely.
 - Stopping the load if too many rows are quarantined.
+
+Rejected rows go to TWO places, and the reason is the abort path. The
+``quarantine`` table is the better home for a load that commits: a person
+diagnosing a bad transform wants SQL. But ``write_quarantine`` inserts inside
+the load transaction, ``check_rejection_rate`` raises above the threshold, and
+``connect`` rolls back on any exception — so on the one path where the rows
+matter most, they are discarded with everything else. The optional
+``quarantine_sink`` writes them somewhere outside the transaction first.
 """
 
 from __future__ import annotations
@@ -20,7 +28,7 @@ import logging
 from collections.abc import Iterable, Sequence
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 import pandas as pd
 import psycopg
@@ -304,16 +312,43 @@ def _upsert(
     return len(rows)
 
 
+class QuarantineSink(Protocol):
+    """Somewhere outside the database to put rejected rows.
+
+    Implemented by the Lambda handler over S3. Kept as a protocol so this module
+    keeps its one dependency on psycopg and never imports boto3 — the handler
+    owns AWS, this layer owns the database.
+    """
+
+    def __call__(self, *, load_run_id: int, source_id: str, frame: pd.DataFrame) -> str | None: ...
+
+
 def write_quarantine(
     conn,
     load_run_id: int,
     source_id: str,
     frame: pd.DataFrame,
+    sink: QuarantineSink | None = None,
 ) -> int:
-    """Store rejected rows in the quarantine table."""
+    """Store rejected rows in the quarantine table, and in ``sink`` if given.
+
+    The sink is written FIRST and its failure is never allowed to fail the load.
+    Losing the evidence is bad; losing the load because the evidence could not be
+    filed is worse, and the table write still happens either way.
+    """
 
     if frame.empty:
         return 0
+
+    if sink is not None:
+        try:
+            sink(load_run_id=load_run_id, source_id=source_id, frame=frame)
+        except Exception:  # deliberately broad - see the docstring
+            LOG.exception(
+                "Could not write %s rejected rows to the quarantine sink. "
+                "Continuing: the table write below is unaffected.",
+                len(frame),
+            )
 
     records = [
         (
@@ -361,8 +396,10 @@ def check_rejection_rate(
         raise LoadAbortedError(
             f"{source_id} quarantined {quarantined:,} of {total:,} rows ({rate}%), "
             f"above the {threshold}% threshold. The load has been "
-            f"abandoned. Inspect the quarantine table before rerunning; do not "
-            f"raise the threshold to make this pass."
+            f"abandoned. The rows are in the quarantine BUCKET, not the "
+            f"quarantine table: this abort rolls the transaction back. Inspect "
+            f"them before rerunning; do not raise the threshold to make this "
+            f"pass."
         )
 
     return rate
@@ -467,6 +504,7 @@ def load_venues(
     venue_sports: pd.DataFrame,
     quarantine: pd.DataFrame,
     rows_read: int,
+    sink: QuarantineSink | None = None,
 ) -> LoadOutcome:
     """Load venues and their associated sports."""
 
@@ -520,6 +558,7 @@ def load_venues(
         load_run_id,
         source_id,
         quarantine,
+        sink=sink,
     )
 
     rate = check_rejection_rate(
@@ -546,6 +585,7 @@ def load_postal_areas(
     postal_areas: pd.DataFrame,
     quarantine: pd.DataFrame,
     rows_read: int,
+    sink: QuarantineSink | None = None,
 ) -> LoadOutcome:
     """Load the DS-08 postal area data."""
 
@@ -594,6 +634,7 @@ def load_postal_areas(
         load_run_id,
         source_id,
         quarantine,
+        sink=sink,
     )
 
     rate = check_rejection_rate(
@@ -620,6 +661,7 @@ def load_amenities(
     amenities: pd.DataFrame,
     quarantine: pd.DataFrame,
     rows_read: int,
+    sink: QuarantineSink | None = None,
 ) -> LoadOutcome:
     """Load DS-02, DS-03 or DS-04 amenity data."""
 
@@ -642,6 +684,7 @@ def load_amenities(
         load_run_id,
         source_id,
         quarantine,
+        sink=sink,
     )
 
     rate = check_rejection_rate(
@@ -816,6 +859,7 @@ def load_programs(
     source_id: str,
     result,
     rows_read: int,
+    sink: QuarantineSink | None = None,
 ) -> LoadOutcome:
     """Load DS-09 programmes, their places, providers and tags.
 
@@ -924,6 +968,7 @@ def load_programs(
         load_run_id,
         source_id,
         result.quarantine,
+        sink=sink,
     )
 
     rate = check_rejection_rate(

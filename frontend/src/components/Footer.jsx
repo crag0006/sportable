@@ -43,7 +43,7 @@ export default function Footer() {
           <div className="footer-col">
             <h3 className="footer-heading">About this project</h3>
             <ul className="footer-links">
-              <li>Built for FIT5120 — IT Project, Monash University</li>              
+              <li>Built for FIT5120 — IT Project, Monash University</li>
             </ul>
           </div>
         </div>

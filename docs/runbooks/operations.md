@@ -164,6 +164,250 @@ No output means nothing is in alarm.
 > ```
 > A `SubscriptionArn` of literally `PendingConfirmation` means that address is deaf.
 
+**The ingestion pipeline has its own alarms**, one `Errors` alarm per function —
+`sportable-staging-fetch-errors`, `-load-errors`, `-status-builder-errors`. The
+`describe-alarms` command above lists them too. For what they mean when the
+source is DS-09, see the next section.
+
+---
+
+# The events data is stale, wrong or missing (DS-09 / AAA Play)
+
+DS-01 to DS-08 are file downloads from government portals with pinned hashes.
+**DS-09 is someone else's live WordPress site** — Reclink's, behind Wordfence,
+with no contract with us and no obligation to keep its shape. It is by far the
+most likely source in the register to fail on any given week, which is why it
+has its own EventBridge rule rather than sharing one.
+
+| | |
+|---|---|
+| Fetch function | `sportable-staging-fetch` |
+| Schedule | `cron(30 16 ? * SUN *)` — weekly, Sunday 16:30 UTC, in its own slot |
+| Raw object | `s3://sportable-staging-raw-725699850301/aaaplay/dt=YYYY-MM-DD/aaaplay.json` |
+| Size of a real pull | 15.4 MB, from **18** HTTP requests, in **28.06 s** |
+| Timeout | `fetch_timeout_seconds` is 900 s, so the pull uses about 3% of the budget |
+
+**One object, not eighteen files.** The load function is triggered per S3 object
+and opens one transaction per object, so the whole pull lands as a single body
+with a single SHA-256. That is what makes change detection, the manifest and the
+force flag below work on DS-09 exactly as they do on a file source.
+
+## Force a DS-09 reload by hand
+
+The fetch handler skips a source whose payload hashes identical to last week's.
+`force` is what overrides that.
+
+```bash
+aws lambda invoke \
+  --function-name sportable-staging-fetch \
+  --cli-binary-format raw-in-base64-out \
+  --payload '{"source_ids": ["DS-09"], "force": true}' \
+  /tmp/ds09.json
+
+cat /tmp/ds09.json
+```
+
+The handler accepts three shapes, and they are documented at the top of
+`data/ingestion/extractors/handler.py`:
+
+```
+{"source_id": "DS-01"}
+{"source_ids": ["DS-01", "DS-02"]}
+{"source_ids": ["DS-01"], "force": true}
+```
+
+An event carrying neither `source_id` nor `source_ids` raises. `force` is read
+once for the whole invocation, so it applies to every id in the list — invoke
+DS-09 on its own rather than forcing four sources you did not mean to.
+
+**What the outcomes mean:**
+
+| `outcome` | Meaning |
+|---|---|
+| `landed` | A new object was written. Loading follows automatically from the S3 notification |
+| `no_change`, reason `identical_payload_hash` | The register has not moved. **Nothing was written, and that is correct** |
+| `skipped` | The card's `tier` is not in `FETCHABLE_TIERS` (`reference`, `transit`, `static`). DS-09 is `tier: reference` — if it ever reads `skipped`, someone changed the card |
+
+Landing an object is only half of it. **Confirm the load ran**, because the
+fetch succeeding tells you nothing about the transaction:
+
+```bash
+aws logs tail /aws/lambda/sportable-staging-fetch --since 15m --format short
+aws logs tail /aws/lambda/sportable-staging-load  --since 15m --format short
+```
+
+Every notable step writes one structured JSON line with an `event` field —
+`FETCH_LANDED`, `FETCH_SKIPPED`, `FETCH_FAILED`, `FETCH_RUN_SUMMARY`,
+`HASH_PIN_MISMATCH`. Grep on that field, not on prose.
+
+## A load aborted, or the rejection rate is climbing
+
+**`sportable-staging-load-aborted`** — a load crossed its rejection threshold
+and stopped. Thresholds are **15% by default and 30% for DS-01**, and they live
+in `data/ingestion/loaders/loader.py` next to the reasoning for each.
+
+**Look in the quarantine BUCKET, not the quarantine table.** `write_quarantine()`
+inserts inside the load transaction and an abort rolls that transaction back, so
+on this path the table is empty. The rows are written to S3 first, precisely so
+they survive:
+
+```
+aws s3 ls s3://sportable-staging-quarantine-<account>/ --recursive | tail
+```
+
+Then work out which of the two things happened:
+
+| | What it means | What to do |
+|---|---|---|
+| The publisher changed | A column vanished, a type changed, a code list grew | Re-profile the source card and update the transformer |
+| The transform is wrong | A rule that was right last week is wrong on this payload | Fix the transformer, re-run against the same raw object |
+
+**Do not raise the threshold to make the load pass.** The number came from the
+source card's documented coverage — DS-01's 30% is cited to the 14 of 52 in-area
+venues that publish no coordinates. Raising it to get a green run discards the
+only guard that distinguishes a bad publish from a normal one.
+
+**`sportable-staging-ds09-quarantine-rate-approaching`** — a DS-09 load
+*committed*, but rejected more than 10% of its rows. Nothing failed. This is the
+early warning: compare the rate against the DS-09 source card before touching
+anything, and if the new rate is the publisher's new normal, re-profile the card
+and say so there rather than adjusting the alarm.
+
+Scoped to DS-09 deliberately. DS-01 quarantines a documented 26.92%, so a
+register-wide version of this alarm would sit red forever. A second automated
+source needs its own baseline from a real run.
+
+## The DS-09 alarms, and what to do when one fires
+
+> **Read this first: I7 landed on 15 Sep, with one documented gap.** Two DS-09
+> alarms now exist alongside the per-function `Errors` alarm:
+> `sportable-staging-ds09-fetch-failed` (filters `FETCH_FAILED` for DS-09) and
+> `sportable-staging-ds09-data-stale` (filters `LOAD_ABORTED` for DS-09 — fresh
+> JSON landed, the transaction rolled back, the database still serves last
+> week's programmes).
+>
+> **What is still NOT built** is the literal "no successful DS-09 load in 14
+> days" alarm. That is a CloudWatch limit rather than an oversight: an alarm's
+> total evaluation range is capped at one day
+> (`EvaluationPeriods x Period <= 86,400 s`), and 24 hours of silence from a
+> weekly pipeline is normal six days out of seven, so forcing it with
+> `treat_missing_data = "breaching"` would page Monday through Saturday. Doing
+> it properly needs a scheduled function publishing an "hours since last
+> successful load" gauge, which needs a new execution role — and this account's
+> principals hold PowerUserAccess with no IAM. The 14-day threshold is enforced
+> in the product layer instead, through SSM and `possibly_out_of_date`.
+>
+> **The consequence to know:** if the DS-09 EventBridge rule is manually
+> disabled, staleness is permanent and silent. Re-enabling a disabled rule is a
+> checklist item below, not something an alarm will remind you of.
+
+**Fetch failure — `sportable-staging-fetch-errors`.**
+The handler raises at the end of a run if any source in the payload failed, so
+this alarm means *"at least one source did not land"* and not *"DS-09 is
+broken"*. DS-09 runs alone in its own rule precisely so this is unambiguous when
+it fires at 16:30 on a Sunday.
+
+```bash
+aws logs filter-log-events --log-group-name /aws/lambda/sportable-staging-fetch \
+  --filter-pattern '{ $.event = "FETCH_FAILED" }' --start-time $(( ($(date +%s) - 86400) * 1000 )) \
+  --query 'events[].message' --output text
+```
+
+| What the log says | What it means | Do this |
+|---|---|---|
+| HTTP 429 | Quota reached. `NO_RETRY_STATUS` includes 429, so it did **not** retry, by design | Wait. Do not re-invoke. Eighteen requests a week should stay invisible to a charity's WordPress site, and hammering it is how that stops being true |
+| HTTP 403, or a Wordfence interstitial | The site's WAF has taken exception to us | Do not retry from a loop. Check the User-Agent is still `SportAbleMelbourne-Fetch/1.0` and raise it with the team before anything automated runs again |
+| Timeout, or a 5xx | Publisher outage | Nothing to do. The next scheduled run picks it up. Stale events are the risk, not a failed fetch |
+| `... exceeded MAX_PAGES` | Pagination is looping, or the register genuinely grew past six pages | The collector refuses to keep requesting rather than hammering the site. Look at `X-WP-TotalPages` by hand before raising the cap |
+| `... returned no records` | A collection came back empty | **Deliberately fatal.** An empty collection is not a quiet week — writing it would replace the register with nothing. Nothing was written. Investigate upstream |
+| `KeyError`, or a shape error from `aaaplay.py` | The API changed under us | See **AAA Play changed its ACF fields**, below |
+
+**One failed week is not an incident.** The data was already a week old and the
+previous load is still serving. Two consecutive weeks is, because nothing on the
+site tells a user the events are stale.
+
+**Freshness — no successful DS-09 `load_run` within the staleness window.**
+This is the alarm that matters more than the fetch one, and it is the one that
+does not exist yet. The reason it matters: **stale events are worse than absent
+ones.** A user travels to a programme that ended. A fetch failure is loud; a
+source that quietly keeps returning last month's body is not, and the `no_change`
+path is indistinguishable from a healthy quiet week until you look at dates.
+
+Until the alarm exists, check it by hand when you are in the database anyway:
+
+```sql
+SELECT source_id, MAX(started_at) AS last_run, MAX(finished_at) AS last_finish
+  FROM load_run WHERE source_id = 'DS-09' GROUP BY source_id;
+```
+
+`source.stale_after_days` is the column that would drive this, and the value
+recorded for DS-09 — 180 — **is a guess made before the first real load**, not a
+figure read off one. It should be cited from a real run, the way DS-01's
+quarantine threshold of 30% is, before anyone treats a freshness alarm as
+authoritative.
+
+**Quarantine rate.** The mechanism is `MAX_QUARANTINE_RATE_BY_SOURCE` in
+`data/ingestion/loaders/loader.py`, and the load aborts rather than writing a
+partial dataset. **DS-09 has no entry, so it falls back to the default.** A
+DS-09 abort is not a signal to raise the number until the load passes — that is
+stated in the file and it is the rule. If DS-09 exceeds its threshold, the
+publisher's coverage changed and the card needs re-profiling.
+
+## AAA Play changed its ACF fields
+
+**The ACF field set is not a contract.** Nobody at Reclink owes us a stable
+schema, there is no versioning on the endpoints, and a WordPress plugin update
+can add, remove or retype a field on any Tuesday. Treat every one of the
+following as expected rather than exceptional.
+
+**Symptoms, in the order they show up:**
+
+1. The fetch lands but the load quarantines far more rows than usual.
+2. A field that always had a value is suddenly absent across every record.
+3. A boolean arrives as a string, or `facility_location.post_code` — which
+   arrives as an **integer**, not a string — changes type again.
+4. Nothing visibly breaks and a venue card just starts giving a wrong answer.
+   This is the dangerous one.
+
+**What to do:**
+
+```bash
+# 1. Get the landed body and look at it, rather than guessing from a stack trace.
+aws s3 ls s3://sportable-staging-raw-725699850301/aaaplay/ --recursive | tail -5
+aws s3 cp s3://sportable-staging-raw-725699850301/aaaplay/dt=YYYY-MM-DD/aaaplay.json .
+
+# 2. What keys exist now, and on how many records? The document is
+#    {"source_id", "base_url", "post_types": {activity, facility, organisation},
+#     "taxonomies": {activity_type, age_range, lga, region}}.
+python3 -c "import json,collections; d=json.load(open('aaaplay.json')); \
+  rows=d['post_types']['facility']; print(len(rows)); \
+  print(collections.Counter(k for r in rows for k in (r.get('acf') or {})).most_common())"
+
+# 3. Compare against the previous week's object. The bucket is versioned.
+aws s3api list-object-versions --bucket sportable-staging-raw-725699850301 \
+  --prefix aaaplay/ --query 'Versions[].[Key,LastModified,VersionId]' --output table
+```
+
+**Then decide by the rule, not by what makes the load pass:**
+
+- **A new field is not evidence.** Nothing from this source may write to `venue`,
+  `venue_amenity_status` or `venue_access_chain`
+  ([ADR-006](../adr/ADR-006-provider-claims-are-not-confirmed.md)). A new
+  accessibility boolean is a provider claim on arrival and stays one.
+- **A removed field is `no_published_information`, never `not_available`.** That
+  is AC4.2.3, and it is the same rule as an unticked checkbox.
+- **A retyped field is a transformer change and a test**, not a cast bolted into
+  the loader. There are 42 tests on DS-09 and they run without network or
+  database; add to them.
+- **Update the card in the same change.** `data/sources/DS-09_aaaplay.yaml` is
+  the record of what the source publishes. A field set that has moved and a card
+  that has not is how a wrong answer survives review.
+
+**Log the shape each run** was scoped under I7 and is still not built. Until it is, a field
+appearing or changing type is discovered through a wrong answer on a venue card
+rather than through a log line — which is exactly the failure mode the task
+exists to close.
+
 ---
 
 # I need to look at the database
@@ -210,6 +454,101 @@ aws ec2 stop-instances --instance-ids "$(terraform output -raw bastion_instance_
 Left running, these two are essentially the entire cost of the project. There
 is **no budget alarm** — `budgets:ModifyBudget` is denied to us — so nothing
 will tell you.
+
+---
+
+# Run the loader by hand over the tunnel
+
+`data/scripts/load_run.py` runs transform and load against a live database. It
+**cannot run in CI** — the database is in a private subnet with no route from the
+internet, by design ([ADR-002](../adr/ADR-002-gateway-endpoint-over-nat.md)). A
+laptop plus the bastion tunnel is the only way to drive it by hand.
+
+Bring the tunnel up first — see *I need to look at the database*, above — then:
+
+```bash
+cd data
+export DATABASE_URL="$(aws ssm get-parameter --name /sportable/staging/db/url \
+    --with-decryption --query Parameter.Value --output text \
+    | sed 's#@[^:]*:5432#@localhost:5433#')"
+
+uv run python scripts/load_run.py --seed-sources
+uv run python scripts/load_run.py DS-06 DS-07 DS-08 DS-01 DS-02 DS-04 --raw ./_raw
+uv run python scripts/load_run.py DS-01 --derive
+```
+
+`DATABASE_URL` unset exits immediately and points you back here. A URL that does
+not mention `localhost` prints a warning and continues — it is asking whether you
+meant to skip the tunnel, not stopping you.
+
+## The order is not a preference
+
+`clip_to_scope` refuses to run while the `lga` table is empty, with the error
+*"The LGA boundary layer is empty, so scope cannot be decided."* So: seed
+`source` first, because it is a foreign-key target for everything else, then
+DS-06 boundaries, then DS-01 venues, then the amenity sources. `--derive`
+rebuilds `venue_amenity_status` and `venue_access_chain` after loading.
+
+## `--scope`, and why it is the most dangerous flag in the file
+
+**The default is the whole of Victoria, expressed as an empty set.**
+
+```python
+DEFAULT_SCOPE: set[str] = set()
+```
+
+Empty means *every Victorian council in the DS-06 layer*. It is empty rather
+than a list of roughly eighty names deliberately: a list would go stale the next
+time the ABS renames a council, **and it would go stale silently, by quietly
+dropping that council's venues**.
+
+`--scope` takes normalised LGA names and narrows that. Three things about it
+that are easy to get wrong:
+
+**1. It narrows every source, not just venues.** DS-06 *sets* the flag and takes
+`--scope` directly. Everything else *reads* the flag back out of the database
+through `scope_from_database()`. So a narrowed DS-06 load silently changes what
+"in scope" means for toilets and parking as well as for venues, on every
+subsequent load, until DS-06 is loaded again wide.
+
+**2. It only takes effect on a DS-06 load.** Passing `--scope` alongside DS-01
+does nothing — DS-01 is filtered against whatever was flagged the last time
+DS-06 ran, which may have been a different run on a different day. That is
+intentional: one definition of scope, in the table.
+
+**3. `ds01.transform` drops out-of-scope rows, it does not quarantine them.** An
+empty scope set therefore produces an empty load, **and an empty load looks
+exactly like a source that published nothing.** The script guards this and exits
+rather than proceeding:
+
+```
+No LGA is flagged in scope, so every venue would be dropped.
+Load DS-06 first: uv run python scripts/load_run.py DS-06
+```
+
+**Narrow scope with `--scope`, deliberately, and never by editing
+`DEFAULT_SCOPE`.** The column that carries the flag is still called
+`in_greater_melbourne` and now means "in scope" — that misnomer, and the
+statewide change behind it, are
+[ADR-004](../adr/ADR-004-victorian-scope-over-greater-melbourne.md).
+
+## Two things the wider scope changed that will look like bugs
+
+- **Venue counts jumped from 129 to 3,896.** That is the scope change, not a
+  duplicate load.
+- **Venues outside the City of Melbourne have no accessible parking record at
+  all**, because DS-04 is published by that one council for its own area. The
+  product shows this as *"no published information"*, never as an absence of
+  parking. Do not go looking for the missing rows; they were never published.
+
+## Other flags
+
+| Flag | What it does |
+|---|---|
+| `--raw` | Where the raw zone lives locally. Defaults to `data/_raw` |
+| `--seed-sources` | Populates the `source` table. Run once, first |
+| `--derive` | Builds `venue_amenity_status` and `venue_access_chain` after loading |
+| `--gtfs-modes` | DS-03 only. Mode directory numbers, e.g. `1 2 3`. Omit to read every mode |
 
 ---
 
@@ -326,6 +665,10 @@ Things that have actually happened here, with the fix.
 | API returns 500 after a config change | Something in the VPC tried to reach an AWS API | Nothing inside the VPC can reach outside it. Pass the value as an environment variable |
 | `terraform output -raw` prints extra formatting | `terraform_wrapper` enabled in the workflow | It is set to `false`; check it was not removed |
 | Deploy stops at *Database migrations* | Backend committed the first Alembic revision | Expected and correct. Build the migration Lambda — see `infra/T3-part2-deploy-runbook.md` |
+| `aws lambda invoke` returns a parse error on the payload | AWS CLI v2 base64-encodes `--payload` by default | Add `--cli-binary-format raw-in-base64-out`, as in the DS-09 command above |
+| A forced DS-09 fetch reports `no_change` | `force` was not in the payload, or was spelled differently | The key is exactly `"force": true`. It is read once per invocation and applies to every id in `source_ids` |
+| A DS-09 load run looks fine and the events are a month old | `no_change` is indistinguishable from a healthy quiet week without checking dates | Check `MAX(finished_at)` in `load_run` for DS-09. No alarm catches this: a true freshness alarm exceeds CloudWatch's one-day evaluation window. Check the rule is enabled |
+| Venue search returns thousands more rows than it used to | Scope is the whole of Victoria, not the 31 Greater Melbourne councils | Expected since 14 Sep 2026. [ADR-004](../adr/ADR-004-victorian-scope-over-greater-melbourne.md) |
 
 ---
 

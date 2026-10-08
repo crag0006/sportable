@@ -156,3 +156,94 @@ resource "aws_ssm_parameter" "staleness" {
 
   tags = { Name = "${var.name_prefix}-staleness-${each.key}" }
 }
+
+# ------------------------------------------------------------------------------
+# Events — DS-09, AAA Play
+# ------------------------------------------------------------------------------
+#
+# WHY THESE THREE ARE PARAMETERS AND NOT CONSTANTS
+#   Every other source in the register is a file download from a government
+#   portal, pinned by SHA-256, with a published licence and a publisher who
+#   announces changes. DS-09 is none of those things. It is a live WordPress
+#   REST API run by a not-for-profit on their own marketing site, unversioned —
+#   /wp-json/wp/v2 carries no contract, no deprecation policy and no agreement
+#   with this project. Nobody at Reclink owes us notice before a hostname
+#   changes, a plugin rewrites a route, or a CDN is put in front of it.
+#
+#   The failure that follows is not subtle. The weekly fetch starts returning
+#   404s, the pipeline logs FETCH_FAILED, and the events page quietly serves
+#   whatever was last loaded — stale programmes a user can travel to and find
+#   cancelled. The fix is one string.
+#
+#   If that string lives in extractors/aaaplay.py it is a code change: edit,
+#   review, rebuild the Lambda package, apply. Here it is
+#   `aws ssm put-parameter --overwrite` and the next cold start. On a weekly
+#   pipeline that is the difference between fixing it before Sunday and
+#   missing a refresh.
+#
+#   The module's own BASE_URL stays as the compiled-in fallback so the
+#   extractor still runs locally with no AWS at all. Note the two are not
+#   byte-identical: the module carries the apex host and this parameter carries
+#   the www host given by the events task. Both resolve and urllib follows the
+#   redirect either way, but the PARAMETER is the authoritative value — the
+#   constant is only what a laptop falls back to.
+
+resource "aws_ssm_parameter" "events_scope" {
+  # checkov:skip=CKV2_AWS_34:Deliberately plaintext. "victoria" is a public
+  # product setting — it is printed on the page it governs. A SecureString
+  # would add a KMS decrypt to every cold start to hide a word the interface
+  # displays. modules/database stores the database password as a SecureString
+  # in this same tree, because that one IS a secret.
+  name  = "${var.ssm_prefix}/events/scope"
+  type  = "String"
+  value = var.events_scope
+
+  description = "Geographic scope of the events epic. DS-09 is a statewide publisher."
+
+  # Set once, then left to operators — see the note on distance_bands.
+  lifecycle {
+    ignore_changes = [value]
+  }
+
+  tags = { Name = "${var.name_prefix}-events-scope" }
+}
+
+resource "aws_ssm_parameter" "aaa_play_base_url" {
+  # checkov:skip=CKV2_AWS_34:Deliberately plaintext. This is the public root of
+  # a public WordPress API that anyone can curl without a key — the source card
+  # records /wp-json/ reporting "authentication": []. There is no credential to
+  # protect, and encrypting it would only add a KMS decrypt to the fetch
+  # Lambda's cold start.
+  name  = "${var.ssm_prefix}/events/aaa_play_base_url"
+  type  = "String"
+  value = var.aaa_play_base_url
+
+  description = "Root of the AAA Play WordPress REST API. Changeable without a release — see main.tf."
+
+  # Set once, then left to operators. This is the parameter the whole rationale
+  # above is about: an operator changing it at 22:00 on a Saturday must not
+  # have it reverted by the next pipeline apply.
+  lifecycle {
+    ignore_changes = [value]
+  }
+
+  tags = { Name = "${var.name_prefix}-aaa-play-base-url" }
+}
+
+resource "aws_ssm_parameter" "aaa_play_page_size" {
+  # checkov:skip=CKV2_AWS_34:Deliberately plaintext. A pagination size is not a
+  # secret; it is a politeness setting for a public API.
+  name  = "${var.ssm_prefix}/events/aaa_play_page_size"
+  type  = "String"
+  value = tostring(var.aaa_play_page_size)
+
+  description = "WordPress per_page for the DS-09 pull. 100 is the API maximum."
+
+  # Set once, then left to operators — the value to reach for first if the
+  # publisher starts rate limiting us mid-pull.
+  lifecycle {
+    ignore_changes = [value]
+  }
+
+  tags = { Name = "${var.name_prefix}-aaa-play-page-size" }
+}

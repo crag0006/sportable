@@ -14,30 +14,38 @@ from app.api.params import (
     parse_place,
     require_location,
 )
+from app.api.v1.routes.venues import DEFAULT_CORRIDOR_TYPES
 from app.core.config import Settings
 from app.core.errors import ApiError
 from app.domain.events import (
+    STATUS_LABELS,
     WEEKDAYS,
     counts_by_date,
     empty_message,
     event_ics,
     event_out,
     in_window,
+    local_time,
+    recurrence_out,
     reference_for,
     window_out,
 )
 from app.domain.facilities import KEY_TO_KIND, KIND_LABELS
-from app.domain.presenters import venue_card_out
+from app.domain.presenters import corridor_out, venue_card_out
+from app.domain.summary import event_summary_sentences
 from app.repositories.protocols import EventFilters, EventRow, ReferencePoint, VenueRepository
 from app.schemas.events import (
+    DirectionsEventOut,
     EventCountsOut,
     EventDetailOut,
+    EventDirectionsOut,
     EventFiltersOut,
     EventGroupOut,
     EventListOut,
     EventOut,
     EventSportOut,
     EventSportsOut,
+    RoutingProviderOut,
     ShareOut,
 )
 from app.schemas.venues import UpcomingEventsOut
@@ -46,6 +54,18 @@ router = APIRouter()
 
 MAX_WITHIN_M = 50_000
 MAX_PAGE_SIZE = 200
+
+# DS-05's card in the source register says nothing it returns is stored and no
+# facility status ever traces to it. Both remain true here: the corridor is
+# PostGIS over the amenity table, so the routing provider is credited and
+# explained without being called.
+ROUTING_PROVIDER = "openrouteservice (DS-05)"
+ROUTING_NOT_USED_NOTE = (
+    "No routing request was made. The path shown is a straight-line corridor computed "
+    "from our own facility data (ADR-003), not a checked route, so this page uses none "
+    "of the openrouteservice request quota and cannot fail if that service is rate "
+    "limited or unavailable. Nothing openrouteservice returns is stored."
+)
 
 
 def _parse_date(raw: str | None, name: str) -> date | None:
@@ -339,4 +359,134 @@ def event_detail(
         **built.out.model_dump(),
         venue_card=card,
         share=ShareOut(url=_share_url(settings, event_id)),
+        # US3.3. Built from ``built.out`` — the same object the page renders —
+        # so Read Aloud cannot speak a facility status the page does not show,
+        # and cannot leave one out.
+        summary_sentences=event_summary_sentences(built.out),
+    )
+
+
+@router.get(
+    "/events/{event_id}/directions",
+    response_model=EventDirectionsOut,
+    response_model_exclude_none=True,
+)
+def event_directions(
+    event_id: str,
+    request: Request,
+    repo: Repo,
+    settings: SettingsDep,
+    from_: Annotated[
+        str | None,
+        Query(
+            alias="from",
+            description='Starting point: "Preston 3072", "3072" or "lat,lon". '
+            "Required when the event has a matched venue; there is no default "
+            "origin (AC2.2.1).",
+        ),
+    ] = None,
+    within: Annotated[
+        int | None,
+        Query(
+            description="Corridor half-width in metres, one of the bands in /config. "
+            "Default corridor_default_m."
+        ),
+    ] = None,
+    types: Annotated[
+        str | None,
+        Query(
+            description="Comma list of facility types. "
+            "Default: accessible_toilet, accessible_parking, accessible_transport_stop."
+        ),
+    ] = None,
+) -> EventDirectionsOut:
+    """AC4.2.4 - the way to the event, and the accessible facilities on the way.
+
+    THE SAME MACHINERY, A DIFFERENT TARGET
+        This is ``/venues/{id}/corridor`` with the event's matched venue as the
+        destination. The geometry, the corridor half-width, the ordering along
+        the path and the "nothing of this type within" wording are the venue
+        implementation unchanged — reused, not reimplemented, because two
+        copies of a corridor is two places for the disclaimer to go missing.
+
+    AN UNMATCHED VENUE HAS NO CORRIDOR
+        DS-09 publishes church halls, private gyms and community centres that
+        are not in the DS-01 register, so ``program_venue.venue_id`` is NULL for
+        a good share of programmes and that is normal rather than a defect.
+        There is no venue geometry to draw a line to, so the honest answer is
+        ``route_available: false`` with the reason. An empty corridor would be
+        read as "we looked along the way and found no accessible toilets",
+        which is a claim nobody checked.
+
+    DS-05 AND THE QUOTA
+        openrouteservice is a request-time API with a request quota, and an
+        events page opens a directions view far more often than a venue page
+        does. Nothing here calls it: the corridor is computed in PostGIS from
+        the amenity table (ADR-003), exactly as the venues path does, which is
+        why the source register lists DS-05 as ``not_used``. So this endpoint
+        consumes no quota, cannot be rate limited, and cannot fail because a
+        third party is down — the ``routing`` block says so in the payload
+        rather than leaving the straight line to be mistaken for a route.
+    """
+    row = _load(repo, event_id)
+    cfg = settings.search
+    local = local_time(row)
+    recurrence = recurrence_out(row)
+    event = DirectionsEventOut(
+        id=row.event_id,
+        kind="program" if row.kind == "program" else "fixture",
+        title=row.title,
+        status=row.status,
+        status_label=STATUS_LABELS.get(row.status, row.status.title()),
+        starts_at=local.isoformat() if local else None,
+        date_local=local.date().isoformat() if local else None,
+        time_local=local.strftime("%H:%M") if local else None,
+        timezone=row.timezone,
+        recurrence_summary=recurrence.summary if recurrence else None,
+        href=f"/events/{row.event_id}",
+    )
+    routing = RoutingProviderOut(
+        provider=ROUTING_PROVIDER, status="not_used", note=ROUTING_NOT_USED_NOTE
+    )
+
+    if row.venue is None:
+        # Checked before ``from`` is required: asking somebody to supply a
+        # starting point for a journey that cannot be computed either way
+        # wastes their time and then tells them no.
+        named = f", {row.venue_name}," if row.venue_name else ""
+        return EventDirectionsOut(
+            event=event,
+            route_available=False,
+            reason="venue_not_matched",
+            message=(
+                f"The venue for this event{named} is not in our venue list, so we cannot "
+                "show a route to it or the accessible facilities on the way. The address "
+                "the publisher gave is on the event page."
+            ),
+            corridor=None,
+            routing=routing,
+        )
+
+    origin = parse_from(request.query_params.get("from"), repo)
+    if origin is None:
+        raise ApiError(
+            422,
+            "validation_error",
+            "from is required: a suburb, postcode or latitude,longitude starting point",
+        )
+    within_m = parse_band(first_of(request, "within", "limit"), cfg, cfg.corridor_default_m)
+    keys = parse_facilities(request) or list(DEFAULT_CORRIDOR_TYPES)
+    result = repo.corridor(origin, row.venue, within_m, [KEY_TO_KIND[key] for key in keys])
+    return EventDirectionsOut(
+        event=event,
+        route_available=True,
+        reason=None,
+        message=(
+            f"Facilities recorded within {within_m} m of a straight line from "
+            f"{origin.label} to {row.venue.name}, where this event is held."
+        ),
+        corridor=corridor_out(
+            row.venue, origin, within_m, keys, result, cfg.default_stale_after_days
+        ),
+        routing=routing,
     )

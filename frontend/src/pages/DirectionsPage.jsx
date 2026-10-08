@@ -3,37 +3,52 @@ import { Link, useParams } from 'react-router-dom'
 import { getCorridor, getVenue } from '../api/venues'
 import RouteMap from '../components/RouteMap'
 import FacilityCard from '../components/FacilityCard'
+import ReadAloud from '../components/ReadAloud'
 
 const PAGE_SIZE = 6
+
+
+const API_TYPE_TO_KEY = {
+  accessible_toilet: 'toilet',
+  accessible_parking: 'parking',
+  accessible_transport_stop: 'stop',
+  accessible_change_facility: 'change',
+}
+
+function getFacilityKey(facility) {
+  return API_TYPE_TO_KEY[facility.type] || facility.type
+}
 
 const TYPE_ICON = {
   toilet: 'toilet',
   parking: 'parking',
   stop: 'transport',
+  change: 'change',
 }
 
 const TYPE_LABEL_FALLBACK = {
   toilet: 'Accessible toilet',
   parking: 'Accessible parking',
   stop: 'Accessible transport stop',
+  change: 'Accessible change facility',
 }
 
 // Some facilities from the backend have no name, just an address, or neither.
 // This picks the best thing we have to show as the card title.
-function formatFacilityTitle(facility) {
+function formatFacilityTitle(facility, key) {
   if (facility.name) return facility.name
   if (facility.address) return facility.address
-  return TYPE_LABEL_FALLBACK[facility.type] || 'Accessible facility'
+  return TYPE_LABEL_FALLBACK[key] || 'Accessible facility'
 }
 
-function formatFacilityDescription(facility) {
+function formatFacilityDescription(facility, key) {
   const parts = []
 
   if (facility.name && facility.address && facility.address !== facility.name) {
     parts.push(facility.address)
   }
 
-  if (facility.type === 'toilet') {
+  if (key === 'toilet') {
     if (facility.opening_hours) parts.push(facility.opening_hours)
     if (facility.mlak) parts.push('MLAK key required')
   }
@@ -45,22 +60,52 @@ function formatFacilityDescription(facility) {
   return parts.length > 0 ? parts.join(' · ') : 'No further detail published for this facility.'
 }
 
+// Builds the short spoken summary for Read Aloud (AC3.3.1) — the venue name,
+// what's nearby, and the corridor disclaimer. Deliberately short: this is a
+// summary, not a transcript of the whole page.
+function buildReadAloudSummary(venue, corridor) {
+  if (!corridor) return []
+
+  const sentences = [`Getting to ${venue?.name || 'this venue'}.`]
+
+  corridor.types.forEach((t) => {
+    if (t.status === 'found') {
+      sentences.push(`${t.count} ${t.label} nearby.`)
+    } else {
+      sentences.push(`No data recorded for ${t.label}.`)
+    }
+  })
+
+  sentences.push(
+    'This is a straight-line corridor, not a walking route. No dataset confirms the path between these points is step-free.',
+  )
+
+  return sentences
+}
+
 // Turns the raw corridor facilities into the shape FacilityCard already knows how to render,
 // sorted so the closest ones show first.
 function buildFacilityCards(facilities) {
   return [...facilities]
+    // Drop anything recorded as exactly 0 m from the corridor — only show
+    // facilities that are actually some distance away from the path.
+    .filter((facility) => facility.distance_from_path_m > 0)
     .sort((a, b) => a.distance_from_path_m - b.distance_from_path_m)
-    .map((facility) => ({
-      id: `facility-${facility.seq}`,
-      icon: TYPE_ICON[facility.type] || 'ramp',
-      title: formatFacilityTitle(facility),
-      description: formatFacilityDescription(facility),
-      state: 'within', // the backend already filtered these to "within_m", so they're all confirmed close
-      pillText: `${facility.distance_from_path_m} m from the corridor`,
-      lat: facility.lat,
-      lon: facility.lon,
-      type: facility.type,
-    }))
+    .map((facility) => {
+      const key = getFacilityKey(facility)
+
+      return {
+        id: `facility-${facility.seq}`,
+        icon: TYPE_ICON[key] || 'ramp',
+        title: formatFacilityTitle(facility, key),
+        description: formatFacilityDescription(facility, key),
+        state: 'within', // the backend already filtered these to "within_m", so they're all confirmed close
+        pillText: `${facility.distance_from_path_m} m from the corridor`,
+        lat: facility.lat,
+        lon: facility.lon,
+        type: facility.type,
+      }
+    })
 }
 
 export default function DirectionsPage() {
@@ -124,6 +169,11 @@ export default function DirectionsPage() {
   )
 
   const visibleFacilities = facilityCards.slice(0, visibleCount)
+
+  const readAloudSummary = useMemo(
+    () => buildReadAloudSummary(venue, corridor),
+    [venue, corridor],
+  )
 
   return (
     <div className="venue-page">
@@ -189,6 +239,10 @@ export default function DirectionsPage() {
 
         {corridor && (
           <>
+            <section className="section-card">
+              <ReadAloud summary={readAloudSummary} />
+            </section>
+
             <section className="section-card">
               <div className="section-head">
                 <div><h3>What's nearby</h3></div>
