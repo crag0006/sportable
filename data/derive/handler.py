@@ -2,14 +2,13 @@
 """Lambda entry point for stage 3: derive statuses, refresh the read model,
 then (Iteration 3) chunk and embed DS-09 programme descriptions.
 
-Event:
-    {"load_run_id": 12}          status + read model, then RAG   (loader's call)
-    {"rag_only": true}           RAG only, for a backfill or rebuild
-    {"skip_rag": true}           status only
-    {"force_rag": true}          RAG may delete a large share of the index
-"""Lambda entry point for stage 3: derive statuses and refresh the read model.
-
     data/derive/handler.py
+
+EVENT
+    {"load_run_id": 12}          derive, then RAG
+    {"rag_only": true}           RAG only, for a backfill or rebuild
+    {"skip_rag": true}           derive only
+    {"force_rag": true}          RAG may delete a large share of the index
 
 INVOKED BY THE LOADER, NOT BY S3 AND NOT BY A SCHEDULE
     The spatial join that decides a venue's toilet status depends on every
@@ -49,14 +48,12 @@ import boto3
 import psycopg
 from psycopg.rows import dict_row
 
-from derive import chunk_index, status_builder
+from derive import chunk_index, run
 from derive.embedder import DEFAULT_MODEL_ID, TitanEmbedder
-from derive import run
 
 LOG = logging.getLogger("sportable.derive")
 LOG.setLevel(logging.INFO)
 
-SSM_DB_URL_PARAM = os.environ["SSM_DB_URL_PARAM"]
 EMBEDDING_MODEL_ID = os.environ.get("EMBEDDING_MODEL_ID", DEFAULT_MODEL_ID)
 # Passed in by Terraform, read from SSM on the CI runner at apply time. NOT
 # read from SSM here: this function has no route to the SSM API from its
@@ -103,42 +100,10 @@ def latest_load_run(conn) -> int:
     return row["load_run_id"]
 
 
-def derive_status(dsn: str, event: dict[str, Any]) -> dict[str, Any]:
-    # One connection, one transaction: committed when this block exits cleanly.
-    with psycopg.connect(dsn, row_factory=dict_row) as conn:
-        load_run_id = event.get("load_run_id") or latest_load_run(conn)
-
-        log("DERIVE_STARTED", load_run_id=load_run_id)
-
-        outcome = status_builder.build(conn, load_run_id=load_run_id)
-
-        log(
-            "DERIVE_COMPLETED",
-            load_run_id=load_run_id,
-            venues=outcome.venues,
-            status_rows=outcome.status_rows,
-            chain_rows=outcome.chain_rows,
-            by_kind=outcome.by_kind,
-        )
-
-        # Last, inside the same connection. The materialised views are what the
-        # API serves; until this runs the site shows the previous load's data.
-        status_builder.refresh_read_model(conn)
-
-        log("READ_MODEL_REFRESHED", load_run_id=load_run_id)
-
-    return {
-        "load_run_id": load_run_id,
-        "venues": outcome.venues,
-        "status_rows": outcome.status_rows,
-        "chain_rows": outcome.chain_rows,
-    }
-
-
 def build_rag_index(dsn: str, allow_large_delete: bool) -> dict[str, Any]:
     """Chunk and embed programme text on its OWN connection.
 
-    Separate from derive_status on purpose: that transaction has already
+    Separate from run.derive_all on purpose: its statuses have already
     committed, and a Bedrock failure here must not be able to roll it back.
     """
     log("RAG_INDEX_STARTED", model=EMBEDDING_MODEL_ID)
@@ -160,19 +125,18 @@ def build_rag_index(dsn: str, allow_large_delete: bool) -> dict[str, Any]:
 
 
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
-    dsn = ssm.get_parameter(Name=SSM_DB_URL_PARAM, WithDecryption=True)["Parameter"]["Value"]
+    dsn = database_url()
 
     result: dict[str, Any] = {}
 
     if not event.get("rag_only"):
-        result.update(derive_status(dsn, event))
+        # Commits the statuses and read model itself before the place stage.
+        with psycopg.connect(dsn, row_factory=dict_row) as conn:
+            load_run_id = event.get("load_run_id") or latest_load_run(conn)
+
+            result.update(run.derive_all(conn, load_run_id=load_run_id, log=log))
 
     if not event.get("skip_rag"):
         result["rag"] = build_rag_index(dsn, allow_large_delete=bool(event.get("force_rag")))
 
     return result
-def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
-    with psycopg.connect(database_url(), row_factory=dict_row) as conn:
-        load_run_id = event.get("load_run_id") or latest_load_run(conn)
-
-        return run.derive_all(conn, load_run_id=load_run_id, log=log)
