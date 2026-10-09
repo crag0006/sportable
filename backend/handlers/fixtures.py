@@ -203,13 +203,17 @@ def venue_response(venue_id: str) -> dict[str, Any] | None:
         return None
 
     card = dict(venue)
-    card["facility_detail"] = {
+    card["facility_detail"] = _facility_detail_fixture()
+    card["limits"] = _limits_fixture()
+    card["_fixture"] = True
+    return card
+
+
+def _facility_detail_fixture() -> dict[str, Any]:
+    """AC2.1.3 and AC2.1.4: inside-or-nearby, opening hours and MLAK, or plainly unrecorded."""
+    return {
         "accessible_toilet": {
-            # AC2.1.3 — inside the venue, a separate public facility nearby, or
-            # plainly that no source records which.
             "location_relative_to_venue": "separate_public_facility_nearby",
-            # AC2.1.4 — where the source records neither, say so rather than
-            # leaving the field blank.
             "opening_hours": "6:00am - 9:00pm",
             "mlak_required": True,
         },
@@ -219,9 +223,11 @@ def venue_response(venue_id: str) -> dict[str, Any] | None:
             "mlak_required": None,
         },
     }
-    # AC2.1.5 — a clearly headed section naming what the card cannot tell you,
-    # with a plain-English reason.
-    card["limits"] = {
+
+
+def _limits_fixture() -> dict[str, Any]:
+    """AC2.1.5: a clearly headed section naming what the card cannot tell you."""
+    return {
         "heading": "What this card cannot tell you",
         "items": [
             {
@@ -234,5 +240,3 @@ def venue_response(venue_id: str) -> dict[str, Any] | None:
             },
         ],
     }
-    card["_fixture"] = True
-    return card

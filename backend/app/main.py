@@ -20,6 +20,7 @@ from app.core.errors import install_error_handlers
 
 
 def create_app() -> FastAPI:
+    """Build the FastAPI application: routes, error handlers, logging."""
     settings = get_settings()
     logging.basicConfig(level=settings.log_level.upper())
 
@@ -35,6 +36,7 @@ def create_app() -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     def root() -> JSONResponse:
+        """A plain liveness answer at the site root."""
         return JSONResponse({"status": "ok", "service": "sportable-api"})
 
     return app

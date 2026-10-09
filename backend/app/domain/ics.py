@@ -31,6 +31,7 @@ RRULE_DAY = {
 
 
 def _escape(text: str) -> str:
+    """RFC 5545 text escaping: backslash, semicolon, comma and newline."""
     return text.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
 
 
@@ -48,13 +49,47 @@ def _fold(line: str) -> str:
 
 
 def _stamp(value: datetime) -> str:
+    """A UTC timestamp in the ``YYYYMMDDTHHMMSSZ`` form the format requires."""
     return value.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
 def next_weekday(after: date, weekday: str) -> date:
+    """The first ``weekday`` on or after ``after``."""
     target = WEEKDAY_INDEX[weekday]
     delta = (target - after.weekday()) % 7
     return after + timedelta(days=delta)
+
+
+def _when_lines(
+    starts_at: datetime | None,
+    ends_at: datetime | None,
+    weekdays: tuple[str, ...],
+    timezone: str,
+    today: date | None,
+) -> list[str]:
+    """DTSTART/DTEND for a fixture, or an all-day weekly RRULE for a program."""
+    if starts_at is not None:
+        end = ends_at or (starts_at + timedelta(hours=2))
+        return [f"DTSTART:{_stamp(starts_at)}", f"DTEND:{_stamp(end)}"]
+    known = [d for d in weekdays if d in WEEKDAY_INDEX]
+    base = today or datetime.now(ZoneInfo(timezone)).date()
+    anchor = next_weekday(base, known[0]) if known else base
+    lines = [f"DTSTART;VALUE=DATE:{anchor.strftime('%Y%m%d')}"]
+    if known:
+        lines.append("RRULE:FREQ=WEEKLY;BYDAY=" + ",".join(RRULE_DAY[d] for d in known))
+    return lines
+
+
+def _where_lines(
+    location: str | None, latitude: float | None, longitude: float | None
+) -> list[str]:
+    """LOCATION and GEO, each only when known."""
+    lines: list[str] = []
+    if location:
+        lines.append(f"LOCATION:{_escape(location)}")
+    if latitude is not None and longitude is not None:
+        lines.append(f"GEO:{latitude:.6f};{longitude:.6f}")
+    return lines
 
 
 def build_ics(
@@ -74,6 +109,7 @@ def build_ics(
     now: datetime | None = None,
     today: date | None = None,
 ) -> str:
+    """One VCALENDAR with one VEVENT, folded to RFC 5545 line length."""
     stamp = now or datetime.now(UTC)
     lines = [
         "BEGIN:VCALENDAR",
@@ -85,28 +121,12 @@ def build_ics(
         f"UID:{uid}",
         f"DTSTAMP:{_stamp(stamp)}",
         f"SUMMARY:{_escape(summary)}",
+        *_when_lines(starts_at, ends_at, weekdays, timezone, today),
+        *_where_lines(location, latitude, longitude),
+        f"DESCRIPTION:{_escape(description)}",
+        f"URL:{url}",
+        f"STATUS:{status}",
+        "END:VEVENT",
+        "END:VCALENDAR",
     ]
-    if starts_at is not None:
-        end = ends_at or (starts_at + timedelta(hours=2))
-        lines.append(f"DTSTART:{_stamp(starts_at)}")
-        lines.append(f"DTEND:{_stamp(end)}")
-    else:
-        known = [d for d in weekdays if d in WEEKDAY_INDEX]
-        anchor = (
-            next_weekday(today or datetime.now(ZoneInfo(timezone)).date(), known[0])
-            if known
-            else (today or datetime.now(ZoneInfo(timezone)).date())
-        )
-        lines.append(f"DTSTART;VALUE=DATE:{anchor.strftime('%Y%m%d')}")
-        if known:
-            lines.append("RRULE:FREQ=WEEKLY;BYDAY=" + ",".join(RRULE_DAY[d] for d in known))
-    if location:
-        lines.append(f"LOCATION:{_escape(location)}")
-    if latitude is not None and longitude is not None:
-        lines.append(f"GEO:{latitude:.6f};{longitude:.6f}")
-    lines.append(f"DESCRIPTION:{_escape(description)}")
-    lines.append(f"URL:{url}")
-    lines.append(f"STATUS:{status}")
-    lines.append("END:VEVENT")
-    lines.append("END:VCALENDAR")
     return "\r\n".join(_fold(line) for line in lines) + "\r\n"

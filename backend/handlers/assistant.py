@@ -76,6 +76,7 @@ def log_event(event: str, **fields: Any) -> None:
 
 
 def response(status: int, body: dict[str, Any]) -> dict[str, Any]:
+    """An API Gateway HTTP API v2 response with a JSON body."""
     return {
         "statusCode": status,
         "headers": {"content-type": "application/json"},

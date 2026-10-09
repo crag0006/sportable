@@ -289,33 +289,59 @@ class UpcomingRow:
     next_starts_at: datetime | None
 
 
+class ReferenceRepository(Protocol):
+    """Reference data: sports, places, the gazetteer and the source register."""
+
+    def list_sports(self, q: str | None = None) -> list[SportRow]:
+        """Sports that exist in loaded venues or programmes, optionally filtered."""
+        ...
+
+    def list_places(self) -> list[PlaceRow]:
+        """Suburb and postcode pairs the venues carry, for the dropdown."""
+        ...
+
+    def resolve_location(self, suburb: str | None, postcode: str | None) -> LocationMatch:
+        """A typed place to a named point: resolved, outside_coverage or unresolved."""
+        ...
+
+    def list_sources(self) -> list[SourceRow]:
+        """The source register with each source's latest load run."""
+        ...
+
+
 class VenueRepository(Protocol):
-    def list_sports(self, q: str | None = None) -> list[SportRow]: ...
+    """Venues and the per-request corridor over the amenity table."""
 
-    def list_places(self) -> list[PlaceRow]: ...
+    def search(self, sport: str, reference: ReferencePoint, radius_m: int) -> list[VenueRow]:
+        """Venues for a sport within the radius, nearest first, with their tiles."""
+        ...
 
-    def resolve_reference(
-        self, suburb: str | None, postcode: str | None
-    ) -> ReferencePoint | None: ...
-
-    def resolve_location(self, suburb: str | None, postcode: str | None) -> LocationMatch: ...
-
-    def list_sources(self) -> list[SourceRow]: ...
-
-    def list_events(self, filters: EventFilters) -> list[EventRow]: ...
-
-    def get_event(self, event_id: str) -> EventRow | None: ...
-
-    def event_sports(
-        self, date_from: date, date_to: date, now: datetime
-    ) -> list[EventSportRow]: ...
-
-    def upcoming_events(self, venue_id: str, now: datetime) -> UpcomingRow: ...
-
-    def search(self, sport: str, reference: ReferencePoint, radius_m: int) -> list[VenueRow]: ...
-
-    def get_venue(self, venue_id: str) -> VenueRow | None: ...
+    def get_venue(self, venue_id: str) -> VenueRow | None:
+        """One venue with tiles and access chain, or None."""
+        ...
 
     def corridor(
         self, origin: ReferencePoint, venue: VenueRow, within_m: int, kinds: list[str]
-    ) -> CorridorResult: ...
+    ) -> CorridorResult:
+        """Amenities within ``within_m`` of the straight line origin to venue."""
+        ...
+
+
+class EventRepository(Protocol):
+    """Fixtures and weekly programmes (DS-09), each joined to its matched venue."""
+
+    def list_events(self, filters: EventFilters) -> list[EventRow]:
+        """Listable events matching the filters, fixtures first."""
+        ...
+
+    def get_event(self, event_id: str) -> EventRow | None:
+        """One event, whatever its status, or None."""
+        ...
+
+    def event_sports(self, date_from: date, date_to: date, now: datetime) -> list[EventSportRow]:
+        """Sports with at least one listable event in the window."""
+        ...
+
+    def upcoming_events(self, venue_id: str, now: datetime) -> UpcomingRow:
+        """How many listable events a venue has, and the next fixture start."""
+        ...

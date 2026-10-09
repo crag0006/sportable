@@ -25,6 +25,7 @@ _pool: ConnectionPool[Connection[DictRow]] | None = None
 
 
 def get_pool() -> ConnectionPool[Connection[DictRow]]:
+    """The process-wide pool, opened on first use; 503 when ``DATABASE_URL`` is unset."""
     global _pool
     if _pool is None:
         url = get_settings().database_url
