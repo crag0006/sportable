@@ -6,6 +6,7 @@ Iteration 2 freeze (contract §11). The v0.1 translation (``to_view``,
 """
 
 from datetime import date, datetime
+from typing import Any
 
 from app.domain.facilities import (
     FRONTEND_KEYS,
@@ -24,6 +25,7 @@ from app.domain.provenance import SourceRef, source_ref
 from app.domain.summary import venue_summary_sentences
 from app.repositories.protocols import (
     ChainRow,
+    CorridorFacilityRow,
     CorridorResult,
     FacilityRow,
     ReferencePoint,
@@ -103,6 +105,7 @@ CORRIDOR_DISCLAIMER = (
 
 
 def _iso(value: date | datetime | None) -> str | None:
+    """A date or datetime as ``YYYY-MM-DD``, or None."""
     if value is None:
         return None
     if isinstance(value, datetime):
@@ -111,10 +114,12 @@ def _iso(value: date | datetime | None) -> str | None:
 
 
 def _href(venue_id: str) -> str:
+    """The frontend path of a venue page."""
     return f"/venues/{venue_id}"
 
 
 def _sports(venue: VenueRow) -> list[str]:
+    """The venue's sports, de-duplicated, in record order."""
     seen: list[str] = []
     for entry in venue.sports:
         if entry.sport not in seen:
@@ -123,6 +128,7 @@ def _sports(venue: VenueRow) -> list[str]:
 
 
 def _surface_types(venue: VenueRow) -> list[str]:
+    """Surface types from the card, or collected from the sport rows."""
     if venue.surface_types:
         return list(venue.surface_types)
     surfaces: list[str] = []
@@ -133,19 +139,23 @@ def _surface_types(venue: VenueRow) -> list[str]:
 
 
 def _surface(venue: VenueRow) -> str | None:
+    """The v0.1 single surface string, or None."""
     surfaces = _surface_types(venue)
     return " / ".join(surfaces) if surfaces else None
 
 
 def _distance_km(distance_m: float | None) -> float:
+    """Metres to kilometres with one decimal, for the v0.1 ``distance`` field."""
     return round((distance_m or 0.0) / 1000, 1)
 
 
 def _metres(distance_m: float | None) -> int:
+    """A distance rounded to whole metres; 0 when unknown."""
     return round(distance_m or 0.0)
 
 
 def reference_out(reference: ReferencePoint) -> ReferencePointOut:
+    """A reference point as the contract's §2.3 object."""
     kind = reference.kind if reference.kind in ("suburb", "postcode", "point") else "suburb"
     return ReferencePointOut(
         label=reference.label,
@@ -158,6 +168,7 @@ def reference_out(reference: ReferencePoint) -> ReferencePointOut:
 
 # ------------------------------------------------------------- provenance
 def _ref_out(ref: SourceRef | None) -> SourceRefOut | None:
+    """A ``SourceRef`` as the contract's §2.1 provenance object, or None."""
     if ref is None:
         return None
     return SourceRefOut(
@@ -171,6 +182,7 @@ def _ref_out(ref: SourceRef | None) -> SourceRefOut | None:
 
 
 def _status_source(row: FacilityRow, stale_default: int) -> SourceRef | None:
+    """The source of a tile's status, with staleness applied."""
     return source_ref(
         row.source_name,
         source_id=row.source_id,
@@ -183,6 +195,7 @@ def _status_source(row: FacilityRow, stale_default: int) -> SourceRef | None:
 
 # ------------------------------------------------------------- v0.2 tiles
 def _location_sentence(row: FacilityRow) -> str:
+    """Inside the venue, a separate public facility nearby, or unrecorded (AC2.1.3)."""
     if row.location_relative_to_venue:
         return row.location_relative_to_venue
     if row.basis == "publisher_attribute" or row.is_inside_venue:
@@ -192,26 +205,53 @@ def _location_sentence(row: FacilityRow) -> str:
     return "no source records whether this is inside the venue or nearby"
 
 
+def _detail_source_out(row: FacilityRow, stale_default: int) -> DetailSourceOut | None:
+    """The publisher of an attached description (migration 007), with its distance."""
+    if not row.detail_amenity_id:
+        return None
+    ref = source_ref(
+        row.detail_source_name,
+        source_id=row.detail_source_id,
+        publisher_last_updated=row.detail_source_updated,
+        retrieved_at=row.retrieved_at,
+        default_stale_after_days=stale_default,
+    )
+    if ref is None:
+        return None
+    return DetailSourceOut(
+        **_ref_out(ref).model_dump(),  # type: ignore[union-attr]
+        distance_m=_metres(row.detail_distance_m) if row.detail_distance_m else None,
+    )
+
+
+def _described_attributes(row: FacilityRow, described: bool) -> dict[str, Any]:
+    """The recorded attributes of the amenity, only when that amenity is the answer."""
+    return {
+        "opening_hours": row.opening_hours if described else None,
+        "opening_hours_unrecorded": bool(row.opening_hours_unrecorded)
+        if row.opening_hours_unrecorded is not None
+        else (row.opening_hours is None),
+        "key_required": row.key_required if described else None,
+        "key_requirement_unrecorded": bool(row.key_requirement_unrecorded)
+        if row.key_requirement_unrecorded is not None
+        else (row.key_required is None),
+        "mlak_24h": row.mlak_24h if described else None,
+        "payment_required": row.payment_required if described else None,
+        "left_hand_transfer": row.left_hand_transfer if described else None,
+        "right_hand_transfer": row.right_hand_transfer if described else None,
+        "ambulant": row.ambulant if described else None,
+        "changing_places": row.changing_places if described else None,
+        "has_shower": row.has_shower if described else None,
+        "access_note": row.access_note if described else None,
+    }
+
+
 def _detail_out(p: Presentation, stale_default: int) -> FacilityDetailOut | None:
     """Present whenever a recorded amenity describes the tile (contract §5)."""
     row = p.row
     if row is None or p.display not in ("at_venue", "nearby", "beyond_limit"):
         return None
     from_publisher = row.basis == "publisher_attribute"
-    detail_source: DetailSourceOut | None = None
-    if row.detail_amenity_id:
-        ref = source_ref(
-            row.detail_source_name,
-            source_id=row.detail_source_id,
-            publisher_last_updated=row.detail_source_updated,
-            retrieved_at=row.retrieved_at,
-            default_stale_after_days=stale_default,
-        )
-        if ref is not None:
-            detail_source = DetailSourceOut(
-                **_ref_out(ref).model_dump(),  # type: ignore[union-attr]
-                distance_m=_metres(row.detail_distance_m) if row.detail_distance_m else None,
-            )
     described = (not from_publisher) or bool(row.detail_amenity_id)
     return FacilityDetailOut(
         location_relative_to_venue=_location_sentence(row),
@@ -222,28 +262,14 @@ def _detail_out(p: Presentation, stale_default: int) -> FacilityDetailOut | None
         address=row.amenity_address if not from_publisher else None,
         latitude=row.amenity_lat if not from_publisher else None,
         longitude=row.amenity_lon if not from_publisher else None,
-        opening_hours=row.opening_hours if described else None,
-        opening_hours_unrecorded=bool(row.opening_hours_unrecorded)
-        if row.opening_hours_unrecorded is not None
-        else (row.opening_hours is None),
-        key_required=row.key_required if described else None,
-        key_requirement_unrecorded=bool(row.key_requirement_unrecorded)
-        if row.key_requirement_unrecorded is not None
-        else (row.key_required is None),
-        mlak_24h=row.mlak_24h if described else None,
-        payment_required=row.payment_required if described else None,
-        left_hand_transfer=row.left_hand_transfer if described else None,
-        right_hand_transfer=row.right_hand_transfer if described else None,
-        ambulant=row.ambulant if described else None,
-        changing_places=row.changing_places if described else None,
-        has_shower=row.has_shower if described else None,
-        access_note=row.access_note if described else None,
         transport_mode=row.transport_mode,
-        detail_source=detail_source,
+        detail_source=_detail_source_out(row, stale_default),
+        **_described_attributes(row, described),
     )
 
 
 def _alternative_out(p: Presentation, stale_default: int) -> AlternativeOut | None:
+    """The nearby public facility offered under a recorded absence, or None."""
     row = p.row
     if row is None or p.display != "not_available_alternative":
         return None
@@ -288,11 +314,13 @@ def facility_out(p: Presentation, stale_default: int, with_detail: bool = False)
 def facilities_out(
     venue: VenueRow, limit_m: int, stale_default: int, with_detail: bool = False
 ) -> list[FacilityOut]:
+    """All four tiles for a venue at the band, in contract order."""
     return [facility_out(p, stale_default, with_detail) for p in presentations_for(venue, limit_m)]
 
 
 # ------------------------------------------------------------- v0.1 tiles
 def _amenities_compat(venue: VenueRow) -> dict[str, AmenityOut]:
+    """The v0.1 ``amenities`` map for a search result."""
     return {
         key: AmenityOut(state=view.state, distance=view.distance)
         for key, view in views_for(venue).items()
@@ -300,6 +328,7 @@ def _amenities_compat(venue: VenueRow) -> dict[str, AmenityOut]:
 
 
 def _location_compat(row: FacilityRow) -> Location:
+    """The v0.1 location value for a facility row."""
     if row.basis == "publisher_attribute" or row.is_inside_venue:
         return "at_venue"
     if row.amenity_name is not None or row.distance_m is not None:
@@ -308,6 +337,7 @@ def _location_compat(row: FacilityRow) -> Location:
 
 
 def _source_compat(row: FacilityRow) -> SourceOut | None:
+    """The v0.1 provenance object, or None without a source."""
     if not row.source_name:
         return None
     return SourceOut(
@@ -318,6 +348,7 @@ def _source_compat(row: FacilityRow) -> SourceOut | None:
 
 
 def _detail_compat(row: FacilityRow | None) -> AmenityDetailOut:
+    """The v0.1 ``amenities`` entry for the venue page."""
     view = to_view(row)
     if row is None or view.state == "none":
         return AmenityDetailOut(state=view.state)
@@ -337,6 +368,7 @@ def _detail_compat(row: FacilityRow | None) -> AmenityDetailOut:
 
 
 def _unpublished_compat(chain: tuple[ChainRow, ...]) -> list[UnpublishedOut]:
+    """The v0.1 list of what no dataset publishes, with the chain's reason when recorded."""
     by_link = {c.link: c for c in chain}
     items: list[UnpublishedOut] = []
     for link, (label, default_reason) in UNPUBLISHED_LINKS.items():
@@ -348,6 +380,7 @@ def _unpublished_compat(chain: tuple[ChainRow, ...]) -> list[UnpublishedOut]:
 
 # ------------------------------------------------------------------ search
 def search_venue_out(venue: VenueRow, limit_m: int, stale_default: int) -> SearchVenueOut:
+    """One search result: §2.4 summary, four tiles, v0.1 fields alongside."""
     return SearchVenueOut(
         id=venue.venue_id,
         name=venue.name,
@@ -374,6 +407,7 @@ def venue_out(venue: VenueRow, limit_m: int = 500, stale_default: int = 365) -> 
 
 
 def _join(labels: list[str], word: str) -> str:
+    """``a, b or c`` with the given joining word."""
     if not labels:
         return ""
     if len(labels) == 1:
@@ -382,7 +416,43 @@ def _join(labels: list[str], word: str) -> str:
 
 
 def _plural(n: int, noun: str) -> str:
+    """``1 venue`` / ``2 venues``."""
     return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
+
+
+def _group_labels(kinds: list[str], n_undoc: int, n_na: int) -> tuple[str, str]:
+    """Headings for the undocumented and not-available groups."""
+    if not kinds:
+        return "No facility filter applied", "No facility filter applied"
+    labels = _join([KIND_LABELS[k].lower() for k in kinds], "or")
+    return (
+        f"{_plural(n_undoc, 'more venue')} have no published information about {labels}",
+        f"{_plural(n_na, 'venue')} record that they do not have {labels}",
+    )
+
+
+def _groups_out(
+    groups: Groups, kinds: list[str], limit_m: int, stale_default: int, max_results: int, total: int
+) -> tuple[list[SearchVenueOut], GroupOut, GroupOut, CountsOut]:
+    """The matched results, the two labelled secondary groups and the counts."""
+
+    def venues(rows: list[VenueRow]) -> list[SearchVenueOut]:
+        """The first ``max_results`` of a group as search results."""
+        return [search_venue_out(v, limit_m, stale_default) for v in rows[:max_results]]
+
+    n_undoc, n_na = len(groups.undocumented), len(groups.not_available)
+    undocumented_label, not_available_label = _group_labels(kinds, n_undoc, n_na)
+    return (
+        venues(groups.matched),
+        GroupOut(label=undocumented_label, count=n_undoc, results=venues(groups.undocumented)),
+        GroupOut(label=not_available_label, count=n_na, results=venues(groups.not_available)),
+        CountsOut(
+            total_for_sport=total,
+            matched=len(groups.matched),
+            undocumented=n_undoc,
+            not_available=n_na,
+        ),
+    )
 
 
 def search_out(
@@ -400,25 +470,8 @@ def search_out(
     retrieved_at: datetime | None,
 ) -> SearchOut:
     """§4 - three groups. A venue is never dropped, only grouped and counted."""
-    labels = [KIND_LABELS[k].lower() for k in kinds]
-    results = [search_venue_out(v, limit_m, stale_default) for v in groups.matched[:max_results]]
-    undocumented = [
-        search_venue_out(v, limit_m, stale_default) for v in groups.undocumented[:max_results]
-    ]
-    not_available = [
-        search_venue_out(v, limit_m, stale_default) for v in groups.not_available[:max_results]
-    ]
-    n_undoc, n_na = len(groups.undocumented), len(groups.not_available)
-    undocumented_label = (
-        f"{_plural(n_undoc, 'more venue')} have no published information about "
-        f"{_join(labels, 'or')}"
-        if kinds
-        else "No facility filter applied"
-    )
-    not_available_label = (
-        f"{_plural(n_na, 'venue')} record that they do not have {_join(labels, 'or')}"
-        if kinds
-        else "No facility filter applied"
+    results, undocumented, not_available, counts = _groups_out(
+        groups, kinds, limit_m, stale_default, max_results, total
     )
     return SearchOut(
         sport=sport,
@@ -426,26 +479,22 @@ def search_out(
         distance_limit_m=limit_m,
         search_radius_m=radius_m,
         facilities_requested=list(kinds),
-        counts=CountsOut(
-            total_for_sport=total,
-            matched=len(groups.matched),
-            undocumented=n_undoc,
-            not_available=n_na,
-        ),
+        counts=counts,
         results=results,
-        undocumented_group=GroupOut(label=undocumented_label, count=n_undoc, results=undocumented),
-        not_available_group=GroupOut(label=not_available_label, count=n_na, results=not_available),
+        undocumented_group=undocumented,
+        not_available_group=not_available,
         retrieved_at=_iso(retrieved_at),
         place=place,
         total=total,
         matched=results,
-        undocumented=undocumented,
-        not_available=n_na,
+        undocumented=undocumented.results,
+        not_available=not_available.count,
     )
 
 
 # -------------------------------------------------------------- venue page
 def _access_chain(venue: VenueRow, tiles: dict[str, FacilityOut]) -> list[AccessLinkOut]:
+    """The six journey links (§5), each taking its status from the matching tile."""
     by_link = {c.link: c for c in venue.chain}
     out: list[AccessLinkOut] = []
     for link, label, kind in CHAIN_LINKS:
@@ -477,6 +526,7 @@ def _access_chain(venue: VenueRow, tiles: dict[str, FacilityOut]) -> list[Access
 
 
 def _limits() -> LimitsOut:
+    """The fixed 'what this page cannot tell you' section (AC2.1.5)."""
     return LimitsOut(
         heading=LIMITS_HEADING,
         items=[LimitItemOut(topic=t, reason=r) for t, r in LIMIT_ITEMS],
@@ -484,6 +534,7 @@ def _limits() -> LimitsOut:
 
 
 def _sources_used(tiles: list[FacilityOut]) -> list[SourceRefOut]:
+    """Every distinct source behind the four tiles, for the page footer."""
     seen: dict[str, SourceRefOut] = {}
     for tile in tiles:
         for ref in (
@@ -496,6 +547,38 @@ def _sources_used(tiles: list[FacilityOut]) -> list[SourceRefOut]:
     return list(seen.values())
 
 
+def _from_reference(venue: VenueRow, reference: ReferencePoint | None) -> dict[str, Any]:
+    """The distance fields a ``?from=`` adds to the page; empty without one."""
+    if reference is None:
+        return {}
+    metres = haversine_m(reference.latitude, reference.longitude, venue.latitude, venue.longitude)
+    return {
+        "distance_m": round(metres),
+        "reference_point": reference_out(reference),
+        "distance": _distance_km(metres),
+    }
+
+
+def _identity(venue: VenueRow) -> dict[str, Any]:
+    """The venue summary fields (§2.4) plus the v0.1 spellings of them."""
+    return {
+        "id": venue.venue_id,
+        "name": venue.name,
+        "address": venue.address,
+        "suburb": venue.suburb,
+        "postcode": venue.postcode,
+        "lga": venue.lga,
+        "latitude": venue.latitude,
+        "longitude": venue.longitude,
+        "sports": _sports(venue),
+        "surface_types": _surface_types(venue),
+        "href": _href(venue.venue_id),
+        "lat": venue.latitude,
+        "lon": venue.longitude,
+        "surface": _surface(venue),
+    }
+
+
 def venue_card_out(
     venue: VenueRow,
     reference: ReferencePoint | None = None,
@@ -505,30 +588,11 @@ def venue_card_out(
 ) -> VenueCardOut:
     """The venue page (§5). With ``reference`` (``?from=``) it also says how far."""
     rows = rows_by_key(venue)
-    distance_m: int | None = None
-    distance_km: float | None = None
-    reference_point: ReferencePointOut | None = None
-    if reference is not None:
-        metres = haversine_m(
-            reference.latitude, reference.longitude, venue.latitude, venue.longitude
-        )
-        distance_m = round(metres)
-        distance_km = _distance_km(metres)
-        reference_point = reference_out(reference)
     tiles = facilities_out(venue, limit_m, stale_default, with_detail=True)
     by_kind: dict[str, FacilityOut] = {t.type: t for t in tiles}
     card = VenueCardOut(
-        id=venue.venue_id,
-        name=venue.name,
-        address=venue.address,
-        suburb=venue.suburb,
-        postcode=venue.postcode,
-        lga=venue.lga,
-        latitude=venue.latitude,
-        longitude=venue.longitude,
-        sports=_sports(venue),
-        surface_types=_surface_types(venue),
-        href=_href(venue.venue_id),
+        **_identity(venue),
+        **_from_reference(venue, reference),
         ownership=venue.ownership,
         purpose=venue.purpose,
         changeroom_description=venue.changeroom_description,
@@ -538,14 +602,8 @@ def venue_card_out(
         sources=_sources_used(tiles),
         upcoming_events=upcoming or UpcomingEventsOut(count=0),
         last_updated=_iso(venue.retrieved_at),
-        distance_m=distance_m,
-        reference_point=reference_point,
-        lat=venue.latitude,
-        lon=venue.longitude,
-        surface=_surface(venue),
         amenities={key: _detail_compat(rows.get(key)) for key in FRONTEND_KEYS},
         unpublished=_unpublished_compat(venue.chain),
-        distance=distance_km,
     )
     # US3.3. Composed from the finished card, not from ``venue``: the spoken
     # summary is then physically incapable of describing a facility at a
@@ -575,6 +633,7 @@ SOURCE_NOTES: dict[str, str] = {
 
 
 def register_source_out(row: SourceRow, stale_default: int) -> RegisterSourceOut:
+    """One row of the Sources and licences page, with status and what it feeds."""
     ref = source_ref(
         row.name,
         source_id=row.source_id,
@@ -631,73 +690,59 @@ OPENING_NOT_CHECKED = "Whether a facility is open or unlocked at the time you tr
 
 
 def _join_labels(labels: list[str]) -> str:
+    """``Accessible toilets, accessible parking bays and step-free railway stations``."""
     lowered = [labels[0]] + [label.lower() for label in labels[1:]]
     if len(lowered) == 1:
         return lowered[0]
     return ", ".join(lowered[:-1]) + " and " + lowered[-1]
 
 
-def corridor_out(
-    venue: VenueRow,
-    origin: ReferencePoint,
-    within_m: int,
-    keys: list[FrontendKey],
-    result: CorridorResult,
-    stale_default: int = 365,
-) -> CorridorOut:
-    """AC2.2 / AC2.3 - the straight-line corridor, honestly labelled (ADR-003)."""
-    kinds = [KEY_TO_KIND[key] for key in keys]
-    length_m = round(
-        haversine_m(origin.latitude, origin.longitude, venue.latitude, venue.longitude)
+def _corridor_facility_out(
+    seq: int, row: CorridorFacilityRow, length_m: int, stale_default: int
+) -> CorridorFacilityOut:
+    """One amenity in the corridor, in travel order (AC2.3.2), with its source."""
+    ref = source_ref(
+        row.source_name,
+        publisher_last_updated=row.source_updated,
+        retrieved_at=row.retrieved_at,
+        default_stale_after_days=stale_default,
     )
-    counts: dict[str, int] = dict.fromkeys(kinds, 0)
-    latest = venue.retrieved_at
-    facilities: list[CorridorFacilityOut] = []
-    for seq, row in enumerate(result.facilities, start=1):
-        counts[row.kind] = counts.get(row.kind, 0) + 1
-        if row.retrieved_at is not None and (latest is None or row.retrieved_at > latest):
-            latest = row.retrieved_at
-        ref = source_ref(
-            row.source_name,
-            publisher_last_updated=row.source_updated,
-            retrieved_at=row.retrieved_at,
-            default_stale_after_days=stale_default,
-        )
-        facilities.append(
-            CorridorFacilityOut(
-                seq=seq,
-                type=row.kind,
-                name=row.name,
-                address=row.address,
-                latitude=row.lat,
-                longitude=row.lon,
-                distance_from_path_m=round(row.distance_from_path_m),
-                along_path_m=round(row.fraction * length_m),
-                opening_hours=row.opening_hours,
-                opening_hours_unrecorded=row.opening_hours is None,
-                key_required=row.key_required,
-                key_requirement_unrecorded=row.key_required is None,
-                source=_ref_out(ref),
-                lat=row.lat,
-                lon=row.lon,
-                mlak=row.key_required,
-            )
-        )
-    types: list[CorridorTypeOut] = []
-    for kind in kinds:
-        total = result.totals.get(kind, 0)
-        count = counts.get(kind, 0)
-        status: CorridorTypeStatus = "found" if count else ("none_within" if total else "no_data")
-        label = CORRIDOR_LABELS[kind]
-        message: str | None = None
-        if status == "none_within":
-            message = f"No {label.lower()} recorded within {within_m} m of this line."
-        elif status == "no_data":
-            message = f"No published information loaded for {label.lower()}."
-        types.append(
-            CorridorTypeOut(type=kind, label=label, count=count, status=status, message=message)
-        )
+    return CorridorFacilityOut(
+        seq=seq,
+        type=row.kind,
+        name=row.name,
+        address=row.address,
+        latitude=row.lat,
+        longitude=row.lon,
+        distance_from_path_m=round(row.distance_from_path_m),
+        along_path_m=round(row.fraction * length_m),
+        opening_hours=row.opening_hours,
+        opening_hours_unrecorded=row.opening_hours is None,
+        key_required=row.key_required,
+        key_requirement_unrecorded=row.key_required is None,
+        source=_ref_out(ref),
+        lat=row.lat,
+        lon=row.lon,
+        mlak=row.key_required,
+    )
 
+
+def _corridor_type_out(kind: str, count: int, total: int, within_m: int) -> CorridorTypeOut:
+    """found / none_within / no_data for one facility type: different copy each."""
+    status: CorridorTypeStatus = "found" if count else ("none_within" if total else "no_data")
+    label = CORRIDOR_LABELS[kind]
+    message: str | None = None
+    if status == "none_within":
+        message = f"No {label.lower()} recorded within {within_m} m of this line."
+    elif status == "no_data":
+        message = f"No published information loaded for {label.lower()}."
+    return CorridorTypeOut(type=kind, label=label, count=count, status=status, message=message)
+
+
+def _corridor_sentences(
+    types: list[CorridorTypeOut], origin: ReferencePoint, venue: VenueRow, within_m: int
+) -> tuple[list[str], list[str]]:
+    """What was checked and what was not (AC2.3.3), as complete sentences."""
     checked_labels = [t.label for t in types if t.status != "no_data"]
     checked = (
         [
@@ -714,31 +759,71 @@ def corridor_out(
         if t.status == "no_data"
     )
     not_checked.append(OPENING_NOT_CHECKED)
+    return checked, not_checked
 
+
+def _latest_retrieved(venue: VenueRow, rows: tuple[CorridorFacilityRow, ...]) -> datetime | None:
+    """The newest retrieval date among the venue and the corridor rows."""
+    stamps = [venue.retrieved_at, *(r.retrieved_at for r in rows)]
+    return max((s for s in stamps if s is not None), default=None)
+
+
+def _corridor_venue_out(venue: VenueRow) -> CorridorVenueOut:
+    """The destination, with the v0.1 spellings alongside."""
+    return CorridorVenueOut(
+        id=venue.venue_id,
+        name=venue.name,
+        address=venue.address,
+        latitude=venue.latitude,
+        longitude=venue.longitude,
+        href=_href(venue.venue_id),
+        lat=venue.latitude,
+        lon=venue.longitude,
+    )
+
+
+def _corridor_types(
+    kinds: list[str], result: CorridorResult, within_m: int
+) -> list[CorridorTypeOut]:
+    """One status per requested type: found, none within, or no dataset loaded."""
+    counts: dict[str, int] = dict.fromkeys(kinds, 0)
+    for row in result.facilities:
+        counts[row.kind] = counts.get(row.kind, 0) + 1
+    return [
+        _corridor_type_out(kind, counts.get(kind, 0), result.totals.get(kind, 0), within_m)
+        for kind in kinds
+    ]
+
+
+def corridor_out(
+    venue: VenueRow,
+    origin: ReferencePoint,
+    within_m: int,
+    keys: list[FrontendKey],
+    result: CorridorResult,
+    stale_default: int = 365,
+) -> CorridorOut:
+    """AC2.2 / AC2.3 - the straight-line corridor, honestly labelled (ADR-003)."""
+    length_m = round(
+        haversine_m(origin.latitude, origin.longitude, venue.latitude, venue.longitude)
+    )
+    types = _corridor_types([KEY_TO_KIND[key] for key in keys], result, within_m)
+    checked, not_checked = _corridor_sentences(types, origin, venue, within_m)
     return CorridorOut(
-        venue=CorridorVenueOut(
-            id=venue.venue_id,
-            name=venue.name,
-            address=venue.address,
-            latitude=venue.latitude,
-            longitude=venue.longitude,
-            href=_href(venue.venue_id),
-            lat=venue.latitude,
-            lon=venue.longitude,
-        ),
+        venue=_corridor_venue_out(venue),
         origin=reference_out(origin),
         path=CorridorPathOut(
             length_m=length_m,
             within_m=within_m,
-            coordinates=[
-                [origin.latitude, origin.longitude],
-                [venue.latitude, venue.longitude],
-            ],
+            coordinates=[[origin.latitude, origin.longitude], [venue.latitude, venue.longitude]],
         ),
         types=types,
-        facilities=facilities,
+        facilities=[
+            _corridor_facility_out(seq, row, length_m, stale_default)
+            for seq, row in enumerate(result.facilities, start=1)
+        ],
         checked=checked,
         not_checked=not_checked,
         disclaimer=CORRIDOR_DISCLAIMER,
-        retrieved_at=_iso(latest),
+        retrieved_at=_iso(_latest_retrieved(venue, result.facilities)),
     )

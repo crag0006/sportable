@@ -96,12 +96,16 @@ jobs:
       - name: Format check
         run: uv run ruff format --check .
 
-      # mypy runs in strict mode (see [tool.mypy] in pyproject.toml).
-      # Only `handlers` is checked today: `app/` holds no .py files yet and mypy
-      # errors on an empty directory rather than skipping it. Add `app` to this
-      # line the day the first module lands there.
+      # mypy runs in strict mode (see [tool.mypy] in pyproject.toml) over the
+      # application and the Lambda entry points.
       - name: Type check
-        run: uv run mypy handlers
+        run: uv run mypy app handlers
+
+      # Tutor rules from the Iteration 2 review: no function over 40 lines, a
+      # docstring on every function. ruff enforces the public-function half;
+      # this script covers private functions and the length rule.
+      - name: Function length and docstrings
+        run: uv run python scripts/check_functions.py --strict
 
       # Unit tests only. Integration tests (marked `integration`) spin up a real
       # PostGIS container via testcontainers and are added in a later task —

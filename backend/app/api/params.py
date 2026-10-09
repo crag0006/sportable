@@ -3,8 +3,8 @@
 Parsing is deliberately lenient about spelling (the frontend sends
 ``facilities=accessible_toilet`` and ``distance_m=500``; older pages sent
 ``needs=toilet`` and ``limit=500``) and strict about values: a band outside
-``/config`` or a place the gazetteer does not know is a 422, never a silent
-default. A starting point the user did give is never dropped.
+``/config`` is a 422, never a silent default. Everything here is pure: a
+place is parsed into a ``PlaceInput`` and resolved by the location service.
 """
 
 import re
@@ -14,16 +14,16 @@ from fastapi import Request
 from app.core.config import SearchConfig
 from app.core.errors import ApiError
 from app.domain.facilities import FRONTEND_KEYS, FrontendKey, parse_needs
-from app.repositories.protocols import LocationMatch, ReferencePoint, VenueRepository
+from app.repositories.protocols import ReferencePoint
+from app.services.inputs import PlaceInput
 
 _TRAILING_POSTCODE = re.compile(r"^(.*?)[\s,]*(\d{4})$")
 _LAT_LON = re.compile(r"^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$")
 _TRUTHY = {"1", "true", "yes", "on"}
 
-COVERAGE_DESCRIPTION = "SportAble covers sport venues across Victoria."
-
 
 def parse_place(suburb: str | None, postcode: str | None) -> tuple[str | None, str | None]:
+    """``("Preston 3072", None)`` -> ``("Preston", "3072")``; a bad postcode is a 422."""
     suburb = (suburb or "").strip() or None
     postcode = (postcode or "").strip() or None
     if suburb:
@@ -47,50 +47,33 @@ def parse_point(raw: str) -> ReferencePoint | None:
     return ReferencePoint("your starting point", lat, lon, kind="point")
 
 
-def _did_you_mean(match: LocationMatch) -> str:
-    labels = [s.label for s in match.suggestions[:3]]
-    if not labels:
-        return ""
-    return " Did you mean " + ", ".join(labels) + "?"
+def parse_origin(raw: str | None) -> PlaceInput | None:
+    """``from=Preston 3072`` | ``from=3072`` | ``from=-37.74,145.01`` -> a place input.
 
-
-def require_location(
-    repo: VenueRepository, suburb: str | None, postcode: str | None, typed: str
-) -> ReferencePoint:
-    """Resolve or fail with the right code: unknown_place or outside_coverage."""
-    match = repo.resolve_location(suburb, postcode)
-    if match.outcome == "resolved" and match.reference is not None:
-        return match.reference
-    if match.outcome == "outside_coverage":
-        raise ApiError(
-            422,
-            "outside_coverage",
-            f"{match.matched_label or typed} is outside the area SportAble covers. "
-            f"{COVERAGE_DESCRIPTION}",
-        )
-    raise ApiError(
-        422,
-        "unknown_place",
-        f"No suburb or postcode matching {typed!r}.{_did_you_mean(match)}",
-    )
-
-
-def parse_from(raw: str | None, repo: VenueRepository) -> ReferencePoint | None:
-    """``from=Preston 3072`` | ``from=3072`` | ``from=-37.74,145.01`` -> a point.
-
-    None when the parameter is absent. If the person gave one and it cannot
-    be resolved, the request fails (422); it is never silently ignored.
+    None when the parameter is absent. Resolution happens in the location
+    service, which fails the request rather than dropping a place somebody gave.
     """
     if raw is None or not raw.strip():
         return None
     point = parse_point(raw)
     if point is not None:
-        return point
+        return PlaceInput(point=point)
     suburb, postcode = parse_place(raw, None)
-    return require_location(repo, suburb, postcode, raw.strip())
+    return PlaceInput(suburb=suburb, postcode=postcode)
+
+
+def place_input(suburb: str | None, postcode: str | None, near: str | None) -> PlaceInput | None:
+    """The place from ``suburb`` / ``postcode`` / ``near``; ``near`` wins when given."""
+    if near and near.strip():
+        return parse_origin(near)
+    sub, pc = parse_place(suburb, postcode)
+    if not sub and not pc:
+        return None
+    return PlaceInput(suburb=sub, postcode=pc)
 
 
 def parse_band(raw: str | None, cfg: SearchConfig, default: int | None = None) -> int:
+    """A distance band from ``/config``; anything else is ``invalid_distance_band``."""
     if raw is None or not raw.strip():
         return default if default is not None else cfg.default_distance_m
     try:
@@ -104,6 +87,7 @@ def parse_band(raw: str | None, cfg: SearchConfig, default: int | None = None) -
 
 
 def parse_facilities(request: Request) -> list[FrontendKey]:
+    """Facility keys from any of the accepted spellings, in request order."""
     q = request.query_params
     raw: list[str] = []
     for name in ("needs", "types", "amenities", "facilities"):
@@ -121,6 +105,7 @@ def parse_facilities(request: Request) -> list[FrontendKey]:
 
 
 def first_of(request: Request, *names: str) -> str | None:
+    """The first non-blank query value among the given aliases, or None."""
     q = request.query_params
     for name in names:
         value = q.get(name)

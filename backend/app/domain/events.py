@@ -10,6 +10,7 @@ title, a description or a publisher's tag.
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from app.domain.facilities import KINDS, present, presentations_for, verdict
@@ -64,6 +65,7 @@ WINDOW_RULE = (
 
 
 def _label_days(days: Sequence[str]) -> str:
+    """``Mondays, Wednesdays and Fridays`` in weekday order."""
     names = [d.capitalize() + "s" for d in WEEKDAYS if d in days]
     if not names:
         return ""
@@ -73,6 +75,7 @@ def _label_days(days: Sequence[str]) -> str:
 
 
 def recurrence_out(row: EventRow) -> RecurrenceOut | None:
+    """The weekly pattern of a program; None for a fixture."""
     if row.kind != "program":
         return None
     days = [d for d in WEEKDAYS if d in row.weekdays]
@@ -94,12 +97,14 @@ def recurrence_out(row: EventRow) -> RecurrenceOut | None:
 
 
 def local_time(row: EventRow) -> datetime | None:
+    """A fixture's start in the event's timezone; None for a program."""
     if row.starts_at is None:
         return None
     return row.starts_at.astimezone(ZoneInfo(row.timezone))
 
 
 def tiles_for(row: EventRow, limit_m: int, stale_default: int) -> list[FacilityOut]:
+    """The venue's own four tiles, or four unknowns when the venue is unmatched."""
     if row.venue is not None:
         return [facility_out(p, stale_default) for p in presentations_for(row.venue, limit_m)]
     return [facility_out(present(None, kind, limit_m), stale_default) for kind in KINDS]
@@ -136,6 +141,7 @@ def access_summary(tiles: list[FacilityOut]) -> str:
 
 
 def group_of(tiles: list[FacilityOut], kinds: Sequence[str]) -> str | None:
+    """matched / undocumented / not_available for the requested kinds; None without a filter."""
     if not kinds:
         return None
     by_kind: dict[str, FacilityOut] = {t.type: t for t in tiles}
@@ -161,34 +167,27 @@ class Built:
     group: str | None
 
 
-def event_out(
-    row: EventRow,
-    *,
-    limit_m: int,
-    stale_default: int,
-    kinds: Sequence[str],
-) -> Built:
-    tiles = tiles_for(row, limit_m, stale_default)
-    grp = group_of(tiles, kinds)
+def _event_venue_out(row: EventRow) -> EventVenueOut:
+    """The matched DS-01 venue, or the publisher's own place with the reason."""
     matched = row.venue is not None
-    local = local_time(row)
-    venue = EventVenueOut(
+    v = row.venue
+    return EventVenueOut(
         matched=matched,
         match_basis=row.venue_match_basis,
         venue_id=row.venue_id if matched else None,
-        name=row.venue.name if row.venue is not None else row.venue_name,
-        address=row.venue.address if row.venue is not None else row.venue_address,
-        suburb=row.venue.suburb if row.venue is not None else row.venue_suburb,
-        postcode=row.venue.postcode if row.venue is not None else row.venue_postcode,
-        latitude=row.venue.latitude if row.venue is not None else row.venue_lat,
-        longitude=row.venue.longitude if row.venue is not None else row.venue_lon,
+        name=v.name if v is not None else row.venue_name,
+        address=v.address if v is not None else row.venue_address,
+        suburb=v.suburb if v is not None else row.venue_suburb,
+        postcode=v.postcode if v is not None else row.venue_postcode,
+        latitude=v.latitude if v is not None else row.venue_lat,
+        longitude=v.longitude if v is not None else row.venue_lon,
         href=f"/venues/{row.venue_id}" if matched else None,
         message=None if matched else UNMATCHED_MESSAGE,
     )
-    requested_met: bool | None = None
-    if kinds:
-        by_kind = {t.type: t for t in tiles}
-        requested_met = all(by_kind[k].status == "confirmed" for k in kinds if k in by_kind)
+
+
+def _event_source_out(row: EventRow, stale_default: int) -> EventSourceOut:
+    """Provenance of the event: the publisher's date, our retrieval, staleness."""
     ref = source_ref(
         row.source_name,
         source_id=row.source_id,
@@ -198,56 +197,100 @@ def event_out(
         default_stale_after_days=stale_default,
     )
     assert ref is not None
+    return EventSourceOut(
+        id=ref.id,
+        name=ref.name,
+        publisher_last_updated=_iso(ref.publisher_last_updated),
+        retrieved_at=_iso(ref.retrieved_at),
+        possibly_out_of_date=ref.possibly_out_of_date,
+        stale_after_days=ref.stale_after_days,
+        attribution=row.source_attribution,
+    )
+
+
+def _event_links_out(row: EventRow, venue: EventVenueOut) -> EventLinksOut:
+    """Where to go next: detail, venue, directions, calendar file, publisher."""
+    matched = row.venue is not None
+    return EventLinksOut(
+        detail=f"/events/{row.event_id}",
+        venue=venue.href,
+        directions=f"/venues/{row.venue_id}/directions" if matched else None,
+        ics=f"/api/v1/events/{row.event_id}.ics",
+        external=row.external_url,
+        registration=row.registration_url,
+    )
+
+
+def _timing(row: EventRow) -> dict[str, Any]:
+    """Fixture instants in local time; all None for a program (R1)."""
+    local = local_time(row)
+    tz = ZoneInfo(row.timezone)
+    return {
+        "starts_at": local.isoformat() if local else None,
+        "ends_at": row.ends_at.astimezone(tz).isoformat() if row.ends_at else None,
+        "date_local": local.date().isoformat() if local else None,
+        "time_local": local.strftime("%H:%M") if local else None,
+    }
+
+
+def _requested_met(tiles: list[FacilityOut], kinds: Sequence[str]) -> bool | None:
+    """Whether every requested kind is confirmed at the band; None without a filter."""
+    if not kinds:
+        return None
+    by_kind = {t.type: t for t in tiles}
+    return all(by_kind[k].status == "confirmed" for k in kinds if k in by_kind)
+
+
+def _identity(row: EventRow) -> dict[str, Any]:
+    """What the event is: names, competition, status, price, audience."""
+    return {
+        "id": row.event_id,
+        "kind": row.kind,
+        "title": row.title,
+        "sport": row.sport,
+        "sport_raw": row.sport_raw,
+        "competition": row.competition,
+        "season": row.season,
+        "grade": row.grade,
+        "round": row.round,
+        "home_team": row.home_team,
+        "away_team": row.away_team,
+        "organisation": row.organisation,
+        "description": row.description,
+        "status": row.status,
+        "status_label": STATUS_LABELS.get(row.status, row.status.title()),
+        "timezone": row.timezone,
+        "recurrence": recurrence_out(row),
+        "price": row.price,
+        "age_ranges": list(row.age_ranges),
+        "access_needs": list(row.access_needs),
+    }
+
+
+def event_out(
+    row: EventRow,
+    *,
+    limit_m: int,
+    stale_default: int,
+    kinds: Sequence[str],
+) -> Built:
+    """One event as the contract's event object, with its venue's four tiles."""
+    tiles = tiles_for(row, limit_m, stale_default)
+    grp = group_of(tiles, kinds)
+    venue = _event_venue_out(row)
     out = EventOut(
-        id=row.event_id,
-        kind=row.kind,
-        title=row.title,
-        sport=row.sport,
-        sport_raw=row.sport_raw,
-        competition=row.competition,
-        season=row.season,
-        grade=row.grade,
-        round=row.round,
-        home_team=row.home_team,
-        away_team=row.away_team,
-        organisation=row.organisation,
-        description=row.description,
-        status=row.status,
-        status_label=STATUS_LABELS.get(row.status, row.status.title()),
-        starts_at=local.isoformat() if local else None,
-        ends_at=row.ends_at.astimezone(ZoneInfo(row.timezone)).isoformat() if row.ends_at else None,
-        date_local=local.date().isoformat() if local else None,
-        time_local=local.strftime("%H:%M") if local else None,
-        timezone=row.timezone,
-        recurrence=recurrence_out(row),
-        price=row.price,
-        age_ranges=list(row.age_ranges),
-        access_needs=list(row.access_needs),
+        **_identity(row),
+        **_timing(row),
         venue=venue,
         distance_m=round(row.distance_m) if row.distance_m is not None else None,
         access=EventAccessOut(
             facilities=tiles,
-            requested_met=requested_met,
+            requested_met=_requested_met(tiles, kinds),
             group=grp,
             summary=access_summary(tiles),
         ),
-        links=EventLinksOut(
-            detail=f"/events/{row.event_id}",
-            venue=venue.href,
-            directions=f"/venues/{row.venue_id}/directions" if matched else None,
-            ics=f"/api/v1/events/{row.event_id}.ics",
-            external=row.external_url,
-            registration=row.registration_url,
-        ),
-        source=EventSourceOut(
-            id=ref.id,
-            name=ref.name,
-            publisher_last_updated=_iso(ref.publisher_last_updated),
-            retrieved_at=_iso(ref.retrieved_at),
-            possibly_out_of_date=ref.possibly_out_of_date,
-            stale_after_days=ref.stale_after_days,
-            attribution=row.source_attribution,
-        ),
+        links=_event_links_out(row, venue),
+        source=_event_source_out(row, stale_default),
     )
     return Built(out, grp)
 
@@ -285,6 +328,7 @@ def counts_by_date(rows: Sequence[EventRow], date_from: date, date_to: date) -> 
 
 
 def empty_message(sports: Sequence[str], date_from: date, date_to: date, place: str | None) -> str:
+    """The sentence for an empty list, naming the three remedies."""
     what = ", ".join(sports) + " events" if sports else "events"
     where = f" near {place}" if place else ""
     return (
@@ -294,6 +338,7 @@ def empty_message(sports: Sequence[str], date_from: date, date_to: date, place: 
 
 
 def window_out(date_from: date, date_to: date, timezone: str) -> WindowOut:
+    """The applied window with the rule that selected programs for it."""
     return WindowOut(
         **{"from": date_from.isoformat()},
         to=date_to.isoformat(),
@@ -303,10 +348,12 @@ def window_out(date_from: date, date_to: date, timezone: str) -> WindowOut:
 
 
 def reference_for(reference: ReferencePoint | None) -> ReferencePointOut | None:
+    """The reference point as the contract shows it, or None."""
     return reference_out(reference) if reference is not None else None
 
 
 def event_ics(row: EventRow, out: EventOut, share_url: str, now: datetime | None = None) -> str:
+    """The iCalendar file for one event: summary, timing, venue, access summary, links."""
     venue_line = ", ".join(p for p in (out.venue.name, out.venue.address) if p)
     description_parts = [
         " · ".join(p for p in (out.sport or out.sport_raw, out.grade, out.round) if p),

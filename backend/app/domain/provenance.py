@@ -23,6 +23,7 @@ class SourceRef:
 
 
 def _as_date(value: date | datetime | None) -> date | None:
+    """A date, the date of a datetime, or None."""
     if value is None:
         return None
     if isinstance(value, datetime):

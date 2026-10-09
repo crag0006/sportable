@@ -83,6 +83,7 @@ class _Sentence:
 
 
 def _words(text: str) -> int:
+    """Word count, for the speech-length cap."""
     return len(text.split())
 
 
@@ -151,17 +152,20 @@ def _facility_sentence(tile: FacilityOut) -> str:
 
 
 def _facility_sentences(tiles: list[FacilityOut]) -> list[_Sentence]:
+    """One required sentence per tile, all four kinds, in order."""
     return [_Sentence(_facility_sentence(tile), required=True) for tile in tiles]
 
 
 # ------------------------------------------------------------------ venue
 def _join(items: list[str]) -> str:
+    """``a, b and c``."""
     if len(items) == 1:
         return items[0]
     return ", ".join(items[:-1]) + " and " + items[-1]
 
 
 def _venue_identity(card: VenueCardOut) -> str:
+    """The opening sentence: name, where it is, up to three sports."""
     where = ", ".join(p for p in (card.suburb, card.lga) if p)
     place = f" in {where}" if where else ""
     # Three sports is enough to say what the place is for. A venue listing
@@ -219,6 +223,7 @@ def _long_date(iso: str) -> str:
 
 
 def _event_identity(event: EventOut) -> str:
+    """The opening sentence: title, what kind of event, who runs it."""
     sport = (event.sport or event.sport_raw or "").lower()
     noun = "weekly program" if event.kind == "program" else "fixture"
     what = f"a {sport} {noun}" if sport else f"a {noun}"
@@ -227,6 +232,7 @@ def _event_identity(event: EventOut) -> str:
 
 
 def _event_place(event: EventOut) -> list[_Sentence]:
+    """Where it is, or that the venue is not in our list (AC4.2.3 / AC5.2.2)."""
     venue = event.venue
     if venue.name is None:
         return [_Sentence("The publisher did not record a venue for this event.")]

@@ -101,10 +101,12 @@ class Settings(BaseSettings):
 
     @property
     def search(self) -> SearchConfig:
+        """The search tunables parsed from ``SEARCH_CONFIG``."""
         return SearchConfig.from_json(self.search_config)
 
     @property
     def events(self) -> EventsConfig:
+        """The event window and page defaults."""
         return EventsConfig(
             default_window_days=self.events_default_window_days,
             max_window_days=self.events_max_window_days,
@@ -114,4 +116,5 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
+    """Settings read once per process; cleared in tests that change the environment."""
     return Settings()
