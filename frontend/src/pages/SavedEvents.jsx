@@ -7,6 +7,7 @@ import {
   removeSavedEvent,
   buildSavedEventsExportText,
 } from "../components/savedEvents";
+import AddToCalendarButton from "../components/AddToCalendarButton";
 
 function downloadTextFile(filename, text) {
   const blob = new Blob([text], { type: "text/plain" });
@@ -124,6 +125,8 @@ function SavedEvents() {
                   >
                     Unsave
                   </button>
+
+                  <AddToCalendarButton event={item} />
                 </div>
               </article>
             ))}

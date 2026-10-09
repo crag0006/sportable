@@ -4,6 +4,7 @@ import VenueCard, { FACILITY_INFO } from "../components/SearchVenue";
 import ReadAloud from "../components/ReadAloud";
 import "./Home.css";
 import { getSports, getSuburbs, getConfig, searchVenues } from "../api/venues";
+               
 
 function getSavedSearch() {
   try {
@@ -978,7 +979,7 @@ function Home() {
               </div>
             )}
           </div>
-        </main>
+        </main>        
       </div>
     </div>
   );
