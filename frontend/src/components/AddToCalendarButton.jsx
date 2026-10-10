@@ -27,6 +27,16 @@ const WEEKDAY_NAMES = [
   "saturday",
 ];
 
+// "16:00" -> "4:00 pm" — for the dropdown option labels, display only.
+function formatLocalTimeOfDay(hhmm) {
+  if (!hhmm) return null;
+  const [hours, minutes] = hhmm.split(":").map(Number);
+  const date = new Date(2000, 0, 1, hours, minutes);
+  return date
+    .toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })
+    .toLowerCase();
+}
+
 function toTimeInputValue(date) {
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
@@ -161,9 +171,22 @@ export default function AddToCalendarButton({ event }) {
       ? [calendarBlock.google_template_url]
       : []
     : [];
+  // Prefer the hint's own `slot` label (e.g. "adults"/"juniors"), but that's
+  // only useful when it actually tells the slots apart. For a multi-weekday
+  // program (Friday session, Sunday session) the backend currently sends
+  // `slot: "main"` for every hint, which would make every button read the
+  // same — so fall back to the hint's own weekday in that case, since each
+  // hint does carry its own `weekdays[]` even when `slot` doesn't help.
+  function labelForTimeHint(hint) {
+    if (!hint) return null;
+    if (hint.slot && hint.slot !== "main") return hint.slot;
+    if (hint.weekdays && hint.weekdays.length > 0) return formatWeekday(hint.weekdays[0]);
+    return null;
+  }
+
   const templateSlotLabels =
     hasCalendarBlock && calendarBlock.time_hints && calendarBlock.time_hints.length === templateUrls.length
-      ? calendarBlock.time_hints.map((hint) => hint.slot)
+      ? calendarBlock.time_hints.map(labelForTimeHint)
       : templateUrls.map(() => null);
 
   function handleTemplateLinkClick() {
@@ -296,21 +319,58 @@ export default function AddToCalendarButton({ event }) {
     <>
       {hasCalendarBlock && templateUrls.length > 0 ? (
         <div className="calendar-quick-add">
-          {templateUrls.map((url, index) => (
+          {templateUrls.length === 1 ? (
             <a
-              key={url}
-              href={url}
+              href={templateUrls[0]}
               target="_blank"
               rel="noopener noreferrer"
               className="event-action-link event-action-link--primary calendar-add-button"
               onClick={handleTemplateLinkClick}
             >
               <span aria-hidden="true">📅</span> Add to Google Calendar
-              {templateSlotLabels[index] && templateSlotLabels[index] !== "main"
-                ? ` (${templateSlotLabels[index]})`
-                : ""}
             </a>
-          ))}
+          ) : (
+            // More than one weekly time (e.g. Friday and Sunday sessions) —
+            // one Google Calendar event can only carry one weekly time, so
+            // the backend gives one link per day. Rather than a row of
+            // near-identical buttons, one button opens a short list of
+            // which day to add. <details>/<summary> gives a working,
+            // keyboard-accessible disclosure with no extra JS state.
+            <details className="calendar-add-dropdown">
+              <summary className="event-action-link event-action-link--primary calendar-add-button">
+                <span aria-hidden="true">📅</span> Add to Google Calendar
+              </summary>
+              <div className="calendar-add-dropdown-menu" role="menu">
+                {templateUrls.map((url, index) => {
+                  const hint = calendarBlock.time_hints?.[index];
+                  const timeLabel =
+                    hint && formatLocalTimeOfDay(hint.start_local)
+                      ? `${formatLocalTimeOfDay(hint.start_local)}${
+                          hint.end_local ? ` – ${formatLocalTimeOfDay(hint.end_local)}` : ""
+                        }`
+                      : null;
+                  return (
+                    <a
+                      key={url}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      role="menuitem"
+                      className="calendar-add-dropdown-item"
+                      onClick={handleTemplateLinkClick}
+                    >
+                      <span className="calendar-add-dropdown-day">
+                        {templateSlotLabels[index] || `Option ${index + 1}`}
+                      </span>
+                      {timeLabel && (
+                        <span className="calendar-add-dropdown-time">{timeLabel}</span>
+                      )}
+                    </a>
+                  );
+                })}
+              </div>
+            </details>
+          )}
 
           {calendarBlock.ics_url && (
             <a
