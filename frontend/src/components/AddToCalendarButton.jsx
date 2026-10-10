@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./AddToCalendarButton.css";
 import {
   buildCalendarEventPayload,
@@ -131,6 +131,20 @@ export default function AddToCalendarButton({ event }) {
       ? hasAddedToCalendarThisSession(calendarBlock.dedupe_key)
       : false
   );
+
+  // <details> has no built-in "close on outside click" — only clicking the
+  // summary again toggles it. This closes the day-picker on any click
+  // outside it, same as a normal dropdown.
+  const dropdownRef = useRef(null);
+  useEffect(() => {
+    function handleOutsideClick(domEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(domEvent.target)) {
+        dropdownRef.current.open = false;
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
 
   if (!canAdd) {
     const message = hasCalendarBlock
@@ -336,7 +350,7 @@ export default function AddToCalendarButton({ event }) {
             // near-identical buttons, one button opens a short list of
             // which day to add. <details>/<summary> gives a working,
             // keyboard-accessible disclosure with no extra JS state.
-            <details className="calendar-add-dropdown">
+            <details className="calendar-add-dropdown" ref={dropdownRef}>
               <summary className="event-action-link event-action-link--primary calendar-add-button">
                 <span aria-hidden="true">📅</span> Add to Google Calendar
               </summary>
@@ -357,7 +371,10 @@ export default function AddToCalendarButton({ event }) {
                       rel="noopener noreferrer"
                       role="menuitem"
                       className="calendar-add-dropdown-item"
-                      onClick={handleTemplateLinkClick}
+                      onClick={() => {
+                        handleTemplateLinkClick();
+                        if (dropdownRef.current) dropdownRef.current.open = false;
+                      }}
                     >
                       <span className="calendar-add-dropdown-day">
                         {templateSlotLabels[index] || `Option ${index + 1}`}
@@ -383,8 +400,7 @@ export default function AddToCalendarButton({ event }) {
 
           {templateClicked && (
             <p className="calendar-status-note calendar-added-note">
-              Added — opened in a new tab. Click again only if you want a
-              second copy.
+              ✓ Added to your calendar
             </p>
           )}
 
