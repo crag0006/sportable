@@ -19,6 +19,7 @@ from app.repositories.protocols import (
     ReferencePoint,
     SourceRow,
     SportRow,
+    VenueMatch,
 )
 
 # ABS labels duplicate locality names with a state suffix ("Preston (Vic.)",
@@ -149,6 +150,19 @@ SELECT g.label, g.location_kind, g.code,
 # Two load runs per source: the latest good one (what is in service, so
 # retrieved_at and row_count describe real rows) and the latest of any
 # outcome (so a failure after a good load is reported, not hidden).
+# Venue by name for the assistant (contract v0.3 §4.3): trigram over venue_card.
+SQL_FIND_VENUES = """
+SELECT venue_id, name, suburb_name AS suburb, postcode,
+       similarity(lower(name), lower(%(q)s)) AS score
+  FROM venue_card
+ WHERE (lower(name) LIKE '%%' || lower(%(q)s) || '%%'
+        OR similarity(lower(name), lower(%(q)s)) > 0.3)
+   AND (%(suburb)s::text IS NULL OR lower(suburb_name) = lower(%(suburb)s)
+        OR similarity(lower(suburb_name), lower(%(suburb)s)) > 0.4)
+ ORDER BY score DESC, name
+ LIMIT %(limit)s
+"""
+
 SQL_SOURCES = """
 SELECT s.source_id, s.name, s.publisher, s.licence_name, s.licence_url,
        s.attribution_text, s.landing_page, s.publisher_scope, s.publisher_last_updated,
@@ -344,6 +358,16 @@ class PostgresReferenceRepository:
                 label = str(r["code"])
             out.append(LocationSuggestion(label=label, kind=r["location_kind"], code=r["code"]))
         return tuple(out)
+
+    def find_venues(self, name: str, suburb: str | None, limit: int = 5) -> list[VenueMatch]:
+        """Venues whose name resembles ``name`` (substring or trigram), nearest match first."""
+        params = {"q": name.strip(), "suburb": (suburb or "").strip() or None, "limit": limit}
+        with connection() as conn:
+            rows = conn.execute(SQL_FIND_VENUES, params).fetchall()
+        return [
+            VenueMatch(r["venue_id"], r["name"], r["suburb"], r["postcode"], float(r["score"]))
+            for r in rows
+        ]
 
     def list_sources(self) -> list[SourceRow]:
         """The register rows with each source's latest completed load run."""

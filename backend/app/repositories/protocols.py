@@ -298,8 +298,49 @@ class UpcomingRow:
     next_starts_at: datetime | None
 
 
+@dataclass(frozen=True)
+class VenueMatch:
+    """A venue found by name (the assistant's ``find_venue`` tool, contract v0.3 §4.3)."""
+
+    venue_id: str
+    name: str
+    suburb: str | None
+    postcode: str | None
+    score: float
+
+
+@dataclass(frozen=True)
+class ChunkRow:
+    """One retrieved passage of a program description (contract v0.3 §8.7)."""
+
+    program_id: str
+    chunk_index: int
+    text: str
+    source_id: str
+    similarity: float
+    lexical_hit: bool
+
+
+class ChunkRepository(Protocol):
+    """The retrieval index over program descriptions: cosine plus BM25, fused."""
+
+    def search(
+        self, embedding: list[float], question: str, model_id: str, limit: int
+    ) -> list[ChunkRow]:
+        """Fused candidates, best first, before the acceptance rule (``limit`` candidates)."""
+        ...
+
+    def titles(self, program_ids: list[str]) -> dict[str, tuple[str, str | None]]:
+        """Program name and publisher page by id, for the passages the service keeps."""
+        ...
+
+
 class ReferenceRepository(Protocol):
     """Reference data: sports, places, the gazetteer and the source register."""
+
+    def find_venues(self, name: str, suburb: str | None, limit: int = 5) -> list[VenueMatch]:
+        """Venues whose name resembles ``name``, optionally narrowed by suburb."""
+        ...
 
     def list_sports(self, q: str | None = None) -> list[SportRow]:
         """Sports that exist in loaded venues or programmes, optionally filtered."""
