@@ -1,6 +1,7 @@
 """HTTP-level tests against the in-memory repository."""
 
 import json
+import logging
 
 from fastapi.testclient import TestClient
 
@@ -12,6 +13,11 @@ def test_health(client: TestClient):
     response = client.get("/api/v1/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+
+
+def test_root_logger_level_follows_log_level(client: TestClient):
+    """A pre-installed root handler (Lambda) must not leave INFO lines dropped."""
+    assert logging.getLogger().getEffectiveLevel() == logging.INFO
 
 
 def test_config_falls_back_without_env(client: TestClient):
