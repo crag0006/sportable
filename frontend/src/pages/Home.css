@@ -698,6 +698,14 @@
   line-height: 1.5;
 }
 
+/* The facility tiles (.amenity-grid, styled in main.css) sit directly
+   under the venue name/address with no gap of their own — give the event
+   card specifically some breathing room above them. Scoped to .event-card
+   so the venue search page's own .amenity-grid spacing is untouched. */
+.event-card .amenity-grid {
+  margin-top: 14px;
+}
+
 .event-actions {
   display: flex;
   gap: 8px;
