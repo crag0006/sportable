@@ -4,7 +4,6 @@ Each test names the contract section it pins. The audit found the code
 disagreeing with the contract in these places; the contract was right.
 """
 
-import base64
 import json
 from datetime import UTC, date, datetime
 
@@ -149,24 +148,32 @@ def test_multi_event_calendar_file_is_its_own_route_not_an_unknown_event(client:
 
 
 # ------------------------------------------------------------ §8.5 / §11.2
-def _call(body: str | None, encoded: bool = False) -> tuple[int, dict]:
-    event = {"body": body, "isBase64Encoded": encoded}
-    out = assistant.handler(event, None)
-    return out["statusCode"], json.loads(out["body"])
+def _gateway_event(body: str) -> dict:
+    """A minimal API Gateway HTTP API v2 event for the assistant route."""
+    return {
+        "version": "2.0",
+        "routeKey": "POST /api/v1/assistant",
+        "rawPath": "/api/v1/assistant",
+        "rawQueryString": "",
+        "headers": {"content-type": "application/json", "host": "example.test"},
+        "requestContext": {
+            "http": {
+                "method": "POST",
+                "path": "/api/v1/assistant",
+                "sourceIp": "127.0.0.1",
+                "protocol": "HTTP/1.1",
+                "userAgent": "test",
+            },
+            "stage": "$default",
+        },
+        "body": body,
+        "isBase64Encoded": False,
+    }
 
 
-def test_assistant_skeleton_rejects_a_body_that_is_not_an_object():
-    for body in ("[]", '"hi"', "42", "not json"):
-        status, out = _call(body)
-        assert status == 400, body
-        assert out["error"]["code"] == "invalid_json"
-
-
-def test_assistant_skeleton_accepts_base64_bodies_and_links_to_the_search_page():
-    raw = base64.b64encode(b'{"question": "basketball near Preston"}').decode()
-    status, out = _call(raw, encoded=True)
-    assert status == 200
-    assert out["kind"] == "capability" and out["model_called"] is False
-    assert out["links"][0] == {"label": "Search venues", "href": "/venues"}
-    status, out = _call("{}")
-    assert status == 400 and out["error"]["code"] == "missing_question"
+def test_assistant_lambda_answers_bad_bodies_with_the_envelope():
+    """The second function is the same application: a bad body is a 422 envelope, never a 500."""
+    for body in ("[]", '"hi"', "42", "not json", "{}"):
+        out = assistant.handler(_gateway_event(body), None)
+        assert out["statusCode"] == 422, body
+        assert json.loads(out["body"])["error"]["code"] == "validation_error"

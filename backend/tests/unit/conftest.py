@@ -34,6 +34,7 @@ from app.repositories.protocols import (
     SportEntry,
     SportRow,
     UpcomingRow,
+    VenueMatch,
     VenueRow,
 )
 from fastapi.testclient import TestClient
@@ -485,6 +486,15 @@ class FakeReferenceRepository:
     def point_in_scope(self, latitude: float, longitude: float) -> bool:
         # Greater Melbourne, roughly: anything far east (Sydney) is out.
         return -39.0 < latitude < -37.0 and 144.0 < longitude < 146.0
+
+    def find_venues(self, name: str, suburb: str | None, limit: int = 5) -> list[VenueMatch]:
+        needle = name.lower()
+        return [
+            VenueMatch(v.venue_id, v.name, v.suburb, v.postcode, 0.9)
+            for v in VENUES
+            if needle in v.name.lower()
+            and (not suburb or (v.suburb or "").lower() == suburb.lower())
+        ][:limit]
 
     def list_sources(self) -> list[SourceRow]:
         return SOURCES

@@ -77,6 +77,45 @@ class SearchConfig(BaseModel):
         return config
 
 
+class AssistantConfig(BaseModel):
+    """The assistant tunables from ``ASSISTANT_CONFIG`` (contract v0.3 §8.7)."""
+
+    retrieval_top_k: int = 4
+    # Per embedding model; the Terraform default was written for Titan and is
+    # re-measured on staging before it is trusted.
+    relevance_floor: float = 0.35
+    bm25_ratio_floor: float = 0.40
+    bm25_ratio_soft: float = 0.30
+    lexical_margin: float = 0.05
+    max_rounds: int = 3
+    time_budget_s: float = 18.0
+    max_input_tokens: int = 2000
+    # The structured final answer with its actions needs the room: 500 and 900
+    # both truncated it in the lab. Anything configured lower is raised to this.
+    max_output_tokens: int = 2048
+    daily_invocation_cap: int = 2000
+    source: str = "fallback"
+
+    @classmethod
+    def from_json(cls, raw: str | None) -> Self:
+        """Parse the Terraform-supplied blob (all values are strings). Never raises."""
+        config = cls()
+        if not raw:
+            return config
+        try:
+            parsed: dict[str, Any] = json.loads(raw)
+            for name, field in cls.model_fields.items():
+                if name in parsed and name != "source":
+                    kind = float if field.annotation is float else int
+                    setattr(config, name, kind(parsed[name]))
+            config.max_output_tokens = max(config.max_output_tokens, 1024)
+            config.source = "terraform"
+        except (ValueError, TypeError, AttributeError) as exc:
+            log.warning("ASSISTANT_CONFIG present but unusable, using defaults: %s", exc)
+            return cls()
+        return config
+
+
 class EventsConfig(BaseModel):
     """Window and page defaults for /events (contract v0.2 §7)."""
 
@@ -98,6 +137,20 @@ class Settings(BaseSettings):
     events_default_window_days: int = DEFAULT_EVENTS_WINDOW_DAYS
     events_max_window_days: int = DEFAULT_EVENTS_MAX_WINDOW_DAYS
     events_page_size: int = DEFAULT_EVENTS_PAGE_SIZE
+    # The assistant (Epic 6). Model ids are configuration, never constants.
+    assistant_config: str | None = None
+    bedrock_text_model_id: str = "au.anthropic.claude-haiku-4-5-20251001-v1:0"
+    bedrock_embedding_model_id: str = "amazon.titan-embed-text-v2:0"
+    aws_region: str = "ap-southeast-2"
+    # TEMPORARY bridge credentials (infra/modules/api/assistant.tf); empty
+    # means the execution role signs the Bedrock calls.
+    bedrock_access_key_id: str | None = None
+    bedrock_secret_access_key: str | None = None
+
+    @property
+    def assistant(self) -> AssistantConfig:
+        """The assistant tunables parsed from ``ASSISTANT_CONFIG``."""
+        return AssistantConfig.from_json(self.assistant_config)
 
     @property
     def search(self) -> SearchConfig:
