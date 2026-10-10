@@ -68,19 +68,41 @@ def slot_hints(
     return on_days or [fallback]
 
 
+def _own_days(slot: TimeHint | None, days: tuple[str, ...]) -> tuple[str, ...]:
+    """The published weekdays a slot covers: the hint's own, else all of them."""
+    return tuple(d for d in days if slot and d in slot.weekdays) or days
+
+
+def _days_key(own: tuple[str, ...]) -> str:
+    """``friday``, ``wednesday-friday``, ``daily`` for all seven, ``main`` for none."""
+    if len(own) == len(WEEKDAYS):
+        return "daily"
+    return "-".join(own) or "main"
+
+
+def _days_text(own: tuple[str, ...]) -> str:
+    """``Friday``, ``Monday, Wednesday and Friday``, ``Every day`` for all seven."""
+    if len(own) == len(WEEKDAYS):
+        return "Every day"
+    names = [d.capitalize() for d in own]
+    return " and ".join(p for p in (", ".join(names[:-1]), names[-1]) if p) if names else ""
+
+
 def slot_keys(slots: Sequence[TimeHint | None], days: tuple[str, ...]) -> list[str]:
     """A short key per slot, distinct within the event; the ``.ics`` UID suffix uses it too.
 
-    The audience label when the hint carries one (``juniors``), else the hint's
-    weekdays (``friday``), and ``-2``, ``-3`` on a repeat. Two plain sentences both
-    label their hint ``main``, and calendar apps treat entries with one UID as one
-    event, so a shared key hid the second slot on import (found by the frontend).
+    One slot keeps its own label (``main`` or ``juniors``). With several, a plain
+    hint is keyed by its weekdays (``friday``) and a repeat gets ``-2``, ``-3``:
+    two plain sentences both label their hint ``main``, and calendar apps treat
+    entries with one UID as one event, so a shared key hid the second slot on
+    import (found by the frontend).
     """
+    if len(slots) == 1:
+        return [slots[0].slot if slots[0] else "main"]
     keys: list[str] = []
     counts: dict[str, int] = {}
     for slot in slots:
-        own = [d for d in days if slot and d in slot.weekdays] or list(days)
-        base = slot.slot if slot and slot.slot != "main" else "-".join(own) or "main"
+        base = slot.slot if slot and slot.slot != "main" else _days_key(_own_days(slot, days))
         counts[base] = counts.get(base, 0) + 1
         keys.append(base if counts[base] == 1 else f"{base}-{counts[base]}")
     return keys
@@ -168,8 +190,7 @@ def _slot_label(entry: _Entry, out: EventOut, h: TimeHint | None) -> str:
     """What the button for one slot says: audience, weekday(s) and the hinted times."""
     if entry.row.kind != "program":
         return " ".join(p for p in (out.date_local, out.time_local) if p) or entry.title
-    own = tuple(d for d in entry.days if h and d in h.weekdays) or entry.days
-    days = " and ".join(d.capitalize() for d in own)
+    days = _days_text(_own_days(h, entry.days))
     if h is None:
         return f"{days}, time not published"
     times = (
@@ -188,12 +209,11 @@ def _slot_links(
     slots = slot_hints(hints, entry.days, hint)
     links: list[CalendarLinkOut] = []
     for h, key in zip(slots, slot_keys(slots, entry.days), strict=True):
-        own_days = tuple(d for d in entry.days if h and d in h.weekdays) or entry.days
         url = google_template_url(
             title=entry.title,
             dates=_google_dates(entry.row, entry.anchor, h),
             timezone=entry.row.timezone,
-            rule=rrule(own_days) if entry.row.kind == "program" else None,
+            rule=rrule(_own_days(h, entry.days)) if entry.row.kind == "program" else None,
             location=entry.location,
             details=entry.lines,
         )

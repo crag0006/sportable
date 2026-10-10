@@ -177,6 +177,7 @@ def test_two_plain_slots_get_distinct_uids(client: TestClient, monkeypatch: pyte
         "aaaplay:25089#juniors@sportablemelbourne.me",
     ]
     assert _uids(client, "aaaplay:plain") == ["aaaplay:plain@sportablemelbourne.me"]
+    assert _link_labels(client, "aaaplay:plain") == [("main", "Monday, time not published")]
 
 
 def _link_labels(client: TestClient, event_id: str) -> list[tuple[str, str]]:
@@ -205,13 +206,30 @@ def test_google_links_carry_a_label_the_frontend_can_show(
         description="Every Saturday at 8:00 am.",
         weekdays=("saturday",),
     )
-    monkeypatch.setattr(conftest, "EVENTS", [*conftest.EVENTS, weekend, plain, open_end])
+    daily = replace(
+        base,
+        event_id="aaaplay:daily",
+        description="Lap swimming, no set time.",
+        weekdays=("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"),
+    )
+    three = replace(
+        base,
+        event_id="aaaplay:three",
+        description="Mondays, Wednesdays and Fridays from 9:30 am to 11:00 am.",
+        weekdays=("monday", "wednesday", "friday"),
+    )
+    rows = [weekend, plain, open_end, daily, three]
+    monkeypatch.setattr(conftest, "EVENTS", [*conftest.EVENTS, *rows])
     assert _link_labels(client, "aaaplay:badminton") == [
         ("friday", "Friday 7:00 pm to 9:00 pm"),
         ("sunday", "Sunday 2:00 pm to 4:00 pm"),
     ]
-    assert _link_labels(client, "aaaplay:plain") == [("monday", "Monday, time not published")]
-    assert _link_labels(client, "aaaplay:open") == [("saturday", "Saturday from 8:00 am")]
+    assert _link_labels(client, "aaaplay:plain") == [("main", "Monday, time not published")]
+    assert _link_labels(client, "aaaplay:open") == [("main", "Saturday from 8:00 am")]
+    assert _link_labels(client, "aaaplay:daily") == [("main", "Every day, time not published")]
+    assert _link_labels(client, "aaaplay:three") == [
+        ("main", "Monday, Wednesday and Friday 9:30 am to 11:00 am")
+    ]
     fixture = client.get(f"{EVENTS}/fx-1").json()
     assert _link_labels(client, "fx-1") == [
         ("main", f"{fixture['date_local']} {fixture['time_local']}")
