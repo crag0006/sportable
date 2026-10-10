@@ -1,0 +1,900 @@
+{
+  "run": {
+    "label": "qwen-tool-v2-rerun",
+    "timestamp": "20261010-183704",
+    "provider": "openai",
+    "model": "qwen3.8-flash-next-local",
+    "reasoning_effort": "medium",
+    "retrieval_mode": "tool",
+    "retrieval_lexical": "bm25",
+    "relevance_floor": 0.58,
+    "bm25_ratio_floor": 0.4,
+    "embedding_model": "bge-m3-fp16",
+    "max_rounds": 3,
+    "api_base": "http://127.0.0.1:8000/api/v1"
+  },
+  "records": [
+    {
+      "case": {
+        "id": "A2",
+        "group": "discovery",
+        "question": "Any netball venues in Reservoir 3073 with accessible parking within 250 m?",
+        "context": null,
+        "tools_expected": [
+          "search_venues"
+        ],
+        "must_contain": [],
+        "must_not_contain": [
+          "venue is within 250",
+          "venues within 250 m of",
+          "no netball venue within 250",
+          "none is within 250",
+          "none within 250",
+          "not within 250 m of the centre"
+        ],
+        "must_contain_response": [],
+        "note": "250 m is the facility band, not a venue radius; the answer must not say no venue lies within 250 m."
+      },
+      "result": {
+        "answer": "Eight netball venues are recorded with accessible parking at the venue, per the Sport and Recreational Facilities List (last updated 2024-12-17). Distances are straight-line metres from the centre of Reservoir 3073. The three closest: Darebin Community Sports Stadium, Reservoir, 2667 m — \"At the venue, per Sport and Recreational Facilities List.\"; H P Zwar Reserve, Preston, 3276 m — same wording; Martin Reserve, Hadfield, 4393 m — same wording. Four more netball venues have no published information about accessible parking, check with the venue. Two record that they do not have it. No venue is actually inside Reservoir itself.",
+        "raw_answer": "Eight netball venues are recorded with accessible parking at the venue, per the Sport and Recreational Facilities List (last updated 2024-12-17). Distances are straight-line metres from the centre of Reservoir 3073. The three closest: Darebin Community Sports Stadium, Reservoir, 2667 m — \"At the venue, per Sport and Recreational Facilities List.\"; H P Zwar Reserve, Preston, 3276 m — same wording; Martin Reserve, Hadfield, 4393 m — same wording. Four more netball venues have no published information about accessible parking, check with the venue. Two record that they do not have it. No venue is actually inside Reservoir itself.",
+        "final": {
+          "kind": "results",
+          "answer": "Eight netball venues are recorded with accessible parking at the venue, per the Sport and Recreational Facilities List (last updated 2024-12-17). Distances are straight-line metres from the centre of Reservoir 3073. The three closest: Darebin Community Sports Stadium, Reservoir, 2667 m — \"At the venue, per Sport and Recreational Facilities List.\"; H P Zwar Reserve, Preston, 3276 m — same wording; Martin Reserve, Hadfield, 4393 m — same wording. Four more netball venues have no published information about accessible parking, check with the venue. Two record that they do not have it. No venue is actually inside Reservoir itself.",
+          "venue_ids": [
+            "DAREBI11808",
+            "DAREBI11819",
+            "MORELA13037"
+          ],
+          "event_ids": [],
+          "actions": [
+            {
+              "kind": "search_venues",
+              "venue_id": null,
+              "event_id": null,
+              "sport": "netball",
+              "location": "Reservoir 3073",
+              "facilities": [
+                "accessible_parking"
+              ],
+              "distance_m": 250,
+              "weekday": null,
+              "from": null
+            },
+            {
+              "kind": "venue",
+              "venue_id": "DAREBI11808",
+              "event_id": null,
+              "sport": null,
+              "location": null,
+              "facilities": null,
+              "distance_m": null,
+              "weekday": null,
+              "from": null
+            },
+            {
+              "kind": "venue",
+              "venue_id": "DAREBI11819",
+              "event_id": null,
+              "sport": null,
+              "location": null,
+              "facilities": null,
+              "distance_m": null,
+              "weekday": null,
+              "from": null
+            },
+            {
+              "kind": "venue",
+              "venue_id": "MORELA13037",
+              "event_id": null,
+              "sport": null,
+              "location": null,
+              "facilities": null,
+              "distance_m": null,
+              "weekday": null,
+              "from": null
+            }
+          ],
+          "suggested_questions": [
+            "Which of these has an accessible change facility within 250 m?",
+            "Any netball programs or competitions at Darebin Community Sports Stadium?",
+            "Show the venues with no published information about accessible parking"
+          ]
+        },
+        "response": {
+          "kind": "results",
+          "answer": "Eight netball venues are recorded with accessible parking at the venue, per the Sport and Recreational Facilities List (last updated 2024-12-17). Distances are straight-line metres from the centre of Reservoir 3073. The three closest: Darebin Community Sports Stadium, Reservoir, 2667 m — \"At the venue, per Sport and Recreational Facilities List.\"; H P Zwar Reserve, Preston, 3276 m — same wording; Martin Reserve, Hadfield, 4393 m — same wording. Four more netball venues have no published information about accessible parking, check with the venue. Two record that they do not have it. No venue is actually inside Reservoir itself.",
+          "results": {
+            "venues": [
+              {
+                "id": "DAREBI11808",
+                "name": "Darebin Community Sports Stadium",
+                "suburb": "Reservoir",
+                "distance_m": 2667,
+                "href": "/venues/DAREBI11808",
+                "facilities": [
+                  {
+                    "type": "accessible_toilet",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_parking",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_transport_stop",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_change_facility",
+                    "display": "beyond_limit",
+                    "distance_m": 836,
+                    "message": "Nearest recorded accessible change facility is 836 m away, beyond your 250 m limit.",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "DAREBI11819",
+                "name": "H P Zwar Reserve",
+                "suburb": "Preston",
+                "distance_m": 3276,
+                "href": "/venues/DAREBI11819",
+                "facilities": [
+                  {
+                    "type": "accessible_toilet",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_parking",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_transport_stop",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_change_facility",
+                    "display": "beyond_limit",
+                    "distance_m": 842,
+                    "message": "Nearest recorded accessible change facility is 842 m away, beyond your 250 m limit.",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "MORELA13037",
+                "name": "Martin Reserve",
+                "suburb": "Hadfield",
+                "distance_m": 4393,
+                "href": "/venues/MORELA13037",
+                "facilities": [
+                  {
+                    "type": "accessible_toilet",
+                    "display": "not_available_alternative",
+                    "distance_m": null,
+                    "message": "Not at this venue. Nearest public accessible toilet 118 m away.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    },
+                    "alternative": {
+                      "name": "James Martin Reserve",
+                      "distance_m": 118
+                    }
+                  },
+                  {
+                    "type": "accessible_parking",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_transport_stop",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_change_facility",
+                    "display": "beyond_limit",
+                    "distance_m": 2188,
+                    "message": "Nearest recorded accessible change facility is 2188 m away, beyond your 250 m limit.",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  }
+                ]
+              }
+            ],
+            "events": []
+          },
+          "links": [
+            {
+              "kind": "search",
+              "label": "See all 14 netball venues near Reservoir 3073",
+              "href": "/venues?sport=netball&suburb=Reservoir+3073&facilities=accessible_parking&distance_m=250"
+            },
+            {
+              "kind": "venue",
+              "label": "Open Darebin Community Sports Stadium",
+              "href": "/venues/DAREBI11808"
+            },
+            {
+              "kind": "venue",
+              "label": "Open H P Zwar Reserve",
+              "href": "/venues/DAREBI11819"
+            },
+            {
+              "kind": "venue",
+              "label": "Open Martin Reserve",
+              "href": "/venues/MORELA13037"
+            }
+          ],
+          "sources": [
+            {
+              "name": "Sport and Recreational Facilities List",
+              "publisher_last_updated": "2024-12-17"
+            },
+            {
+              "name": "National Public Toilet Map",
+              "publisher_last_updated": "2022-01-12"
+            },
+            {
+              "name": "Accessible Parking Locations, City of Melbourne",
+              "publisher_last_updated": null
+            }
+          ],
+          "trace": [
+            {
+              "step": 1,
+              "tool": "resolve_location",
+              "summary": "Resolved \"Reservoir 3073\" to the centre of Reservoir 3073."
+            },
+            {
+              "step": 2,
+              "tool": "search_venues",
+              "summary": "Searched netball venues within 10 km of the centre of Reservoir 3073, facility band 250 m, accessible parking: 14 found, 8 matched, 4 with no published information, 2 recording none.",
+              "href": "/venues?sport=netball&suburb=Reservoir+3073&facilities=accessible_parking&distance_m=250"
+            }
+          ],
+          "suggested_questions": [
+            "Which of these has an accessible change facility within 250 m?",
+            "Any netball programs or competitions at Darebin Community Sports Stadium?",
+            "Show the venues with no published information about accessible parking"
+          ],
+          "notice": "This conversation is not stored.",
+          "model_called": true,
+          "builder": {
+            "urls_removed_from_answer": [],
+            "actions_dropped": [],
+            "ids_not_seen": []
+          }
+        },
+        "rounds": 2,
+        "tools": [
+          "resolve_location({\"query\":\"Reservoir 3073\"})",
+          "search_venues({\"sport\":\"netball\",\"location\":\"Reservoir 3073\",\"facilities\":[\"accessible_parking\"],\"distance_m\":250})"
+        ],
+        "tool_payloads": [
+          "{\"outcome\": \"resolved\", \"label\": \"the centre of Reservoir 3073\", \"kind\": \"suburb\", \"location\": \"Reservoir 3073\", \"message\": null, \"suggestions\": []}",
+          "{\"place\": \"the centre of Reservoir 3073\", \"distance_limit_m\": 250, \"counts\": {\"total_for_sport\": 14, \"matched\": 8, \"undocumented\": 4, \"not_available\": 2}, \"matched\": [{\"id\": \"DAREBI11808\", \"name\": \"Darebin Community Sports Stadium\", \"suburb\": \"Reservoir\", \"distance_m\": 2667, \"href\": \"/venues/DAREBI11808\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 836, \"message\": \"Nearest recorded accessible change facility is 836 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"DAREBI11819\", \"name\": \"H P Zwar Reserve\", \"suburb\": \"Preston\", \"distance_m\": 3276, \"href\": \"/venues/DAREBI11819\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 842, \"message\": \"Nearest recorded accessible change facility is 842 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"MORELA13037\", \"name\": \"Martin Reserve\", \"suburb\": \"Hadfield\", \"distance_m\": 4393, \"href\": \"/venues/MORELA13037\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"not_available_alternative\", \"distance_m\": null, \"message\": \"Not at this venue. Nearest public accessible toilet 118 m away.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"alternative\": {\"name\": \"James Martin Reserve\", \"distance_m\": 118}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2188, \"message\": \"Nearest recorded accessible change facility is 2188 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"WHITTL9519\", \"name\": \"Bundoora Netball and Sports Centre\", \"suburb\": \"Bundoora\", \"distance_m\": 6365, \"href\": \"/venues/WHITTL9519\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2163, \"message\": \"Nearest recorded accessible change facility is 2163 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"MORELA13013\", \"name\": \"Cook Reserve\", \"suburb\": \"Glenroy\", \"distance_m\": 7305, \"href\": \"/venues/MORELA13013\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"not_available_alternative\", \"distance_m\": null, \"message\": \"Not at this venue. Nearest public accessible toilet 112 m away.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"alternative\": {\"name\": \"Cooks Reserve\", \"distance_m\": 112}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 1440, \"message\": \"Nearest recorded accessible change facility is 1440 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}], \"undocumented\": {\"label\": \"4 more venues have no published information about accessible parking\", \"venues\": [{\"id\": \"DAREBI11831\", \"name\": \"Lakeview Tennis Club\", \"suburb\": \"Reservoir\", \"distance_m\": 927, \"href\": \"/venues/DAREBI11831\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"nearby\", \"distance_m\": 234, \"message\": \"Public accessible toilet 234 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 331, \"message\": \"Nearest recorded accessible change facility is 331 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"WHITTL9560\", \"name\": \"Thomastown Indoor Sports\", \"suburb\": \"Thomastown\", \"distance_m\": 2641, \"href\": \"/venues/WHITTL9560\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"beyond_limit\", \"distance_m\": 255, \"message\": \"Nearest recorded accessible toilet is 255 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2733, \"message\": \"Nearest recorded accessible change facility is 2733 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"MORELA13049\", \"name\": \"Reaburn Reserve\", \"suburb\": \"Brunswick\", \"distance_m\": 7439, \"href\": \"/venues/MORELA13049\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"nearby\", \"distance_m\": 162, \"message\": \"Public accessible toilet 162 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"beyond_limit\", \"distance_m\": 1614, \"message\": \"Nearest recorded accessible parking is 1614 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"Accessible Parking Locations, City of Melbourne\", \"publisher_last_updated\": null}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2233, \"message\": \"Nearest recorded accessible change facility is 2233 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"HUMECI11751\", \"name\": \"Fitness Arena\", \"suburb\": \"Coolaroo\", \"distance_m\": 9891, \"href\": \"/venues/HUMECI11751\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"beyond_limit\", \"distance_m\": 552, \"message\": \"Nearest recorded accessible toilet is 552 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}]}]}, \"not_available\": {\"label\": \"2 venues record that they do not have accessible parking\", \"venues\": [{\"id\": \"DAREBI11826\", \"name\": \"Judith Scott Memorial Reserve\", \"suburb\": \"Kingsbury\", \"distance_m\": 2928, \"href\": \"/venues/DAREBI11826\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"not_available\", \"distance_m\": null, \"message\": \"Not available, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 654, \"message\": \"Nearest recorded accessible change facility is 654 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"DAREBI11843\", \"name\": \"Sir Doug Nicholls Reserve\", \"suburb\": \"Thornbury\", \"distance_m\": 4508, \"href\": \"/venues/DAREBI11843\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"not_available_alternative\", \"distance_m\": null, \"message\": \"Not at this venue. Nearest public accessible toilet 740 m away.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"alternative\": {\"name\": \"Ray Bramham Gardens\", \"distance_m\": 740}}, {\"type\": \"accessible_parking\", \"display\": \"not_available_alternative\", \"distance_m\": null, \"message\": \"Not at this venue. Nearest public accessible parking 4573 m away.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"alternative\": {\"name\": \"Garton Street between MacPherson Street and Bowen Crescent\", \"distance_m\": 4573}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 1608, \"message\": \"Nearest recorded accessible change facility is 1608 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}]}, \"note\": \"Distances are straight-line metres from the place named above.\"}"
+        ],
+        "elapsed_s": 29.8,
+        "model": "qwen3.8-flash-next-local",
+        "retrieval_mode": "tool"
+      },
+      "checks": {
+        "grounded_hrefs": true,
+        "ungrounded_hrefs": [],
+        "grounded_numbers": true,
+        "ungrounded_numbers": [],
+        "must_contain": true,
+        "missing": [],
+        "must_not_contain": true,
+        "leaked": [],
+        "tools_expected": true,
+        "tools_called": [
+          "resolve_location",
+          "search_venues"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "case": {
+        "id": "F1",
+        "group": "vocabulary",
+        "question": "Is there anywhere to play badmington near Coburg?",
+        "context": null,
+        "tools_expected": [
+          "list_sports",
+          "search_venues"
+        ],
+        "must_contain": [
+          "Badminton"
+        ],
+        "must_not_contain": [],
+        "must_contain_response": [],
+        "note": "Misspelt sport. Either confirm it via list_sports or search the corrected name; 8 badminton venues exist near Coburg."
+      },
+      "result": {
+        "answer": "Yes. Eight venues near the centre of Coburg are listed for badminton. The three closest are Essendon Christ Church Badminton Club (4624 m), Carlton Baths Community Centre (5329 m) and Doutta Galla Ladies Badminton Club at the Doutta Galla Youth Hall, North Essendon (5453 m). Five more are further out, including Darebin Community Sports Stadium, Reservoir (6405 m). Distances are straight-line metres.\n\nOn access: Carlton Baths has an accessible toilet and accessible parking at the venue, per the Sport and Recreational Facilities List, last updated 2024-12-17. For Essendon Christ Church, a public accessible toilet is 258 m away (National Public Toilet Map, last updated 2022-01-12). No published information on a step-free station for any of them, check with the venue.",
+        "raw_answer": "Yes. Eight venues near the centre of Coburg are listed for badminton. The three closest are Essendon Christ Church Badminton Club (4624 m), Carlton Baths Community Centre (5329 m) and Doutta Galla Ladies Badminton Club at the Doutta Galla Youth Hall, North Essendon (5453 m). Five more are further out, including Darebin Community Sports Stadium, Reservoir (6405 m). Distances are straight-line metres.\n\nOn access: Carlton Baths has an accessible toilet and accessible parking at the venue, per the Sport and Recreational Facilities List, last updated 2024-12-17. For Essendon Christ Church, a public accessible toilet is 258 m away (National Public Toilet Map, last updated 2022-01-12). No published information on a step-free station for any of them, check with the venue.",
+        "final": {
+          "kind": "results",
+          "answer": "Yes. Eight venues near the centre of Coburg are listed for badminton. The three closest are Essendon Christ Church Badminton Club (4624 m), Carlton Baths Community Centre (5329 m) and Doutta Galla Ladies Badminton Club at the Doutta Galla Youth Hall, North Essendon (5453 m). Five more are further out, including Darebin Community Sports Stadium, Reservoir (6405 m). Distances are straight-line metres.\n\nOn access: Carlton Baths has an accessible toilet and accessible parking at the venue, per the Sport and Recreational Facilities List, last updated 2024-12-17. For Essendon Christ Church, a public accessible toilet is 258 m away (National Public Toilet Map, last updated 2022-01-12). No published information on a step-free station for any of them, check with the venue.",
+          "venue_ids": [
+            "MOONEE9368",
+            "MELBOU10988",
+            "MOONEE9364"
+          ],
+          "event_ids": [],
+          "actions": [
+            {
+              "kind": "search_venues",
+              "venue_id": null,
+              "event_id": null,
+              "sport": "Badminton",
+              "location": "Coburg",
+              "facilities": [],
+              "distance_m": null,
+              "weekday": null,
+              "from": null
+            },
+            {
+              "kind": "venue",
+              "venue_id": "MELBOU10988",
+              "event_id": null,
+              "sport": "Badminton",
+              "location": "Coburg",
+              "facilities": [],
+              "distance_m": null,
+              "weekday": null,
+              "from": null
+            },
+            {
+              "kind": "venue",
+              "venue_id": "MOONEE9368",
+              "event_id": null,
+              "sport": "Badminton",
+              "location": "Coburg",
+              "facilities": [],
+              "distance_m": null,
+              "weekday": null,
+              "from": null
+            }
+          ],
+          "suggested_questions": [
+            "Which of these has an accessible change facility nearby?",
+            "Are there any badminton events or programs near Coburg?",
+            "Tell me the full access record for Carlton Baths Community Centre"
+          ]
+        },
+        "response": {
+          "kind": "results",
+          "answer": "Yes. Eight venues near the centre of Coburg are listed for badminton. The three closest are Essendon Christ Church Badminton Club (4624 m), Carlton Baths Community Centre (5329 m) and Doutta Galla Ladies Badminton Club at the Doutta Galla Youth Hall, North Essendon (5453 m). Five more are further out, including Darebin Community Sports Stadium, Reservoir (6405 m). Distances are straight-line metres.\n\nOn access: Carlton Baths has an accessible toilet and accessible parking at the venue, per the Sport and Recreational Facilities List, last updated 2024-12-17. For Essendon Christ Church, a public accessible toilet is 258 m away (National Public Toilet Map, last updated 2022-01-12). No published information on a step-free station for any of them, check with the venue.",
+          "results": {
+            "venues": [
+              {
+                "id": "MOONEE9368",
+                "name": "Essendon Christ Church Badminton Club",
+                "suburb": "Essendon",
+                "distance_m": 4624,
+                "href": "/venues/MOONEE9368",
+                "facilities": [
+                  {
+                    "type": "accessible_toilet",
+                    "display": "nearby",
+                    "distance_m": 258,
+                    "message": "Public accessible toilet 258 m away (straight line).",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  },
+                  {
+                    "type": "accessible_parking",
+                    "display": "beyond_limit",
+                    "distance_m": 2949,
+                    "message": "Nearest recorded accessible parking is 2949 m away, beyond your 500 m limit.",
+                    "source": {
+                      "name": "Accessible Parking Locations, City of Melbourne",
+                      "publisher_last_updated": null
+                    }
+                  },
+                  {
+                    "type": "accessible_transport_stop",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_change_facility",
+                    "display": "beyond_limit",
+                    "distance_m": 1910,
+                    "message": "Nearest recorded accessible change facility is 1910 m away, beyond your 500 m limit.",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "MELBOU10988",
+                "name": "Carlton Baths Community Centre",
+                "suburb": "Carlton",
+                "distance_m": 5329,
+                "href": "/venues/MELBOU10988",
+                "facilities": [
+                  {
+                    "type": "accessible_toilet",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_parking",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_transport_stop",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_change_facility",
+                    "display": "beyond_limit",
+                    "distance_m": 794,
+                    "message": "Nearest recorded accessible change facility is 794 m away, beyond your 500 m limit.",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "MOONEE9364",
+                "name": "Doutta Galla Ladies Badminton Club (Doutta Galla Youth Hall)",
+                "suburb": "North Essendon",
+                "distance_m": 5453,
+                "href": "/venues/MOONEE9364",
+                "facilities": [
+                  {
+                    "type": "accessible_toilet",
+                    "display": "not_available_alternative",
+                    "distance_m": null,
+                    "message": "Not at this venue. Nearest public accessible toilet 971 m away.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    },
+                    "alternative": {
+                      "name": "Woodlands Park",
+                      "distance_m": 971
+                    }
+                  },
+                  {
+                    "type": "accessible_parking",
+                    "display": "not_available_alternative",
+                    "distance_m": null,
+                    "message": "Not at this venue. Nearest public accessible parking 4904 m away.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    },
+                    "alternative": {
+                      "name": "Leonard Crescent between Langs Road and Fisher Parade",
+                      "distance_m": 4904
+                    }
+                  },
+                  {
+                    "type": "accessible_transport_stop",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_change_facility",
+                    "display": "beyond_limit",
+                    "distance_m": 2833,
+                    "message": "Nearest recorded accessible change facility is 2833 m away, beyond your 500 m limit.",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  }
+                ]
+              }
+            ],
+            "events": []
+          },
+          "links": [
+            {
+              "kind": "search",
+              "label": "See all 8 Badminton venues near Coburg",
+              "href": "/venues?sport=Badminton&suburb=Coburg"
+            },
+            {
+              "kind": "venue",
+              "label": "Open Carlton Baths Community Centre",
+              "href": "/venues/MELBOU10988"
+            },
+            {
+              "kind": "venue",
+              "label": "Open Essendon Christ Church Badminton Club",
+              "href": "/venues/MOONEE9368"
+            }
+          ],
+          "sources": [
+            {
+              "name": "National Public Toilet Map",
+              "publisher_last_updated": "2022-01-12"
+            },
+            {
+              "name": "Accessible Parking Locations, City of Melbourne",
+              "publisher_last_updated": null
+            },
+            {
+              "name": "Sport and Recreational Facilities List",
+              "publisher_last_updated": "2024-12-17"
+            }
+          ],
+          "trace": [
+            {
+              "step": 1,
+              "tool": "list_sports",
+              "summary": "Listed sports matching \"badminton\": 1."
+            },
+            {
+              "step": 2,
+              "tool": "resolve_location",
+              "summary": "Resolved \"Coburg\" to the centre of Coburg."
+            },
+            {
+              "step": 3,
+              "tool": "search_venues",
+              "summary": "Searched Badminton venues within 10 km of the centre of Coburg, facility band 500 m, no facility filter: 8 found, 8 matched, 0 with no published information, 0 recording none.",
+              "href": "/venues?sport=Badminton&suburb=Coburg"
+            }
+          ],
+          "suggested_questions": [
+            "Which of these has an accessible change facility nearby?",
+            "Are there any badminton events or programs near Coburg?",
+            "Tell me the full access record for Carlton Baths Community Centre"
+          ],
+          "notice": "This conversation is not stored.",
+          "model_called": true,
+          "builder": {
+            "urls_removed_from_answer": [],
+            "actions_dropped": [],
+            "ids_not_seen": []
+          }
+        },
+        "rounds": 2,
+        "tools": [
+          "list_sports({\"query\":\"badminton\"})",
+          "resolve_location({\"query\":\"Coburg\"})",
+          "search_venues({\"sport\":\"Badminton\",\"location\":\"Coburg\",\"facilities\":[],\"distance_m\":null})"
+        ],
+        "tool_payloads": [
+          "{\"sports\": [{\"name\": \"Badminton\", \"venue_count\": 36, \"event_count\": 3}], \"total\": 1}",
+          "{\"outcome\": \"resolved\", \"label\": \"the centre of Coburg\", \"kind\": \"suburb\", \"location\": \"Coburg\", \"message\": null, \"suggestions\": []}",
+          "{\"place\": \"the centre of Coburg\", \"distance_limit_m\": 500, \"counts\": {\"total_for_sport\": 8, \"matched\": 8, \"undocumented\": 0, \"not_available\": 0}, \"matched\": [{\"id\": \"MOONEE9368\", \"name\": \"Essendon Christ Church Badminton Club\", \"suburb\": \"Essendon\", \"distance_m\": 4624, \"href\": \"/venues/MOONEE9368\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"nearby\", \"distance_m\": 258, \"message\": \"Public accessible toilet 258 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"beyond_limit\", \"distance_m\": 2949, \"message\": \"Nearest recorded accessible parking is 2949 m away, beyond your 500 m limit.\", \"source\": {\"name\": \"Accessible Parking Locations, City of Melbourne\", \"publisher_last_updated\": null}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 1910, \"message\": \"Nearest recorded accessible change facility is 1910 m away, beyond your 500 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"MELBOU10988\", \"name\": \"Carlton Baths Community Centre\", \"suburb\": \"Carlton\", \"distance_m\": 5329, \"href\": \"/venues/MELBOU10988\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 794, \"message\": \"Nearest recorded accessible change facility is 794 m away, beyond your 500 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"MOONEE9364\", \"name\": \"Doutta Galla Ladies Badminton Club (Doutta Galla Youth Hall)\", \"suburb\": \"North Essendon\", \"distance_m\": 5453, \"href\": \"/venues/MOONEE9364\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"not_available_alternative\", \"distance_m\": null, \"message\": \"Not at this venue. Nearest public accessible toilet 971 m away.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"alternative\": {\"name\": \"Woodlands Park\", \"distance_m\": 971}}, {\"type\": \"accessible_parking\", \"display\": \"not_available_alternative\", \"distance_m\": null, \"message\": \"Not at this venue. Nearest public accessible parking 4904 m away.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"alternative\": {\"name\": \"Leonard Crescent between Langs Road and Fisher Parade\", \"distance_m\": 4904}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2833, \"message\": \"Nearest recorded accessible change facility is 2833 m away, beyond your 500 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"DAREBI11808\", \"name\": \"Darebin Community Sports Stadium\", \"suburb\": \"Reservoir\", \"distance_m\": 6405, \"href\": \"/venues/DAREBI11808\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 836, \"message\": \"Nearest recorded accessible change facility is 836 m away, beyond your 500 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"MARIBY8458\", \"name\": \"Footscray Park Aquatic and Fitness Centre (Vic Uni)\", \"suburb\": \"Footscray\", \"distance_m\": 7877, \"href\": \"/venues/MARIBY8458\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"beyond_limit\", \"distance_m\": 676, \"message\": \"Nearest recorded accessible toilet is 676 m away, beyond your 500 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"beyond_limit\", \"distance_m\": 1373, \"message\": \"Nearest recorded accessible parking is 1373 m away, beyond your 500 m limit.\", \"source\": {\"name\": \"Accessible Parking Locations, City of Melbourne\", \"publisher_last_updated\": null}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 1624, \"message\": \"Nearest recorded accessible change facility is 1624 m away, beyond your 500 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}], \"undocumented\": {\"label\": \"No facility filter applied\", \"venues\": []}, \"not_available\": {\"label\": \"No facility filter applied\", \"venues\": []}, \"note\": \"Distances are straight-line metres from the place named above.\"}"
+        ],
+        "elapsed_s": 26.8,
+        "model": "qwen3.8-flash-next-local",
+        "retrieval_mode": "tool"
+      },
+      "checks": {
+        "grounded_hrefs": true,
+        "ungrounded_hrefs": [],
+        "grounded_numbers": true,
+        "ungrounded_numbers": [],
+        "must_contain": true,
+        "missing": [],
+        "must_not_contain": true,
+        "leaked": [],
+        "tools_expected": true,
+        "tools_called": [
+          "list_sports",
+          "resolve_location",
+          "search_venues"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "case": {
+        "id": "G1",
+        "group": "event",
+        "question": "Is this program free, and how do I register?",
+        "context": {
+          "event_id": "DS-09:activity:20862"
+        },
+        "tools_expected": [
+          "get_event"
+        ],
+        "must_contain": [
+          "free"
+        ],
+        "must_not_contain": [
+          "find_venue",
+          "search_events"
+        ],
+        "must_contain_response": [
+          "revolutionise.com.au"
+        ],
+        "note": "Frankston Boccia Club: is_free true, registration URL on revolutionise.com.au. The answer text carries no URLs by design; the link must be in the response (links or the event card)."
+      },
+      "result": {
+        "answer": "Yes. The publisher lists the Frankston Boccia Club as free. It runs Mondays, 1pm to 3pm, at Frankston South Recreation Centre, and is open to ages 5 up through older adults. The publisher's own description says it is a social boccia program: \"Come on down and have some fun.\" Registration is through Boccia Victoria's registration page, linked from the event page here. On access at that venue: the accessible toilet and accessible parking are both listed as at the venue, per the Sport and Recreational Facilities List last updated 17 December 2024. No published information on a step-free railway station, check with the venue. The nearest recorded accessible change facility is 950 m away, beyond the 500 m limit, per the National Public Toilet Map last updated 12 January 2022. Distances are straight-line.",
+        "raw_answer": "Yes. The publisher lists the Frankston Boccia Club as free. It runs Mondays, 1pm to 3pm, at Frankston South Recreation Centre, and is open to ages 5 up through older adults. The publisher's own description says it is a social boccia program: \"Come on down and have some fun.\" Registration is through Boccia Victoria's registration page, linked from the event page here. On access at that venue: the accessible toilet and accessible parking are both listed as at the venue, per the Sport and Recreational Facilities List last updated 17 December 2024. No published information on a step-free railway station, check with the venue. The nearest recorded accessible change facility is 950 m away, beyond the 500 m limit, per the National Public Toilet Map last updated 12 January 2022. Distances are straight-line.",
+        "final": {
+          "kind": "answer",
+          "answer": "Yes. The publisher lists the Frankston Boccia Club as free. It runs Mondays, 1pm to 3pm, at Frankston South Recreation Centre, and is open to ages 5 up through older adults. The publisher's own description says it is a social boccia program: \"Come on down and have some fun.\" Registration is through Boccia Victoria's registration page, linked from the event page here. On access at that venue: the accessible toilet and accessible parking are both listed as at the venue, per the Sport and Recreational Facilities List last updated 17 December 2024. No published information on a step-free railway station, check with the venue. The nearest recorded accessible change facility is 950 m away, beyond the 500 m limit, per the National Public Toilet Map last updated 12 January 2022. Distances are straight-line.",
+          "venue_ids": [
+            "FRANKS11035"
+          ],
+          "event_ids": [
+            "DS-09:activity:20862"
+          ],
+          "actions": [
+            {
+              "kind": "event",
+              "venue_id": null,
+              "event_id": "DS-09:activity:20862",
+              "sport": null,
+              "location": null,
+              "facilities": null,
+              "distance_m": null,
+              "weekday": null,
+              "from": null
+            },
+            {
+              "kind": "venue",
+              "venue_id": "FRANKS11035",
+              "event_id": null,
+              "sport": null,
+              "location": null,
+              "facilities": null,
+              "distance_m": null,
+              "weekday": null,
+              "from": null
+            }
+          ],
+          "suggested_questions": [
+            "What facilities does Frankston South Recreation Centre have?",
+            "Are there other boccia programs in Victoria?"
+          ]
+        },
+        "response": {
+          "kind": "answer",
+          "answer": "Yes. The publisher lists the Frankston Boccia Club as free. It runs Mondays, 1pm to 3pm, at Frankston South Recreation Centre, and is open to ages 5 up through older adults. The publisher's own description says it is a social boccia program: \"Come on down and have some fun.\" Registration is through Boccia Victoria's registration page, linked from the event page here. On access at that venue: the accessible toilet and accessible parking are both listed as at the venue, per the Sport and Recreational Facilities List last updated 17 December 2024. No published information on a step-free railway station, check with the venue. The nearest recorded accessible change facility is 950 m away, beyond the 500 m limit, per the National Public Toilet Map last updated 12 January 2022. Distances are straight-line.",
+          "results": {
+            "venues": [
+              {
+                "id": "FRANKS11035",
+                "name": "Frankston South Recreation Centre",
+                "suburb": "Frankston South",
+                "href": "/venues/FRANKS11035",
+                "from_event": true
+              }
+            ],
+            "events": [
+              {
+                "id": "DS-09:activity:20862",
+                "kind": "program",
+                "title": "Frankston Boccia Club",
+                "sport": "Boccia",
+                "when": "Mondays, afternoons",
+                "weekdays": [
+                  "monday"
+                ],
+                "time_of_day": [
+                  "afternoon"
+                ],
+                "price": "free",
+                "venue": {
+                  "id": "FRANKS11035",
+                  "name": "Frankston South Recreation Centre",
+                  "suburb": "Frankston South",
+                  "matched": true,
+                  "message": null
+                },
+                "distance_m": null,
+                "facilities": [
+                  {
+                    "type": "accessible_toilet",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_parking",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_transport_stop",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_change_facility",
+                    "display": "beyond_limit",
+                    "distance_m": 950,
+                    "message": "Nearest recorded accessible change facility is 950 m away, beyond your 500 m limit.",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  }
+                ],
+                "href": "/events/DS-09:activity:20862",
+                "external": "https://aaaplay.org.au/activity/frankston-boccia-club/",
+                "description": "Looking for somewhere to play social boccia and connect with other people. Come on down and have some fun. The program is free. Day: Monday Time: 1pm to 3pm",
+                "organisation": "Boccia Victoria",
+                "age_ranges": [
+                  "Adults (26+)",
+                  "Child (5-12)",
+                  "Older Adults (55+)",
+                  "Youth (13-17)",
+                  "Youth (18-25)"
+                ],
+                "access_needs": [],
+                "registration": "https://www.revolutionise.com.au/bocciavic/clubs",
+                "share_url": "/events/DS-09:activity:20862"
+              }
+            ]
+          },
+          "links": [
+            {
+              "kind": "event",
+              "label": "Open Frankston Boccia Club",
+              "href": "/events/DS-09:activity:20862"
+            },
+            {
+              "kind": "venue",
+              "label": "Open Frankston South Recreation Centre",
+              "href": "/venues/FRANKS11035"
+            },
+            {
+              "kind": "registration",
+              "label": "Register for Frankston Boccia Club",
+              "href": "https://www.revolutionise.com.au/bocciavic/clubs"
+            },
+            {
+              "kind": "publisher",
+              "label": "View Frankston Boccia Club on AAA Play",
+              "href": "https://aaaplay.org.au/activity/frankston-boccia-club/"
+            }
+          ],
+          "sources": [
+            {
+              "name": "Sport and Recreational Facilities List",
+              "publisher_last_updated": "2024-12-17"
+            },
+            {
+              "name": "National Public Toilet Map",
+              "publisher_last_updated": "2022-01-12"
+            }
+          ],
+          "trace": [
+            {
+              "step": 1,
+              "tool": "get_event",
+              "summary": "Read the event Frankston Boccia Club.",
+              "href": "/events/DS-09:activity:20862"
+            }
+          ],
+          "suggested_questions": [
+            "What facilities does Frankston South Recreation Centre have?",
+            "Are there other boccia programs in Victoria?"
+          ],
+          "notice": "This conversation is not stored.",
+          "model_called": true,
+          "builder": {
+            "urls_removed_from_answer": [],
+            "actions_dropped": [],
+            "ids_not_seen": []
+          }
+        },
+        "rounds": 1,
+        "tools": [
+          "get_event({\"event_id\":\"DS-09:activity:20862\"})"
+        ],
+        "tool_payloads": [
+          "{\"id\": \"DS-09:activity:20862\", \"kind\": \"program\", \"title\": \"Frankston Boccia Club\", \"sport\": \"Boccia\", \"when\": \"Mondays, afternoons\", \"weekdays\": [\"monday\"], \"time_of_day\": [\"afternoon\"], \"price\": \"free\", \"venue\": {\"id\": \"FRANKS11035\", \"name\": \"Frankston South Recreation Centre\", \"suburb\": \"Frankston South\", \"matched\": true, \"message\": null}, \"distance_m\": null, \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 950, \"message\": \"Nearest recorded accessible change facility is 950 m away, beyond your 500 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}], \"href\": \"/events/DS-09:activity:20862\", \"external\": \"https://aaaplay.org.au/activity/frankston-boccia-club/\", \"description\": \"Looking for somewhere to play social boccia and connect with other people. Come on down and have some fun. The program is free. Day: Monday Time: 1pm to 3pm\", \"organisation\": \"Boccia Victoria\", \"age_ranges\": [\"Adults (26+)\", \"Child (5-12)\", \"Older Adults (55+)\", \"Youth (13-17)\", \"Youth (18-25)\"], \"access_needs\": [], \"registration\": \"https://www.revolutionise.com.au/bocciavic/clubs\", \"share_url\": \"/events/DS-09:activity:20862\"}"
+        ],
+        "elapsed_s": 20.7,
+        "model": "qwen3.8-flash-next-local",
+        "retrieval_mode": "tool"
+      },
+      "checks": {
+        "grounded_hrefs": true,
+        "ungrounded_hrefs": [],
+        "grounded_numbers": true,
+        "ungrounded_numbers": [],
+        "must_contain": true,
+        "missing": [],
+        "must_not_contain": true,
+        "leaked": [],
+        "tools_expected": true,
+        "tools_called": [
+          "get_event"
+        ]
+      },
+      "pass": true
+    }
+  ]
+}

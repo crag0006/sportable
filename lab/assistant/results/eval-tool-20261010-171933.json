@@ -1,0 +1,286 @@
+[
+  {
+    "case": {
+      "id": "A2",
+      "group": "discovery",
+      "question": "Any netball venues in Reservoir 3073 with accessible parking within 250 m?",
+      "context": null,
+      "tools_expected": [
+        "search_venues"
+      ],
+      "must_contain": [],
+      "must_not_contain": [
+        "venue is within 250",
+        "venues within 250 m of",
+        "no netball venue within 250"
+      ],
+      "note": "250 m is the facility band, not a venue radius; the answer must not say no venue lies within 250 m."
+    },
+    "result": {
+      "answer": "Yes — 8 netball venues in the Reservoir 3073 area match accessible parking at the venue, per the Sport and Recreational Facilities List (last updated 2024-12-17). The three closest:\n\n- Darebin Community Sports Stadium, Reservoir — parking \"At the venue, per Sport and Recreational Facilities List.\" (2667 m)\n- H P Zwar Reserve, Preston — same wording (3276 m)\n- Martin Reserve, Hadfield — same wording (4393 m)\n\nDistances are straight-line metres from the centre of Reservoir.\n\nFour more venues have no published information on parking, check with the venue; two say it is not available. Full list: /venues/DAREBI11808",
+      "rounds": 2,
+      "tools": [
+        "resolve_location({\"query\":\"Reservoir 3073\"})",
+        "search_venues({\"sport\":\"netball\",\"location\":\"Reservoir 3073\",\"facilities\":[\"accessible_parking\"],\"distance_m\":250})"
+      ],
+      "tool_payloads": [
+        "{\"outcome\": \"resolved\", \"label\": \"the centre of Reservoir 3073\", \"kind\": \"suburb\", \"location\": \"Reservoir 3073\", \"message\": null, \"suggestions\": []}",
+        "{\"place\": \"the centre of Reservoir 3073\", \"distance_limit_m\": 250, \"counts\": {\"total_for_sport\": 14, \"matched\": 8, \"undocumented\": 4, \"not_available\": 2}, \"matched\": [{\"id\": \"DAREBI11808\", \"name\": \"Darebin Community Sports Stadium\", \"suburb\": \"Reservoir\", \"distance_m\": 2667, \"href\": \"/venues/DAREBI11808\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 836, \"message\": \"Nearest recorded accessible change facility is 836 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"DAREBI11819\", \"name\": \"H P Zwar Reserve\", \"suburb\": \"Preston\", \"distance_m\": 3276, \"href\": \"/venues/DAREBI11819\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 842, \"message\": \"Nearest recorded accessible change facility is 842 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"MORELA13037\", \"name\": \"Martin Reserve\", \"suburb\": \"Hadfield\", \"distance_m\": 4393, \"href\": \"/venues/MORELA13037\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"not_available_alternative\", \"distance_m\": null, \"message\": \"Not at this venue. Nearest public accessible toilet 118 m away.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"alternative\": {\"name\": \"James Martin Reserve\", \"distance_m\": 118}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2188, \"message\": \"Nearest recorded accessible change facility is 2188 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"WHITTL9519\", \"name\": \"Bundoora Netball and Sports Centre\", \"suburb\": \"Bundoora\", \"distance_m\": 6365, \"href\": \"/venues/WHITTL9519\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2163, \"message\": \"Nearest recorded accessible change facility is 2163 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"MORELA13013\", \"name\": \"Cook Reserve\", \"suburb\": \"Glenroy\", \"distance_m\": 7305, \"href\": \"/venues/MORELA13013\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"not_available_alternative\", \"distance_m\": null, \"message\": \"Not at this venue. Nearest public accessible toilet 112 m away.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"alternative\": {\"name\": \"Cooks Reserve\", \"distance_m\": 112}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 1440, \"message\": \"Nearest recorded accessible change facility is 1440 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}], \"undocumented\": {\"label\": \"4 more venues have no published information about accessible parking\", \"venues\": [{\"id\": \"DAREBI11831\", \"name\": \"Lakeview Tennis Club\", \"suburb\": \"Reservoir\", \"distance_m\": 927, \"href\": \"/venues/DAREBI11831\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"nearby\", \"distance_m\": 234, \"message\": \"Public accessible toilet 234 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 331, \"message\": \"Nearest recorded accessible change facility is 331 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"WHITTL9560\", \"name\": \"Thomastown Indoor Sports\", \"suburb\": \"Thomastown\", \"distance_m\": 2641, \"href\": \"/venues/WHITTL9560\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"beyond_limit\", \"distance_m\": 255, \"message\": \"Nearest recorded accessible toilet is 255 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2733, \"message\": \"Nearest recorded accessible change facility is 2733 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"MORELA13049\", \"name\": \"Reaburn Reserve\", \"suburb\": \"Brunswick\", \"distance_m\": 7439, \"href\": \"/venues/MORELA13049\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"nearby\", \"distance_m\": 162, \"message\": \"Public accessible toilet 162 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"beyond_limit\", \"distance_m\": 1614, \"message\": \"Nearest recorded accessible parking is 1614 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"Accessible Parking Locations, City of Melbourne\", \"publisher_last_updated\": null}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2233, \"message\": \"Nearest recorded accessible change facility is 2233 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"HUMECI11751\", \"name\": \"Fitness Arena\", \"suburb\": \"Coolaroo\", \"distance_m\": 9891, \"href\": \"/venues/HUMECI11751\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"beyond_limit\", \"distance_m\": 552, \"message\": \"Nearest recorded accessible toilet is 552 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}]}]}, \"not_available\": {\"label\": \"2 venues record that they do not have accessible parking\", \"venues\": [{\"id\": \"DAREBI11826\", \"name\": \"Judith Scott Memorial Reserve\", \"suburb\": \"Kingsbury\", \"distance_m\": 2928, \"href\": \"/venues/DAREBI11826\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"not_available\", \"distance_m\": null, \"message\": \"Not available, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 654, \"message\": \"Nearest recorded accessible change facility is 654 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"DAREBI11843\", \"name\": \"Sir Doug Nicholls Reserve\", \"suburb\": \"Thornbury\", \"distance_m\": 4508, \"href\": \"/venues/DAREBI11843\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"not_available_alternative\", \"distance_m\": null, \"message\": \"Not at this venue. Nearest public accessible toilet 740 m away.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"alternative\": {\"name\": \"Ray Bramham Gardens\", \"distance_m\": 740}}, {\"type\": \"accessible_parking\", \"display\": \"not_available_alternative\", \"distance_m\": null, \"message\": \"Not at this venue. Nearest public accessible parking 4573 m away.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"alternative\": {\"name\": \"Garton Street between MacPherson Street and Bowen Crescent\", \"distance_m\": 4573}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 1608, \"message\": \"Nearest recorded accessible change facility is 1608 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}]}, \"note\": \"Distances are straight-line metres from the place named above.\"}"
+      ],
+      "elapsed_s": 22.5,
+      "model": "qwen3.8-flash-next-local",
+      "retrieval_mode": "tool"
+    },
+    "checks": {
+      "grounded_hrefs": true,
+      "ungrounded_hrefs": [],
+      "grounded_numbers": true,
+      "ungrounded_numbers": [],
+      "must_contain": true,
+      "missing": [],
+      "must_not_contain": true,
+      "leaked": [],
+      "tools_expected": true,
+      "tools_called": [
+        "resolve_location",
+        "search_venues"
+      ]
+    },
+    "pass": true
+  },
+  {
+    "case": {
+      "id": "B4",
+      "group": "venue",
+      "question": "What are the opening hours of the accessible toilet at this venue?",
+      "context": {
+        "venue_id": "BANYUL12841"
+      },
+      "tools_expected": [
+        "get_venue"
+      ],
+      "must_contain": [
+        "recorded"
+      ],
+      "must_not_contain": [
+        "the accessible toilet is open",
+        "toilet opens at"
+      ],
+      "note": "The venue toilet has no recorded hours; hours of the nearby change facility are in the data and may be quoted."
+    },
+    "result": {
+      "answer": "The accessible toilet at Olympic Leisure Centre (15 Alamein Road, West Heidelberg) is listed as at the venue, per the Sport and Recreational Facilities List, last updated 17 December 2024.\n\nNo opening hours are recorded for it, and no key requirement is recorded either. So there is no published information on when it is open — check with the venue.\n\nThe venue page is /venues/BANYUL12841.",
+      "rounds": 1,
+      "tools": [
+        "get_venue({\"venue_id\":\"BANYUL12841\",\"distance_m\":null})"
+      ],
+      "tool_payloads": [
+        "{\"id\": \"BANYUL12841\", \"name\": \"Olympic Leisure Centre\", \"address\": \"15 Alamein Road, WEST HEIDELBERG 3081\", \"suburb\": \"West Heidelberg\", \"lga\": \"Banyule City Council\", \"sports\": [\"Basketball\", \"Fitness / Gymnasium Workouts\", \"Netball (Indoor)\", \"Soccer (Indoor Soccer / Futsal)\", \"Swimming\", \"Volleyball\"], \"href\": \"/venues/BANYUL12841\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"detail\": {\"location_relative_to_venue\": \"at the venue\", \"opening_hours\": null, \"opening_hours_unrecorded\": true, \"key_required\": null, \"key_requirement_unrecorded\": true, \"changing_places\": null, \"has_shower\": null}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"detail\": {\"location_relative_to_venue\": \"at the venue\", \"opening_hours\": null, \"opening_hours_unrecorded\": true, \"key_required\": null, \"key_requirement_unrecorded\": true, \"changing_places\": null, \"has_shower\": null}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 984, \"message\": \"Nearest recorded accessible change facility is 984 m away, beyond your 500 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}, \"detail\": {\"location_relative_to_venue\": \"a separate public facility nearby\", \"opening_hours\": \"OPEN: Mon-Wed 9am-5:30pm, Sun 10am-5pm, Sat 9am-5pm, Thu-Fri 9am-9pm\", \"opening_hours_unrecorded\": false, \"key_required\": false, \"key_requirement_unrecorded\": false, \"changing_places\": false, \"has_shower\": false}}], \"access_chain\": [{\"link\": \"arrive_parking\", \"status\": \"confirmed\", \"summary\": \"At the venue, per Sport and Recreational Facilities List.\"}, {\"link\": \"arrive_transport\", \"status\": \"no_published_information\", \"summary\": \"No published information - check with the venue.\"}, {\"link\": \"enter\", \"status\": \"no_published_information\", \"summary\": \"No Australian open dataset publishes step-free entry at venue level. Recorded as unpublished rather than estimated.\"}, {\"link\": \"toilet\", \"status\": \"confirmed\", \"summary\": \"At the venue, per Sport and Recreational Facilities List.\"}, {\"link\": \"change\", \"status\": \"no_published_information\", \"summary\": \"Nearest recorded accessible change facility is 984 m away, beyond your 500 m limit.\"}, {\"link\": \"play\", \"status\": \"no_published_information\", \"summary\": \"No Australian open dataset publishes access to the playing surface at venue level. Recorded as unpublished rather than estimated.\"}], \"limits\": [\"Step-free entry to the building\", \"Access to the playing surface\", \"Whether a recorded distance is walkable\", \"Whether a facility is open or unlocked when you visit\"], \"upcoming_events\": {\"count\": 0}, \"last_updated\": \"2026-09-01\"}"
+      ],
+      "elapsed_s": 10.2,
+      "model": "qwen3.8-flash-next-local",
+      "retrieval_mode": "tool"
+    },
+    "checks": {
+      "grounded_hrefs": true,
+      "ungrounded_hrefs": [],
+      "grounded_numbers": true,
+      "ungrounded_numbers": [],
+      "must_contain": true,
+      "missing": [],
+      "must_not_contain": true,
+      "leaked": [],
+      "tools_expected": true,
+      "tools_called": [
+        "get_venue"
+      ]
+    },
+    "pass": true
+  },
+  {
+    "case": {
+      "id": "C1",
+      "group": "retrieval",
+      "question": "Is there a tennis program for people who are blind or have low vision?",
+      "context": null,
+      "tools_expected": [
+        "search_program_descriptions",
+        "search_events"
+      ],
+      "must_contain": [
+        "Blind Tennis"
+      ],
+      "must_not_contain": [],
+      "note": ""
+    },
+    "result": {
+      "answer": "Yes. The publisher AAA Play writes that the Blind Tennis Program uses \"various types of balls, including audible tennis balls and different sized and coloured balls\", and that \"people of all ages and backgrounds can join\". The adult program runs as a six-week program on Friday nights during school terms; there is also a junior program for ages 5 to 15.\n\nIt's listed at Melbourne Sports & Aquatic Centre, Albert Park. Published access there: accessible toilet 73 m away and accessible change facility 73 m away (straight line, National Public Toilet Map, updated 2022-01-12); nearest recorded accessible parking 1381 m, beyond the 500 m limit (City of Melbourne); no published information on an accessible transport stop, check with the venue.\n\nSeparately, Doncaster Tennis Club says its coaches run programs for blind or low vision players. Details: /events/DS-09:activity:20905",
+      "rounds": 1,
+      "tools": [
+        "search_program_descriptions({\"question\":\"Which tennis programs mention audible tennis balls or are designed for people who are blind or have low vision?\"})",
+        "search_events({\"sport\":\"tennis\",\"location\":\"null\",\"date_from\":\"null\",\"date_to\":\"null\",\"weekday\":\"null\"})"
+      ],
+      "tool_payloads": [
+        "{\"available\": true, \"passages\": [{\"program_id\": \"DS-09:activity:20905\", \"title\": \"Blind Tennis Program\", \"text\": \"balls, including audible tennis balls and different sized and coloured balls. Before this program, people with total blindness could not play tennis. Now, people of all ages and backgrounds can join. You can play for fun or improve your skills to play at a higher level. Everyone is welcome! Juniors Blind Sports & Recreation Victoria and Tennis Victoria are happy to offer the Junior Blind Tennis program. Kids aged 5 to 15 who are blind or have vision problems can join.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/blind-tennis-program/\", \"similarity\": 0.664, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20905\"}, {\"program_id\": \"DS-09:activity:20905\", \"title\": \"Blind Tennis Program\", \"text\": \"Adults During school terms, we have a six-week blind tennis program. It is held on Friday nights at the National Tennis Centre on indoor courts. This program is run by Blind Sports & Recreation Victoria, Tennis Victoria, and Tennis Seniors Victoria. People with different levels of vision join the program. They do different tennis exercises with the help of volunteers. We use various types of balls, including audible tennis balls and different sized and coloured balls.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/blind-tennis-program/\", \"similarity\": 0.652, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20905\"}, {\"program_id\": \"DS-09:activity:20608\", \"title\": \"Bell Ball Blind and Vision Loss Program\", \"text\": \"Bell Ball – A free community program designed for people who are blind or have low vision. This is available via booking only. Skills sessions run for 45 minutes. The drills and games are played on a regulation basketball court. Most drills require 3 to 4 people, however, individual drills are also available. Dribbling, bounce passes, shooting, team passing and movements in a half-court and full-court setting.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/bell-ball-blind-and-vision-loss-program/\", \"similarity\": 0.559, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20608\"}, {\"program_id\": \"DS-09:activity:20614\", \"title\": \"Doncaster Tennis Club\", \"text\": \"Slamin Tennis has fun activities for everyone. We have special coaches and programs for: Wheelchair users, People who are deaf or hard of hearing, People with intellectual disabilities, Blind or low vision players, Kids with autism (our award-winning Au-Tastic Tennis program). Our coaches are trained to help all players. They know sign language and understand deaf needs. Everyone is welcome here. You’ll feel like you’re among friends right away. Try a FREE session by booking on our website.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/doncaster-tennis-club/\", \"similarity\": 0.652, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20614\"}], \"floor\": 0.58, \"note\": \"Passages are the publisher's own words about a program; quote them as such.\"}",
+        "{\"window\": {\"from\": \"2026-10-10\", \"to\": \"2026-11-07\"}, \"total\": 18, \"unmatched_venue\": 15, \"events\": [{\"id\": \"DS-09:activity:20659\", \"kind\": \"program\", \"title\": \"Ace Fun Tennis Club\", \"sport\": \"Tennis (Indoor)\", \"when\": \"Days not stated by the publisher\", \"weekdays\": [], \"time_of_day\": [], \"price\": \"free\", \"venue\": {\"id\": null, \"name\": \"North Park Tennis Club\", \"suburb\": \"Parkville\", \"matched\": false, \"message\": \"This venue is not in our venue list, so we have no published access information for it.\"}, \"distance_m\": null, \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}], \"href\": \"/events/DS-09:activity:20659\", \"external\": \"https://aaaplay.org.au/activity/ace-fun-tennis-club/\"}, {\"id\": \"DS-09:activity:21465\", \"kind\": \"program\", \"title\": \"All Abilities Tennis Program Ferntree Gully\", \"sport\": \"Tennis (Indoor)\", \"when\": \"Thursdays, evenings\", \"weekdays\": [\"thursday\"], \"time_of_day\": [\"evening\"], \"price\": \"paid\", \"venue\": {\"id\": null, \"name\": \"Ferntree Gully Tennis Club\", \"suburb\": null, \"matched\": false, \"message\": \"This venue is not in our venue list, so we have no published access information for it.\"}, \"distance_m\": null, \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}], \"href\": \"/events/DS-09:activity:21465\", \"external\": \"https://aaaplay.org.au/activity/all-abilities-tennis-program-ferntree-gully/\"}, {\"id\": \"DS-09:activity:20958\", \"kind\": \"program\", \"title\": \"Beaconsfield Tennis Club All Abilities Tennis\", \"sport\": \"Tennis (Indoor)\", \"when\": \"Days not stated by the publisher\", \"weekdays\": [], \"time_of_day\": [], \"price\": \"paid\", \"venue\": {\"id\": null, \"name\": \"Beaconsfield Recreation Reserve\", \"suburb\": null, \"matched\": false, \"message\": \"This venue is not in our venue list, so we have no published access information for it.\"}, \"distance_m\": null, \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}], \"href\": \"/events/DS-09:activity:20958\", \"external\": \"https://aaaplay.org.au/activity/beaconsfield-tennis-club-all-abilities-tennis/\"}, {\"id\": \"DS-09:activity:20905\", \"kind\": \"program\", \"title\": \"Blind Tennis Program\", \"sport\": \"Tennis (Indoor)\", \"when\": \"Fridays, evenings\", \"weekdays\": [\"friday\"], \"time_of_day\": [\"evening\"], \"price\": \"paid\", \"venue\": {\"id\": \"PORTPH12156\", \"name\": \"Melbourne Sports & Aquatic Centre\", \"suburb\": \"Albert Park\", \"matched\": true, \"message\": null}, \"distance_m\": null, \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"nearby\", \"distance_m\": 73, \"message\": \"Public accessible toilet 73 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"beyond_limit\", \"distance_m\": 1381, \"message\": \"Nearest recorded accessible parking is 1381 m away, beyond your 500 m limit.\", \"source\": {\"name\": \"Accessible Parking Locations, City of Melbourne\", \"publisher_last_updated\": null}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"nearby\", \"distance_m\": 73, \"message\": \"Public accessible change facility 73 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}], \"href\": \"/events/DS-09:activity:20905\", \"external\": \"https://aaaplay.org.au/activity/blind-tennis-program/\"}, {\"id\": \"DS-09:activity:22788\", \"kind\": \"program\", \"title\": \"Disability Hubs Wheelchair Tennis and Para-Standing Tennis\", \"sport\": \"Tennis (Indoor)\", \"when\": \"Days not stated by the publisher (afternoons)\", \"weekdays\": [], \"time_of_day\": [\"afternoon\"], \"price\": \"paid\", \"venue\": {\"id\": null, \"name\": \"Narrandjeri Stadium\", \"suburb\": null, \"matched\": false, \"message\": \"This venue is not in our venue list, so we have no published access information for it.\"}, \"distance_m\": null, \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}], \"href\": \"/events/DS-09:activity:22788\", \"external\": \"https://aaaplay.org.au/activity/disability-hubs-wheelchair-tennis-and-para-standing-tennis/\"}, {\"id\": \"DS-09:activity:20614\", \"kind\": \"program\", \"title\": \"Doncaster Tennis Club\", \"sport\": \"Tennis (Indoor)\", \"when\": \"Days not stated by the publisher\", \"weekdays\": [], \"time_of_day\": [], \"price\": \"free\", \"venue\": {\"id\": \"MANNIN11001\", \"name\": \"Doncaster Tennis Club\", \"suburb\": \"Doncaster\", \"matched\": true, \"message\": null}, \"distance_m\": null, \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 1333, \"message\": \"Nearest recorded accessible change facility is 1333 m away, beyond your 500 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}], \"href\": \"/events/DS-09:activity:20614\", \"external\": \"https://aaaplay.org.au/activity/doncaster-tennis-club/\"}, {\"id\": \"DS-09:activity:21444\", \"kind\": \"program\", \"title\": \"Eastern Tennis Club\", \"sport\": \"Tennis (Indoor)\", \"when\": \"Days not stated by the publisher\", \"weekdays\": [], \"time_of_day\": [], \"price\": \"free\", \"venue\": {\"id\": null, \"name\": \"Eastern Tennis Club\", \"suburb\": null, \"matched\": false, \"message\": \"This venue is not in our venue list, so we have no published access information for it.\"}, \"distance_m\": null, \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}], \"href\": \"/events/DS-09:activity:21444\", \"external\": \"https://aaaplay.org.au/activity/eastern-tennis-club/\"}, {\"id\": \"DS-09:activity:21417\", \"kind\": \"program\", \"title\": \"Hume Wheelchair Tennis Hub\", \"sport\": \"Tennis (Indoor)\", \"when\": \"Saturdays, afternoons\", \"weekdays\": [\"saturday\"], \"time_of_day\": [\"afternoon\"], \"price\": \"paid\", \"venue\": {\"id\": \"HUMECI5574\", \"name\": \"Hume Tennis & Community Centre\", \"suburb\": \"Craigieburn\", \"matched\": true, \"message\": null}, \"distance_m\": null, \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"nearby\", \"distance_m\": 92, \"message\": \"Public accessible toilet 92 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 1070, \"message\": \"Nearest recorded accessible change facility is 1070 m away, beyond your 500 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}], \"href\": \"/events/DS-09:activity:21417\", \"external\": \"https://aaaplay.org.au/activity/hume-wheelchair-tennis-hub/\"}], \"empty_message\": null, \"attribution\": [\"Activity and facility listings from AAA Play, aaaplay.org.au, Reclink Australia, delivered under the Access for All Abilities program with Victorian Government funding. Displayed to help people with disability find accessible sport and recreation in Victoria.\"]}"
+      ],
+      "elapsed_s": 26.1,
+      "model": "qwen3.8-flash-next-local",
+      "retrieval_mode": "tool"
+    },
+    "checks": {
+      "grounded_hrefs": true,
+      "ungrounded_hrefs": [],
+      "grounded_numbers": true,
+      "ungrounded_numbers": [],
+      "must_contain": true,
+      "missing": [],
+      "must_not_contain": true,
+      "leaked": [],
+      "tools_expected": true,
+      "tools_called": [
+        "search_events",
+        "search_program_descriptions"
+      ]
+    },
+    "pass": true
+  },
+  {
+    "case": {
+      "id": "C3",
+      "group": "retrieval",
+      "question": "Which programs mention audible tennis balls?",
+      "context": null,
+      "tools_expected": [
+        "search_program_descriptions"
+      ],
+      "must_contain": [
+        "Blind Tennis"
+      ],
+      "must_not_contain": [],
+      "note": ""
+    },
+    "result": {
+      "answer": "One program mentions them: the Blind Tennis Program. The publisher writes that they \"use various types of balls, including audible tennis balls and different sized and coloured balls.\"\n\nThe same publisher describes an adult six-week program during school terms on Friday nights at the National Tennis Centre on indoor courts, run by Blind Sports & Recreation Victoria, Tennis Victoria and Tennis Seniors Victoria, and a Junior Blind Tennis program for kids aged 5 to 15 who are blind or have vision problems.\n\nThree other tennis programs came up in the search but do not mention audible balls in their descriptions. Page: /events/DS-09:activity:20905",
+      "rounds": 1,
+      "tools": [
+        "search_program_descriptions({\"question\":\"Which programs mention audible tennis balls?\"})"
+      ],
+      "tool_payloads": [
+        "{\"available\": true, \"passages\": [{\"program_id\": \"DS-09:activity:20905\", \"title\": \"Blind Tennis Program\", \"text\": \"Adults During school terms, we have a six-week blind tennis program. It is held on Friday nights at the National Tennis Centre on indoor courts. This program is run by Blind Sports & Recreation Victoria, Tennis Victoria, and Tennis Seniors Victoria. People with different levels of vision join the program. They do different tennis exercises with the help of volunteers. We use various types of balls, including audible tennis balls and different sized and coloured balls.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/blind-tennis-program/\", \"similarity\": 0.533, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20905\"}, {\"program_id\": \"DS-09:activity:20905\", \"title\": \"Blind Tennis Program\", \"text\": \"balls, including audible tennis balls and different sized and coloured balls. Before this program, people with total blindness could not play tennis. Now, people of all ages and backgrounds can join. You can play for fun or improve your skills to play at a higher level. Everyone is welcome! Juniors Blind Sports & Recreation Victoria and Tennis Victoria are happy to offer the Junior Blind Tennis program. Kids aged 5 to 15 who are blind or have vision problems can join.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/blind-tennis-program/\", \"similarity\": 0.52, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20905\"}, {\"program_id\": \"DS-09:activity:20345\", \"title\": \"Let’s ‘ACE Autism’ Topseed Tennis Academy\", \"text\": \"At Top seed Tennis, we made a special program for kids with autism. Our ‘Let’s ACE Autism’ program helps kids with autism enjoy tennis and play for life. Venues: Auburn Primary School Epping Tennis Club Epping North Tennis Club Kingsbury Tennis Club West Lalor Tennis Club\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/lets-ace-autism-topseed-tennis-academy/\", \"similarity\": 0.51, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20345\"}, {\"program_id\": \"DS-09:activity:20914\", \"title\": \"Sunbury Tennis Club\", \"text\": \"tennis. Tennis Victoria also runs tennis programs for people with disabilities. These programs are done with other groups that help people with disabilities. Qualified coaches run these programs at local tennis clubs in Victoria. For more information, call Tennis Victoria at (03) 8420 8420 or email inclusionvic@tennis.com.au. You can also find your local club and coach by visiting www.tennis.com.au.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/sunbury-tennis-club/\", \"similarity\": 0.478, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20914\"}], \"floor\": 0.58, \"note\": \"Passages are the publisher's own words about a program; quote them as such.\"}"
+      ],
+      "elapsed_s": 12.3,
+      "model": "qwen3.8-flash-next-local",
+      "retrieval_mode": "tool"
+    },
+    "checks": {
+      "grounded_hrefs": true,
+      "ungrounded_hrefs": [],
+      "grounded_numbers": true,
+      "ungrounded_numbers": [],
+      "must_contain": true,
+      "missing": [],
+      "must_not_contain": true,
+      "leaked": [],
+      "tools_expected": true,
+      "tools_called": [
+        "search_program_descriptions"
+      ]
+    },
+    "pass": true
+  },
+  {
+    "case": {
+      "id": "C4",
+      "group": "retrieval",
+      "question": "Is there a unified football program for young people with disability run with Melbourne Victory?",
+      "context": null,
+      "tools_expected": [
+        "search_program_descriptions",
+        "search_events"
+      ],
+      "must_contain": [
+        "Melbourne Victory"
+      ],
+      "must_not_contain": [],
+      "note": ""
+    },
+    "result": {
+      "answer": "Yes. The publisher, AAA Play, writes that the \"Melbourne Victory All Abilities Unified Football Program\" is \"for young people with disability or additional support needs\", offering \"a fun, safe, and welcoming place to play football, learn new skills, make friends, and have fun.\"\n\nThey list four sessions:\n- Ages 6–16 and 12–18: 17 October – 5 December, 10:30am–11:20am (/events/DS-09:activity:25162)\n- Ages 16+: 14 October – 16 December, bi-weekly, 11:00am–12:00pm (/events/DS-09:activity:25160)\n- Ages 6–16 and 16+: 16 October – 4 December, 5:00pm–5:50pm (/events/DS-09:activity:25161)\n- The Melbourne Victory All Abilities Football Centre in Fawkner (/events/DS-09:activity:25033)\n\nThese are the publisher's own words; check their page to join.",
+      "rounds": 1,
+      "tools": [
+        "search_program_descriptions({\"question\":\"Is there a unified football program for young people with disability run with Melbourne Victory?\"})"
+      ],
+      "tool_payloads": [
+        "{\"available\": true, \"passages\": [{\"program_id\": \"DS-09:activity:25162\", \"title\": \"Unified Football Program\", \"text\": \"We are excited to invite young people to join our Melbourne Victory All Abilities Unified Football Program This program is for young people with disability or additional support needs. It offers a fun, safe, and welcoming place to play football, learn new skills, make friends, and have fun. Dates: 17 October – 5 December Time: 10:30am-11:20am Age Groups: 6-16 years and 12-18 years The program gives young people with disability the chance to enjoy football in a safe and supportive environment.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/unified-football-program-3/\", \"similarity\": 0.806, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:25162\"}, {\"program_id\": \"DS-09:activity:25160\", \"title\": \"Unified Football Program\", \"text\": \"We are excited to invite young people to join our Melbourne Victory All Abilities Unified Football Program This program is for young people with disability or additional support needs. It offers a fun, safe, and welcoming place to play football, learn new skills, make friends, and have fun. Dates: 14 October – 16th December – Bi-weekly Time: 11:00am-12:00pm Age Groups: 16+ years. The program gives young people with disability the chance to enjoy football in a safe and supportive environment.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/unified-football-program/\", \"similarity\": 0.805, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:25160\"}, {\"program_id\": \"DS-09:activity:25161\", \"title\": \"Unified Football Program\", \"text\": \"We are excited to invite young people to join our Melbourne Victory All Abilities Unified Football Program This program is for young people with disability or additional support needs. It offers a fun, safe, and welcoming place to play football, learn new skills, make friends, and have fun. Dates: 16 October – 4 December Time: 5:00pm- 5:50pm Age Groups: 6-16 years and 16+ years. The program gives young people with disability the chance to enjoy football in a safe and supportive environment.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/unified-football-program-2/\", \"similarity\": 0.805, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:25161\"}, {\"program_id\": \"DS-09:activity:25033\", \"title\": \"Unified Football Program\", \"text\": \"We are excited to invite young people to join our Melbourne Victory All Abilities Football Centre in Fawkner. This program is for young people with disability or additional support needs. It offers a fun, safe, and welcoming place to play football, learn new skills, make friends, and have fun.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/https-aaaplay-org-au-activity-melbourne-victoria-all-abilities-football-centre/\", \"similarity\": 0.747, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:25033\"}], \"floor\": 0.58, \"note\": \"Passages are the publisher's own words about a program; quote them as such.\"}"
+      ],
+      "elapsed_s": 13.3,
+      "model": "qwen3.8-flash-next-local",
+      "retrieval_mode": "tool"
+    },
+    "checks": {
+      "grounded_hrefs": true,
+      "ungrounded_hrefs": [],
+      "grounded_numbers": true,
+      "ungrounded_numbers": [],
+      "must_contain": true,
+      "missing": [],
+      "must_not_contain": true,
+      "leaked": [],
+      "tools_expected": true,
+      "tools_called": [
+        "search_program_descriptions"
+      ]
+    },
+    "pass": true
+  },
+  {
+    "case": {
+      "id": "D1",
+      "group": "knowledge",
+      "question": "Is the Sydney Cricket Ground wheelchair accessible?",
+      "context": null,
+      "tools_expected": [],
+      "must_contain": [
+        "Victoria"
+      ],
+      "must_not_contain": [
+        "Yes, the SCG",
+        "SCG is wheelchair accessible",
+        "Driver Avenue",
+        "Moore Park",
+        "lift access",
+        "wheelchair spaces"
+      ],
+      "note": "Outside coverage and not in DS-01; the model must not answer from memory. (MCG IS a DS-01 venue, so it was a bad trap.)"
+    },
+    "result": {
+      "answer": "I only have venues in Victoria, and the Sydney Cricket Ground is not in this site's register — nothing is published here about it.\n\nThe closest matches here are cricket grounds in Victoria, for example Malvern Cricket Ground (Malvern 3144), Essendon Cricket Ground (Essendon 3040) and Heidelberg Cricket Ground (Heidelberg 3084). You can see each one's accessible toilet, parking, change facility and nearby step-free station details on its page, for example /venues/STONNI11949.\n\nTell me a suburb or postcode and I can search for you.",
+      "rounds": 1,
+      "tools": [
+        "find_venue({\"name\":\"Sydney Cricket Ground\",\"suburb\":\"\"})"
+      ],
+      "tool_payloads": [
+        "{\"candidates\": [{\"id\": \"STONNI11949\", \"name\": \"Malvern Cricket Ground\", \"suburb\": \"Malvern\", \"postcode\": \"3144\", \"href\": \"/venues/STONNI11949\"}, {\"id\": \"MOONEE9369\", \"name\": \"Essendon Cricket Ground\", \"suburb\": \"Essendon\", \"postcode\": \"3040\", \"href\": \"/venues/MOONEE9369\"}, {\"id\": \"BANYUL12825\", \"name\": \"Heidelberg Cricket Ground\", \"suburb\": \"Heidelberg\", \"postcode\": \"3084\", \"href\": \"/venues/BANYUL12825\"}, {\"id\": \"HOBSON12990\", \"name\": \"Williamstown Cricket Ground\", \"suburb\": \"Williamstown\", \"postcode\": \"3016\", \"href\": \"/venues/HOBSON12990\"}, {\"id\": \"PORTPH12166\", \"name\": \"North Port Oval/Port Melbourne Cricket Ground\", \"suburb\": \"Port Melbourne\", \"postcode\": \"3207\", \"href\": \"/venues/PORTPH12166\"}]}"
+      ],
+      "elapsed_s": 11.8,
+      "model": "qwen3.8-flash-next-local",
+      "retrieval_mode": "tool"
+    },
+    "checks": {
+      "grounded_hrefs": true,
+      "ungrounded_hrefs": [],
+      "grounded_numbers": true,
+      "ungrounded_numbers": [],
+      "must_contain": true,
+      "missing": [],
+      "must_not_contain": true,
+      "leaked": [],
+      "tools_expected": true,
+      "tools_called": [
+        "find_venue"
+      ]
+    },
+    "pass": true
+  }
+]

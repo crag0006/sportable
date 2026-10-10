@@ -1,0 +1,1092 @@
+{
+  "run": {
+    "label": "haiku-tool-v2-rerun",
+    "timestamp": "20261010-183731",
+    "provider": "anthropic",
+    "model": "claude-haiku-5-5",
+    "reasoning_effort": "medium",
+    "retrieval_mode": "tool",
+    "retrieval_lexical": "bm25",
+    "relevance_floor": 0.58,
+    "bm25_ratio_floor": 0.4,
+    "embedding_model": "bge-m3-fp16",
+    "max_rounds": 3,
+    "api_base": "http://127.0.0.1:8000/api/v1"
+  },
+  "records": [
+    {
+      "case": {
+        "id": "A2",
+        "group": "discovery",
+        "question": "Any netball venues in Reservoir 3073 with accessible parking within 250 m?",
+        "context": null,
+        "tools_expected": [
+          "search_venues"
+        ],
+        "must_contain": [],
+        "must_not_contain": [
+          "venue is within 250",
+          "venues within 250 m of",
+          "no netball venue within 250",
+          "none is within 250",
+          "none within 250",
+          "not within 250 m of the centre"
+        ],
+        "must_contain_response": [],
+        "note": "250 m is the facility band, not a venue radius; the answer must not say no venue lies within 250 m."
+      },
+      "result": {
+        "answer": "Yes. Eight netball venues have accessible parking published at the venue. The nearest is Darebin Community Sports Stadium in Reservoir, about 2,667 m away in straight-line distance from the centre of Reservoir 3073. Its accessible parking is \"At the venue, per Sport and Recreational Facilities List\", last updated 2024-12-17. No venue has accessible parking within 250 m of the centre. Lakeview Tennis Club in Reservoir, about 927 m away, has \"No published information - check with the venue\" for accessible parking. Two venues record that they do not have accessible parking. Distances are straight-line metres.",
+        "raw_answer": "Yes. Eight netball venues have accessible parking published at the venue. The nearest is Darebin Community Sports Stadium in Reservoir, about 2,667 m away in straight-line distance from the centre of Reservoir 3073. Its accessible parking is \"At the venue, per Sport and Recreational Facilities List\", last updated 2024-12-17. No venue has accessible parking within 250 m of the centre. Lakeview Tennis Club in Reservoir, about 927 m away, has \"No published information - check with the venue\" for accessible parking. Two venues record that they do not have accessible parking. Distances are straight-line metres.",
+        "final": {
+          "kind": "results",
+          "answer": "Yes. Eight netball venues have accessible parking published at the venue. The nearest is Darebin Community Sports Stadium in Reservoir, about 2,667 m away in straight-line distance from the centre of Reservoir 3073. Its accessible parking is \"At the venue, per Sport and Recreational Facilities List\", last updated 2024-12-17. No venue has accessible parking within 250 m of the centre. Lakeview Tennis Club in Reservoir, about 927 m away, has \"No published information - check with the venue\" for accessible parking. Two venues record that they do not have accessible parking. Distances are straight-line metres.",
+          "venue_ids": [
+            "DAREBI11808",
+            "DAREBI11831"
+          ],
+          "event_ids": [],
+          "actions": [
+            {
+              "kind": "search_venues",
+              "venue_id": null,
+              "event_id": null,
+              "sport": "Netball",
+              "location": "Reservoir 3073",
+              "facilities": [
+                "accessible_parking"
+              ],
+              "distance_m": 250,
+              "weekday": null,
+              "from": null
+            },
+            {
+              "kind": "venue",
+              "venue_id": "DAREBI11808",
+              "event_id": null,
+              "sport": null,
+              "location": null,
+              "facilities": null,
+              "distance_m": 250,
+              "weekday": null,
+              "from": null
+            }
+          ],
+          "suggested_questions": [
+            "Which netball venues in Reservoir have an accessible toilet nearby?",
+            "Are there netball events in Reservoir on weekends?"
+          ]
+        },
+        "response": {
+          "kind": "results",
+          "answer": "Yes. Eight netball venues have accessible parking published at the venue. The nearest is Darebin Community Sports Stadium in Reservoir, about 2,667 m away in straight-line distance from the centre of Reservoir 3073. Its accessible parking is \"At the venue, per Sport and Recreational Facilities List\", last updated 2024-12-17. No venue has accessible parking within 250 m of the centre. Lakeview Tennis Club in Reservoir, about 927 m away, has \"No published information - check with the venue\" for accessible parking. Two venues record that they do not have accessible parking. Distances are straight-line metres.",
+          "results": {
+            "venues": [
+              {
+                "id": "DAREBI11808",
+                "name": "Darebin Community Sports Stadium",
+                "suburb": "Reservoir",
+                "distance_m": 2667,
+                "href": "/venues/DAREBI11808",
+                "facilities": [
+                  {
+                    "type": "accessible_toilet",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_parking",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_transport_stop",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_change_facility",
+                    "display": "beyond_limit",
+                    "distance_m": 836,
+                    "message": "Nearest recorded accessible change facility is 836 m away, beyond your 250 m limit.",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "DAREBI11831",
+                "name": "Lakeview Tennis Club",
+                "suburb": "Reservoir",
+                "distance_m": 927,
+                "href": "/venues/DAREBI11831",
+                "facilities": [
+                  {
+                    "type": "accessible_toilet",
+                    "display": "nearby",
+                    "distance_m": 234,
+                    "message": "Public accessible toilet 234 m away (straight line).",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  },
+                  {
+                    "type": "accessible_parking",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_transport_stop",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_change_facility",
+                    "display": "beyond_limit",
+                    "distance_m": 331,
+                    "message": "Nearest recorded accessible change facility is 331 m away, beyond your 250 m limit.",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  }
+                ]
+              }
+            ],
+            "events": []
+          },
+          "links": [
+            {
+              "kind": "search",
+              "label": "See all 14 Netball venues near Reservoir 3073",
+              "href": "/venues?sport=Netball&suburb=Reservoir+3073&facilities=accessible_parking&distance_m=250"
+            },
+            {
+              "kind": "venue",
+              "label": "Open Darebin Community Sports Stadium",
+              "href": "/venues/DAREBI11808"
+            }
+          ],
+          "sources": [
+            {
+              "name": "Sport and Recreational Facilities List",
+              "publisher_last_updated": "2024-12-17"
+            },
+            {
+              "name": "National Public Toilet Map",
+              "publisher_last_updated": "2022-01-12"
+            },
+            {
+              "name": "Accessible Parking Locations, City of Melbourne",
+              "publisher_last_updated": null
+            }
+          ],
+          "trace": [
+            {
+              "step": 1,
+              "tool": "resolve_location",
+              "summary": "Resolved \"Reservoir 3073\" to the centre of Reservoir 3073."
+            },
+            {
+              "step": 2,
+              "tool": "list_sports",
+              "summary": "Listed sports matching \"netball\": 5."
+            },
+            {
+              "step": 3,
+              "tool": "search_venues",
+              "summary": "Searched Netball venues within 10 km of the centre of Reservoir 3073, facility band 250 m, accessible parking: 14 found, 8 matched, 4 with no published information, 2 recording none.",
+              "href": "/venues?sport=Netball&suburb=Reservoir+3073&facilities=accessible_parking&distance_m=250"
+            }
+          ],
+          "suggested_questions": [
+            "Which netball venues in Reservoir have an accessible toilet nearby?",
+            "Are there netball events in Reservoir on weekends?"
+          ],
+          "notice": "This conversation is not stored.",
+          "model_called": true,
+          "builder": {
+            "urls_removed_from_answer": [],
+            "actions_dropped": [],
+            "ids_not_seen": []
+          }
+        },
+        "rounds": 2,
+        "tools": [
+          "resolve_location({\"query\": \"Reservoir 3073\"})",
+          "list_sports({\"query\": \"netball\"})",
+          "search_venues({\"sport\": \"Netball\", \"location\": \"Reservoir 3073\", \"facilities\": [\"accessible_parking\"], \"distance_m\": 250})"
+        ],
+        "tool_payloads": [
+          "{\"outcome\": \"resolved\", \"label\": \"the centre of Reservoir 3073\", \"kind\": \"suburb\", \"location\": \"Reservoir 3073\", \"message\": null, \"suggestions\": []}",
+          "{\"sports\": [{\"name\": \"Basketball\", \"venue_count\": 149, \"event_count\": 38}, {\"name\": \"Netball\", \"venue_count\": 138, \"event_count\": 13}, {\"name\": \"Netball (indoor)\", \"venue_count\": 2, \"event_count\": 0}, {\"name\": \"Netball (Indoor)\", \"venue_count\": 63, \"event_count\": 0}, {\"name\": \"Softball\", \"venue_count\": 19, \"event_count\": 0}], \"total\": 5}",
+          "{\"place\": \"the centre of Reservoir 3073\", \"distance_limit_m\": 250, \"counts\": {\"total_for_sport\": 14, \"matched\": 8, \"undocumented\": 4, \"not_available\": 2}, \"matched\": [{\"id\": \"DAREBI11808\", \"name\": \"Darebin Community Sports Stadium\", \"suburb\": \"Reservoir\", \"distance_m\": 2667, \"href\": \"/venues/DAREBI11808\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 836, \"message\": \"Nearest recorded accessible change facility is 836 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"DAREBI11819\", \"name\": \"H P Zwar Reserve\", \"suburb\": \"Preston\", \"distance_m\": 3276, \"href\": \"/venues/DAREBI11819\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 842, \"message\": \"Nearest recorded accessible change facility is 842 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"MORELA13037\", \"name\": \"Martin Reserve\", \"suburb\": \"Hadfield\", \"distance_m\": 4393, \"href\": \"/venues/MORELA13037\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"not_available_alternative\", \"distance_m\": null, \"message\": \"Not at this venue. Nearest public accessible toilet 118 m away.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"alternative\": {\"name\": \"James Martin Reserve\", \"distance_m\": 118}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2188, \"message\": \"Nearest recorded accessible change facility is 2188 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"WHITTL9519\", \"name\": \"Bundoora Netball and Sports Centre\", \"suburb\": \"Bundoora\", \"distance_m\": 6365, \"href\": \"/venues/WHITTL9519\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2163, \"message\": \"Nearest recorded accessible change facility is 2163 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"MORELA13013\", \"name\": \"Cook Reserve\", \"suburb\": \"Glenroy\", \"distance_m\": 7305, \"href\": \"/venues/MORELA13013\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"not_available_alternative\", \"distance_m\": null, \"message\": \"Not at this venue. Nearest public accessible toilet 112 m away.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"alternative\": {\"name\": \"Cooks Reserve\", \"distance_m\": 112}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 1440, \"message\": \"Nearest recorded accessible change facility is 1440 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}], \"undocumented\": {\"label\": \"4 more venues have no published information about accessible parking\", \"venues\": [{\"id\": \"DAREBI11831\", \"name\": \"Lakeview Tennis Club\", \"suburb\": \"Reservoir\", \"distance_m\": 927, \"href\": \"/venues/DAREBI11831\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"nearby\", \"distance_m\": 234, \"message\": \"Public accessible toilet 234 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 331, \"message\": \"Nearest recorded accessible change facility is 331 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"WHITTL9560\", \"name\": \"Thomastown Indoor Sports\", \"suburb\": \"Thomastown\", \"distance_m\": 2641, \"href\": \"/venues/WHITTL9560\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"beyond_limit\", \"distance_m\": 255, \"message\": \"Nearest recorded accessible toilet is 255 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2733, \"message\": \"Nearest recorded accessible change facility is 2733 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"MORELA13049\", \"name\": \"Reaburn Reserve\", \"suburb\": \"Brunswick\", \"distance_m\": 7439, \"href\": \"/venues/MORELA13049\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"nearby\", \"distance_m\": 162, \"message\": \"Public accessible toilet 162 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"beyond_limit\", \"distance_m\": 1614, \"message\": \"Nearest recorded accessible parking is 1614 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"Accessible Parking Locations, City of Melbourne\", \"publisher_last_updated\": null}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2233, \"message\": \"Nearest recorded accessible change facility is 2233 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"HUMECI11751\", \"name\": \"Fitness Arena\", \"suburb\": \"Coolaroo\", \"distance_m\": 9891, \"href\": \"/venues/HUMECI11751\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"beyond_limit\", \"distance_m\": 552, \"message\": \"Nearest recorded accessible toilet is 552 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}]}]}, \"not_available\": {\"label\": \"2 venues record that they do not have accessible parking\", \"venues\": [{\"id\": \"DAREBI11826\", \"name\": \"Judith Scott Memorial Reserve\", \"suburb\": \"Kingsbury\", \"distance_m\": 2928, \"href\": \"/venues/DAREBI11826\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"not_available\", \"distance_m\": null, \"message\": \"Not available, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 654, \"message\": \"Nearest recorded accessible change facility is 654 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"DAREBI11843\", \"name\": \"Sir Doug Nicholls Reserve\", \"suburb\": \"Thornbury\", \"distance_m\": 4508, \"href\": \"/venues/DAREBI11843\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"not_available_alternative\", \"distance_m\": null, \"message\": \"Not at this venue. Nearest public accessible toilet 740 m away.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"alternative\": {\"name\": \"Ray Bramham Gardens\", \"distance_m\": 740}}, {\"type\": \"accessible_parking\", \"display\": \"not_available_alternative\", \"distance_m\": null, \"message\": \"Not at this venue. Nearest public accessible parking 4573 m away.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"alternative\": {\"name\": \"Garton Street between MacPherson Street and Bowen Crescent\", \"distance_m\": 4573}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 1608, \"message\": \"Nearest recorded accessible change facility is 1608 m away, beyond your 250 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}]}, \"note\": \"Distances are straight-line metres from the place named above.\"}"
+        ],
+        "elapsed_s": 7.8,
+        "model": "claude-haiku-5-5",
+        "retrieval_mode": "tool",
+        "stop_reasons": [
+          "tool_use",
+          "tool_use",
+          "tool_use"
+        ],
+        "usage": {
+          "input": 6132,
+          "output": 1351,
+          "cache_read": 7926
+        }
+      },
+      "checks": {
+        "grounded_hrefs": true,
+        "ungrounded_hrefs": [],
+        "grounded_numbers": true,
+        "ungrounded_numbers": [],
+        "must_contain": true,
+        "missing": [],
+        "must_not_contain": true,
+        "leaked": [],
+        "tools_expected": true,
+        "tools_called": [
+          "list_sports",
+          "resolve_location",
+          "search_venues"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "case": {
+        "id": "F2",
+        "group": "vocabulary",
+        "question": "Any footy clubs near Brunswick I could join?",
+        "context": null,
+        "tools_expected": [
+          "list_sports",
+          "search_venues"
+        ],
+        "must_contain": [
+          "Australian Rules"
+        ],
+        "must_not_contain": [
+          "soccer"
+        ],
+        "must_contain_response": [],
+        "note": "'footy' is not a vocabulary name; /sports?q=footy returns nothing, so the model must find Australian Rules Football."
+      },
+      "result": {
+        "answer": "I found five upcoming Australian Rules football programs in the wider area, though none are in Brunswick itself. Distances are straight-line from the centre of Brunswick.\n\nThe closest is the Reclink Footy Cohealth Kangaroos program at JJ Holland Park, South Kensington (about 4.8 km). It runs free on Wednesday mornings. The publisher's records show an accessible toilet, parking and change facility about 130 to 134 m away, with the toilet data last updated 2022-01-12.\n\nThe AFL Victoria Wheelchair Auskick Centre (Sundays, mornings, paid, at State Netball Hockey Centre, Parkville, about 2.2 km) has no published access information. Two more programs (Reclink Footy Collingwood Magpies and Salvo Hawks) are further away. Check with each venue about access and joining.\n\nTwo more programs are listed in the search. Open the search page to see them all.",
+        "raw_answer": "I found five upcoming Australian Rules football programs in the wider area, though none are in Brunswick itself. Distances are straight-line from the centre of Brunswick.\n\nThe closest is the Reclink Footy Cohealth Kangaroos program at JJ Holland Park, South Kensington (about 4.8 km). It runs free on Wednesday mornings. The publisher's records show an accessible toilet, parking and change facility about 130 to 134 m away, with the toilet data last updated 2022-01-12.\n\nThe AFL Victoria Wheelchair Auskick Centre (Sundays, mornings, paid, at State Netball Hockey Centre, Parkville, about 2.2 km) has no published access information. Two more programs (Reclink Footy Collingwood Magpies and Salvo Hawks) are further away. Check with each venue about access and joining.\n\nTwo more programs are listed in the search. Open the search page to see them all.",
+        "final": {
+          "kind": "results",
+          "answer": "I found five upcoming Australian Rules football programs in the wider area, though none are in Brunswick itself. Distances are straight-line from the centre of Brunswick.\n\nThe closest is the Reclink Footy Cohealth Kangaroos program at JJ Holland Park, South Kensington (about 4.8 km). It runs free on Wednesday mornings. The publisher's records show an accessible toilet, parking and change facility about 130 to 134 m away, with the toilet data last updated 2022-01-12.\n\nThe AFL Victoria Wheelchair Auskick Centre (Sundays, mornings, paid, at State Netball Hockey Centre, Parkville, about 2.2 km) has no published access information. Two more programs (Reclink Footy Collingwood Magpies and Salvo Hawks) are further away. Check with each venue about access and joining.\n\nTwo more programs are listed in the search. Open the search page to see them all.",
+          "venue_ids": [
+            "MELBOU11006"
+          ],
+          "event_ids": [
+            "DS-09:activity:22480",
+            "DS-09:activity:22697"
+          ],
+          "actions": [
+            {
+              "kind": "search_events",
+              "venue_id": null,
+              "event_id": null,
+              "sport": "Australian Rules Football",
+              "location": "Brunswick",
+              "facilities": null,
+              "distance_m": null,
+              "weekday": null,
+              "from": null
+            },
+            {
+              "kind": "event",
+              "venue_id": null,
+              "event_id": "DS-09:activity:22480",
+              "sport": null,
+              "location": null,
+              "facilities": null,
+              "distance_m": null,
+              "weekday": null,
+              "from": null
+            }
+          ],
+          "suggested_questions": [
+            "Which footy programs run on weekends near Brunswick?",
+            "Are there netball programs near Brunswick?"
+          ]
+        },
+        "response": {
+          "kind": "results",
+          "answer": "I found five upcoming Australian Rules football programs in the wider area, though none are in Brunswick itself. Distances are straight-line from the centre of Brunswick.\n\nThe closest is the Reclink Footy Cohealth Kangaroos program at JJ Holland Park, South Kensington (about 4.8 km). It runs free on Wednesday mornings. The publisher's records show an accessible toilet, parking and change facility about 130 to 134 m away, with the toilet data last updated 2022-01-12.\n\nThe AFL Victoria Wheelchair Auskick Centre (Sundays, mornings, paid, at State Netball Hockey Centre, Parkville, about 2.2 km) has no published access information. Two more programs (Reclink Footy Collingwood Magpies and Salvo Hawks) are further away. Check with each venue about access and joining.\n\nTwo more programs are listed in the search. Open the search page to see them all.",
+          "results": {
+            "venues": [
+              {
+                "id": "MELBOU11006",
+                "name": "JJ Holland Park",
+                "suburb": "South Kensington",
+                "href": "/venues/MELBOU11006",
+                "from_event": true
+              }
+            ],
+            "events": [
+              {
+                "id": "DS-09:activity:22480",
+                "kind": "program",
+                "title": "Reclink Footy – Cohealth Kangaroos",
+                "sport": "Australian Rules Football",
+                "when": "Wednesdays, mornings",
+                "weekdays": [
+                  "wednesday"
+                ],
+                "time_of_day": [
+                  "morning"
+                ],
+                "price": "free",
+                "venue": {
+                  "id": "MELBOU11006",
+                  "name": "JJ Holland Park",
+                  "suburb": "South Kensington",
+                  "matched": true,
+                  "message": null
+                },
+                "distance_m": 4770,
+                "facilities": [
+                  {
+                    "type": "accessible_toilet",
+                    "display": "nearby",
+                    "distance_m": 134,
+                    "message": "Public accessible toilet 134 m away (straight line).",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  },
+                  {
+                    "type": "accessible_parking",
+                    "display": "nearby",
+                    "distance_m": 130,
+                    "message": "Public accessible parking 130 m away (straight line).",
+                    "source": {
+                      "name": "Accessible Parking Locations, City of Melbourne",
+                      "publisher_last_updated": null
+                    }
+                  },
+                  {
+                    "type": "accessible_transport_stop",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_change_facility",
+                    "display": "nearby",
+                    "distance_m": 134,
+                    "message": "Public accessible change facility 134 m away (straight line).",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  }
+                ],
+                "href": "/events/DS-09:activity:22480",
+                "external": "https://aaaplay.org.au/activity/reclink-footy-cohealth-kangaroos/"
+              },
+              {
+                "id": "DS-09:activity:22697",
+                "kind": "program",
+                "title": "AFL Victoria Wheelchair Auskick Centre",
+                "sport": "Australian Rules Football",
+                "when": "Sundays, mornings",
+                "weekdays": [
+                  "sunday"
+                ],
+                "time_of_day": [
+                  "morning"
+                ],
+                "price": "paid",
+                "venue": {
+                  "id": null,
+                  "name": "State Netball Hockey Centre",
+                  "suburb": "Parkville",
+                  "matched": false,
+                  "message": "This venue is not in our venue list, so we have no published access information for it."
+                },
+                "distance_m": 2211,
+                "facilities": [
+                  {
+                    "type": "accessible_toilet",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_parking",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_transport_stop",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_change_facility",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  }
+                ],
+                "href": "/events/DS-09:activity:22697",
+                "external": "https://aaaplay.org.au/activity/afl-victoria-wheelchair-auskick-centre/"
+              }
+            ]
+          },
+          "links": [
+            {
+              "kind": "search",
+              "label": "See all 5 Australian Rules Football events near Brunswick",
+              "href": "/events?sport=Australian+Rules+Football&suburb=Brunswick"
+            },
+            {
+              "kind": "event",
+              "label": "Open Reclink Footy – Cohealth Kangaroos",
+              "href": "/events/DS-09:activity:22480"
+            },
+            {
+              "kind": "publisher",
+              "label": "View Reclink Footy – Cohealth Kangaroos on AAA Play",
+              "href": "https://aaaplay.org.au/activity/reclink-footy-cohealth-kangaroos/"
+            },
+            {
+              "kind": "publisher",
+              "label": "View AFL Victoria Wheelchair Auskick Centre on AAA Play",
+              "href": "https://aaaplay.org.au/activity/afl-victoria-wheelchair-auskick-centre/"
+            }
+          ],
+          "sources": [
+            {
+              "name": "Sport and Recreational Facilities List",
+              "publisher_last_updated": "2024-12-17"
+            },
+            {
+              "name": "National Public Toilet Map",
+              "publisher_last_updated": "2022-01-12"
+            },
+            {
+              "name": "Accessible Parking Locations, City of Melbourne",
+              "publisher_last_updated": null
+            },
+            {
+              "name": "AAA Play activity finder",
+              "publisher_last_updated": null,
+              "attribution": "Activity and facility listings from AAA Play, aaaplay.org.au, Reclink Australia, delivered under the Access for All Abilities program with Victorian Government funding. Displayed to help people with disability find accessible sport and recreation in Victoria."
+            }
+          ],
+          "trace": [
+            {
+              "step": 1,
+              "tool": "resolve_location",
+              "summary": "Resolved \"Brunswick\" to the centre of Brunswick."
+            },
+            {
+              "step": 2,
+              "tool": "list_sports",
+              "summary": "Listed sports matching \"football\": 4."
+            },
+            {
+              "step": 3,
+              "tool": "search_events",
+              "summary": "Searched events 2026-10-10 to 2026-11-07, sport Australian Rules Football, location Brunswick: 5 found, 2 at venues not in our list.",
+              "href": "/events?sport=Australian+Rules+Football&suburb=Brunswick"
+            }
+          ],
+          "suggested_questions": [
+            "Which footy programs run on weekends near Brunswick?",
+            "Are there netball programs near Brunswick?"
+          ],
+          "notice": "This conversation is not stored.",
+          "model_called": true,
+          "builder": {
+            "urls_removed_from_answer": [],
+            "actions_dropped": [],
+            "ids_not_seen": []
+          }
+        },
+        "rounds": 3,
+        "tools": [
+          "resolve_location({\"query\": \"Brunswick\"})",
+          "list_sports({\"query\": \"football\"})",
+          "search_events({\"sport\": \"Australian Rules Football\", \"location\": \"Brunswick\", \"date_from\": \"2026-10-10\", \"date_to\": null, \"weekday\": null})"
+        ],
+        "tool_payloads": [
+          "{\"outcome\": \"resolved\", \"label\": \"the centre of Brunswick\", \"kind\": \"suburb\", \"location\": \"Brunswick\", \"message\": null, \"suggestions\": []}",
+          "{\"sports\": [{\"name\": \"Australian Rules Football\", \"venue_count\": 511, \"event_count\": 20}, {\"name\": \"Gaelic Football\", \"venue_count\": 2, \"event_count\": 0}, {\"name\": \"Netball\", \"venue_count\": 138, \"event_count\": 13}, {\"name\": \"Touch Football\", \"venue_count\": 7, \"event_count\": 0}], \"total\": 4}",
+          "{\"window\": {\"from\": \"2026-10-10\", \"to\": \"2026-11-07\"}, \"total\": 5, \"unmatched_venue\": 2, \"events\": [{\"id\": \"DS-09:activity:22697\", \"kind\": \"program\", \"title\": \"AFL Victoria Wheelchair Auskick Centre\", \"sport\": \"Australian Rules Football\", \"when\": \"Sundays, mornings\", \"weekdays\": [\"sunday\"], \"time_of_day\": [\"morning\"], \"price\": \"paid\", \"venue\": {\"id\": null, \"name\": \"State Netball Hockey Centre\", \"suburb\": \"Parkville\", \"matched\": false, \"message\": \"This venue is not in our venue list, so we have no published access information for it.\"}, \"distance_m\": 2211, \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}], \"href\": \"/events/DS-09:activity:22697\", \"external\": \"https://aaaplay.org.au/activity/afl-victoria-wheelchair-auskick-centre/\"}, {\"id\": \"DS-09:activity:22467\", \"kind\": \"program\", \"title\": \"Reclink Footy – Collingwood Magpies\", \"sport\": \"Australian Rules Football\", \"when\": \"Wednesdays, afternoons\", \"weekdays\": [\"wednesday\"], \"time_of_day\": [\"afternoon\"], \"price\": \"free\", \"venue\": {\"id\": \"YARRAC10962\", \"name\": \"Victoria Park\", \"suburb\": \"Abbotsford\", \"matched\": true, \"message\": null}, \"distance_m\": 4717, \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"not_available_alternative\", \"distance_m\": null, \"message\": \"Not at this venue. Nearest public accessible toilet 740 m away.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"alternative\": {\"name\": \"Collingwood Library\", \"distance_m\": 740}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 1096, \"message\": \"Nearest recorded accessible change facility is 1096 m away, beyond your 500 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}], \"href\": \"/events/DS-09:activity:22467\", \"external\": \"https://aaaplay.org.au/activity/reclink-footy-collingwood-magpies/\"}, {\"id\": \"DS-09:activity:22480\", \"kind\": \"program\", \"title\": \"Reclink Footy – Cohealth Kangaroos\", \"sport\": \"Australian Rules Football\", \"when\": \"Wednesdays, mornings\", \"weekdays\": [\"wednesday\"], \"time_of_day\": [\"morning\"], \"price\": \"free\", \"venue\": {\"id\": \"MELBOU11006\", \"name\": \"JJ Holland Park\", \"suburb\": \"South Kensington\", \"matched\": true, \"message\": null}, \"distance_m\": 4770, \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"nearby\", \"distance_m\": 134, \"message\": \"Public accessible toilet 134 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"nearby\", \"distance_m\": 130, \"message\": \"Public accessible parking 130 m away (straight line).\", \"source\": {\"name\": \"Accessible Parking Locations, City of Melbourne\", \"publisher_last_updated\": null}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"nearby\", \"distance_m\": 134, \"message\": \"Public accessible change facility 134 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}], \"href\": \"/events/DS-09:activity:22480\", \"external\": \"https://aaaplay.org.au/activity/reclink-footy-cohealth-kangaroos/\"}, {\"id\": \"DS-09:activity:20657\", \"kind\": \"program\", \"title\": \"AFL Blind\", \"sport\": \"Australian Rules Football\", \"when\": \"Days not stated by the publisher\", \"weekdays\": [], \"time_of_day\": [], \"price\": \"free\", \"venue\": {\"id\": null, \"name\": \"AFL Victoria\", \"suburb\": \"Docklands\", \"matched\": false, \"message\": \"This venue is not in our venue list, so we have no published access information for it.\"}, \"distance_m\": 5696, \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}], \"href\": \"/events/DS-09:activity:20657\", \"external\": \"https://aaaplay.org.au/activity/afl-blind/\"}, {\"id\": \"DS-09:activity:22472\", \"kind\": \"program\", \"title\": \"Reclink Footy – Salvo Hawks\", \"sport\": \"Australian Rules Football\", \"when\": \"Wednesdays, mornings\", \"weekdays\": [\"wednesday\"], \"time_of_day\": [\"morning\"], \"price\": \"free\", \"venue\": {\"id\": \"BOROON11066\", \"name\": \"Victoria Road Reserve\", \"suburb\": \"Hawthorn\", \"matched\": true, \"message\": null}, \"distance_m\": 9703, \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2247, \"message\": \"Nearest recorded accessible change facility is 2247 m away, beyond your 500 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}], \"href\": \"/events/DS-09:activity:22472\", \"external\": \"https://aaaplay.org.au/activity/reclink-footy-salvo-hawks/\"}], \"empty_message\": null, \"attribution\": [\"Activity and facility listings from AAA Play, aaaplay.org.au, Reclink Australia, delivered under the Access for All Abilities program with Victorian Government funding. Displayed to help people with disability find accessible sport and recreation in Victoria.\"]}"
+        ],
+        "elapsed_s": 6.8,
+        "model": "claude-haiku-5-5",
+        "retrieval_mode": "tool",
+        "stop_reasons": [
+          "tool_use",
+          "tool_use",
+          "tool_use",
+          "tool_use"
+        ],
+        "usage": {
+          "input": 4397,
+          "output": 994,
+          "cache_read": 15852
+        }
+      },
+      "checks": {
+        "grounded_hrefs": true,
+        "ungrounded_hrefs": [],
+        "grounded_numbers": true,
+        "ungrounded_numbers": [],
+        "must_contain": true,
+        "missing": [],
+        "must_not_contain": true,
+        "leaked": [],
+        "tools_expected": true,
+        "tools_called": [
+          "list_sports",
+          "resolve_location",
+          "search_events"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "case": {
+        "id": "G1",
+        "group": "event",
+        "question": "Is this program free, and how do I register?",
+        "context": {
+          "event_id": "DS-09:activity:20862"
+        },
+        "tools_expected": [
+          "get_event"
+        ],
+        "must_contain": [
+          "free"
+        ],
+        "must_not_contain": [
+          "find_venue",
+          "search_events"
+        ],
+        "must_contain_response": [
+          "revolutionise.com.au"
+        ],
+        "note": "Frankston Boccia Club: is_free true, registration URL on revolutionise.com.au. The answer text carries no URLs by design; the link must be in the response (links or the event card)."
+      },
+      "result": {
+        "answer": "Yes, the program is free, according to its listing. The Frankston Boccia Club runs on Mondays from 1pm to 3pm at Frankston South Recreation Centre, and is run by Boccia Victoria.\n\nTo register, the listing gives a registration link, which is on the event page. It does not describe any further steps, so check with Boccia Victoria if you need to know more before you go.",
+        "raw_answer": "Yes, the program is free, according to its listing. The Frankston Boccia Club runs on Mondays from 1pm to 3pm at Frankston South Recreation Centre, and is run by Boccia Victoria.\n\nTo register, the listing gives a registration link, which is on the event page. It does not describe any further steps, so check with Boccia Victoria if you need to know more before you go.",
+        "final": {
+          "answer": "Yes, the program is free, according to its listing. The Frankston Boccia Club runs on Mondays from 1pm to 3pm at Frankston South Recreation Centre, and is run by Boccia Victoria.\n\nTo register, the listing gives a registration link, which is on the event page. It does not describe any further steps, so check with Boccia Victoria if you need to know more before you go.",
+          "venue_ids": [
+            "FRANKS11035"
+          ],
+          "event_ids": [
+            "DS-09:activity:20862"
+          ],
+          "actions": [
+            {
+              "kind": "event",
+              "venue_id": null,
+              "event_id": "DS-09:activity:20862",
+              "sport": null,
+              "location": null,
+              "facilities": null,
+              "distance_m": null,
+              "weekday": null,
+              "from": null
+            }
+          ],
+          "kind": "answer",
+          "suggested_questions": [
+            "What are the accessible toilet and parking details at Frankston South Recreation Centre?",
+            "Are there other boccia programs near Frankston?"
+          ]
+        },
+        "response": {
+          "kind": "answer",
+          "answer": "Yes, the program is free, according to its listing. The Frankston Boccia Club runs on Mondays from 1pm to 3pm at Frankston South Recreation Centre, and is run by Boccia Victoria.\n\nTo register, the listing gives a registration link, which is on the event page. It does not describe any further steps, so check with Boccia Victoria if you need to know more before you go.",
+          "results": {
+            "venues": [
+              {
+                "id": "FRANKS11035",
+                "name": "Frankston South Recreation Centre",
+                "suburb": "Frankston South",
+                "href": "/venues/FRANKS11035",
+                "from_event": true
+              }
+            ],
+            "events": [
+              {
+                "id": "DS-09:activity:20862",
+                "kind": "program",
+                "title": "Frankston Boccia Club",
+                "sport": "Boccia",
+                "when": "Mondays, afternoons",
+                "weekdays": [
+                  "monday"
+                ],
+                "time_of_day": [
+                  "afternoon"
+                ],
+                "price": "free",
+                "venue": {
+                  "id": "FRANKS11035",
+                  "name": "Frankston South Recreation Centre",
+                  "suburb": "Frankston South",
+                  "matched": true,
+                  "message": null
+                },
+                "distance_m": null,
+                "facilities": [
+                  {
+                    "type": "accessible_toilet",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_parking",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_transport_stop",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_change_facility",
+                    "display": "beyond_limit",
+                    "distance_m": 950,
+                    "message": "Nearest recorded accessible change facility is 950 m away, beyond your 500 m limit.",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  }
+                ],
+                "href": "/events/DS-09:activity:20862",
+                "external": "https://aaaplay.org.au/activity/frankston-boccia-club/",
+                "description": "Looking for somewhere to play social boccia and connect with other people. Come on down and have some fun. The program is free. Day: Monday Time: 1pm to 3pm",
+                "organisation": "Boccia Victoria",
+                "age_ranges": [
+                  "Adults (26+)",
+                  "Child (5-12)",
+                  "Older Adults (55+)",
+                  "Youth (13-17)",
+                  "Youth (18-25)"
+                ],
+                "access_needs": [],
+                "registration": "https://www.revolutionise.com.au/bocciavic/clubs",
+                "share_url": "/events/DS-09:activity:20862"
+              }
+            ]
+          },
+          "links": [
+            {
+              "kind": "event",
+              "label": "Open Frankston Boccia Club",
+              "href": "/events/DS-09:activity:20862"
+            },
+            {
+              "kind": "registration",
+              "label": "Register for Frankston Boccia Club",
+              "href": "https://www.revolutionise.com.au/bocciavic/clubs"
+            },
+            {
+              "kind": "publisher",
+              "label": "View Frankston Boccia Club on AAA Play",
+              "href": "https://aaaplay.org.au/activity/frankston-boccia-club/"
+            }
+          ],
+          "sources": [
+            {
+              "name": "Sport and Recreational Facilities List",
+              "publisher_last_updated": "2024-12-17"
+            },
+            {
+              "name": "National Public Toilet Map",
+              "publisher_last_updated": "2022-01-12"
+            }
+          ],
+          "trace": [
+            {
+              "step": 1,
+              "tool": "get_event",
+              "summary": "Read the event Frankston Boccia Club.",
+              "href": "/events/DS-09:activity:20862"
+            }
+          ],
+          "suggested_questions": [
+            "What are the accessible toilet and parking details at Frankston South Recreation Centre?",
+            "Are there other boccia programs near Frankston?"
+          ],
+          "notice": "This conversation is not stored.",
+          "model_called": true,
+          "builder": {
+            "urls_removed_from_answer": [],
+            "actions_dropped": [],
+            "ids_not_seen": []
+          }
+        },
+        "rounds": 1,
+        "tools": [
+          "get_event({\"event_id\": \"DS-09:activity:20862\"})"
+        ],
+        "tool_payloads": [
+          "{\"id\": \"DS-09:activity:20862\", \"kind\": \"program\", \"title\": \"Frankston Boccia Club\", \"sport\": \"Boccia\", \"when\": \"Mondays, afternoons\", \"weekdays\": [\"monday\"], \"time_of_day\": [\"afternoon\"], \"price\": \"free\", \"venue\": {\"id\": \"FRANKS11035\", \"name\": \"Frankston South Recreation Centre\", \"suburb\": \"Frankston South\", \"matched\": true, \"message\": null}, \"distance_m\": null, \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 950, \"message\": \"Nearest recorded accessible change facility is 950 m away, beyond your 500 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}], \"href\": \"/events/DS-09:activity:20862\", \"external\": \"https://aaaplay.org.au/activity/frankston-boccia-club/\", \"description\": \"Looking for somewhere to play social boccia and connect with other people. Come on down and have some fun. The program is free. Day: Monday Time: 1pm to 3pm\", \"organisation\": \"Boccia Victoria\", \"age_ranges\": [\"Adults (26+)\", \"Child (5-12)\", \"Older Adults (55+)\", \"Youth (13-17)\", \"Youth (18-25)\"], \"access_needs\": [], \"registration\": \"https://www.revolutionise.com.au/bocciavic/clubs\", \"share_url\": \"/events/DS-09:activity:20862\"}"
+        ],
+        "elapsed_s": 4.2,
+        "model": "claude-haiku-5-5",
+        "retrieval_mode": "tool",
+        "stop_reasons": [
+          "tool_use",
+          "tool_use"
+        ],
+        "usage": {
+          "input": 1027,
+          "output": 653,
+          "cache_read": 3987
+        }
+      },
+      "checks": {
+        "grounded_hrefs": true,
+        "ungrounded_hrefs": [],
+        "grounded_numbers": true,
+        "ungrounded_numbers": [],
+        "must_contain": true,
+        "missing": [],
+        "must_not_contain": true,
+        "leaked": [],
+        "tools_expected": true,
+        "tools_called": [
+          "get_event"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "case": {
+        "id": "H2",
+        "group": "discovery",
+        "question": "Basketball near Preston with an accessible change facility within 1000 m?",
+        "context": null,
+        "tools_expected": [
+          "search_venues"
+        ],
+        "must_contain": [
+          "1000"
+        ],
+        "must_not_contain": [
+          "beyond your 500",
+          "beyond the 500"
+        ],
+        "must_contain_response": [],
+        "note": "distance_m must be 1000, not the default 500: at 1000 m ten venues match (Olympic Leisure Centre 984 m); at 500 m none would."
+      },
+      "result": {
+        "answer": "Ten basketball venues have a change facility within 1000 m of Preston. Three of them are Norris Bank Reserve (Bundoora), Darebin Community Sports Stadium (Reservoir) and Olympic Leisure Centre (West Heidelberg). For Norris Bank Reserve, the National Public Toilet Map (updated 2022-01-12) says \"Public accessible change facility 249 m away (straight line).\" For Darebin, it gives 836 m, and for Olympic Leisure Centre, 984 m. Distances are straight-line metres. Nine more venues have no published information about change facilities, so check with those venues. The Sport and Recreational Facilities List (updated 2024-12-17) gives accessible parking and toilets at these three venues, but no transport stop information is published.",
+        "raw_answer": "Ten basketball venues have a change facility within 1000 m of Preston. Three of them are Norris Bank Reserve (Bundoora), Darebin Community Sports Stadium (Reservoir) and Olympic Leisure Centre (West Heidelberg). For Norris Bank Reserve, the National Public Toilet Map (updated 2022-01-12) says \"Public accessible change facility 249 m away (straight line).\" For Darebin, it gives 836 m, and for Olympic Leisure Centre, 984 m. Distances are straight-line metres. Nine more venues have no published information about change facilities, so check with those venues. The Sport and Recreational Facilities List (updated 2024-12-17) gives accessible parking and toilets at these three venues, but no transport stop information is published.",
+        "final": {
+          "kind": "results",
+          "answer": "Ten basketball venues have a change facility within 1000 m of Preston. Three of them are Norris Bank Reserve (Bundoora), Darebin Community Sports Stadium (Reservoir) and Olympic Leisure Centre (West Heidelberg). For Norris Bank Reserve, the National Public Toilet Map (updated 2022-01-12) says \"Public accessible change facility 249 m away (straight line).\" For Darebin, it gives 836 m, and for Olympic Leisure Centre, 984 m. Distances are straight-line metres. Nine more venues have no published information about change facilities, so check with those venues. The Sport and Recreational Facilities List (updated 2024-12-17) gives accessible parking and toilets at these three venues, but no transport stop information is published.",
+          "venue_ids": [
+            "WHITTL9515",
+            "DAREBI11808",
+            "BANYUL12841"
+          ],
+          "event_ids": [],
+          "actions": [
+            {
+              "kind": "search_venues",
+              "venue_id": null,
+              "event_id": null,
+              "sport": "Basketball",
+              "location": "Preston",
+              "facilities": [
+                "accessible_change_facility"
+              ],
+              "distance_m": 1000,
+              "weekday": null,
+              "from": null
+            }
+          ],
+          "suggested_questions": [
+            "Which basketball venues near Preston have accessible parking?",
+            "Are there basketball events near Preston this week?"
+          ]
+        },
+        "response": {
+          "kind": "results",
+          "answer": "Ten basketball venues have a change facility within 1000 m of Preston. Three of them are Norris Bank Reserve (Bundoora), Darebin Community Sports Stadium (Reservoir) and Olympic Leisure Centre (West Heidelberg). For Norris Bank Reserve, the National Public Toilet Map (updated 2022-01-12) says \"Public accessible change facility 249 m away (straight line).\" For Darebin, it gives 836 m, and for Olympic Leisure Centre, 984 m. Distances are straight-line metres. Nine more venues have no published information about change facilities, so check with those venues. The Sport and Recreational Facilities List (updated 2024-12-17) gives accessible parking and toilets at these three venues, but no transport stop information is published.",
+          "results": {
+            "venues": [
+              {
+                "id": "WHITTL9515",
+                "name": "Norris Bank Reserve",
+                "suburb": "Bundoora",
+                "distance_m": 6381,
+                "href": "/venues/WHITTL9515",
+                "facilities": [
+                  {
+                    "type": "accessible_toilet",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_parking",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_transport_stop",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_change_facility",
+                    "display": "nearby",
+                    "distance_m": 249,
+                    "message": "Public accessible change facility 249 m away (straight line).",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "DAREBI11808",
+                "name": "Darebin Community Sports Stadium",
+                "suburb": "Reservoir",
+                "distance_m": 3053,
+                "href": "/venues/DAREBI11808",
+                "facilities": [
+                  {
+                    "type": "accessible_toilet",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_parking",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_transport_stop",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_change_facility",
+                    "display": "nearby",
+                    "distance_m": 836,
+                    "message": "Public accessible change facility 836 m away (straight line).",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "BANYUL12841",
+                "name": "Olympic Leisure Centre",
+                "suburb": "West Heidelberg",
+                "distance_m": 2967,
+                "href": "/venues/BANYUL12841",
+                "facilities": [
+                  {
+                    "type": "accessible_toilet",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_parking",
+                    "display": "at_venue",
+                    "distance_m": null,
+                    "message": "At the venue, per Sport and Recreational Facilities List.",
+                    "source": {
+                      "name": "Sport and Recreational Facilities List",
+                      "publisher_last_updated": "2024-12-17"
+                    }
+                  },
+                  {
+                    "type": "accessible_transport_stop",
+                    "display": "no_published_information",
+                    "distance_m": null,
+                    "message": "No published information - check with the venue.",
+                    "source": null
+                  },
+                  {
+                    "type": "accessible_change_facility",
+                    "display": "nearby",
+                    "distance_m": 984,
+                    "message": "Public accessible change facility 984 m away (straight line).",
+                    "source": {
+                      "name": "National Public Toilet Map",
+                      "publisher_last_updated": "2022-01-12"
+                    }
+                  }
+                ]
+              }
+            ],
+            "events": []
+          },
+          "links": [
+            {
+              "kind": "search",
+              "label": "See all 19 Basketball venues near Preston",
+              "href": "/venues?sport=Basketball&suburb=Preston&facilities=accessible_change_facility&distance_m=1000"
+            }
+          ],
+          "sources": [
+            {
+              "name": "Sport and Recreational Facilities List",
+              "publisher_last_updated": "2024-12-17"
+            },
+            {
+              "name": "National Public Toilet Map",
+              "publisher_last_updated": "2022-01-12"
+            }
+          ],
+          "trace": [
+            {
+              "step": 1,
+              "tool": "resolve_location",
+              "summary": "Resolved \"Preston\" to the centre of Preston."
+            },
+            {
+              "step": 2,
+              "tool": "search_venues",
+              "summary": "Searched Basketball venues within 10 km of the centre of Preston, facility band 1000 m, accessible change facility: 19 found, 10 matched, 9 with no published information, 0 recording none.",
+              "href": "/venues?sport=Basketball&suburb=Preston&facilities=accessible_change_facility&distance_m=1000"
+            }
+          ],
+          "suggested_questions": [
+            "Which basketball venues near Preston have accessible parking?",
+            "Are there basketball events near Preston this week?"
+          ],
+          "notice": "This conversation is not stored.",
+          "model_called": true,
+          "builder": {
+            "urls_removed_from_answer": [],
+            "actions_dropped": [],
+            "ids_not_seen": []
+          }
+        },
+        "rounds": 2,
+        "tools": [
+          "resolve_location({\"query\": \"Preston\"})",
+          "search_venues({\"sport\": \"Basketball\", \"location\": \"Preston\", \"facilities\": [\"accessible_change_facility\"], \"distance_m\": 1000})"
+        ],
+        "tool_payloads": [
+          "{\"outcome\": \"resolved\", \"label\": \"the centre of Preston\", \"kind\": \"suburb\", \"location\": \"Preston\", \"message\": null, \"suggestions\": []}",
+          "{\"place\": \"the centre of Preston\", \"distance_limit_m\": 1000, \"counts\": {\"total_for_sport\": 19, \"matched\": 10, \"undocumented\": 9, \"not_available\": 0}, \"matched\": [{\"id\": \"BANYUL12841\", \"name\": \"Olympic Leisure Centre\", \"suburb\": \"West Heidelberg\", \"distance_m\": 2967, \"href\": \"/venues/BANYUL12841\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"nearby\", \"distance_m\": 984, \"message\": \"Public accessible change facility 984 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"DAREBI11808\", \"name\": \"Darebin Community Sports Stadium\", \"suburb\": \"Reservoir\", \"distance_m\": 3053, \"href\": \"/venues/DAREBI11808\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"nearby\", \"distance_m\": 836, \"message\": \"Public accessible change facility 836 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"DAREBI11826\", \"name\": \"Judith Scott Memorial Reserve\", \"suburb\": \"Kingsbury\", \"distance_m\": 3494, \"href\": \"/venues/DAREBI11826\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"not_available\", \"distance_m\": null, \"message\": \"Not available, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"nearby\", \"distance_m\": 654, \"message\": \"Public accessible change facility 654 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"WHITTL9515\", \"name\": \"Norris Bank Reserve\", \"suburb\": \"Bundoora\", \"distance_m\": 6381, \"href\": \"/venues/WHITTL9515\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"nearby\", \"distance_m\": 249, \"message\": \"Public accessible change facility 249 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"MELBOU10988\", \"name\": \"Carlton Baths Community Centre\", \"suburb\": \"Carlton\", \"distance_m\": 6590, \"href\": \"/venues/MELBOU10988\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"nearby\", \"distance_m\": 794, \"message\": \"Public accessible change facility 794 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}], \"undocumented\": {\"label\": \"9 more venues have no published information about accessible change facility\", \"venues\": [{\"id\": \"DAREBI11827\", \"name\": \"Keon Park Youth Club & Community Hall\", \"suburb\": \"Keon Park\", \"distance_m\": 4660, \"href\": \"/venues/DAREBI11827\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 1730, \"message\": \"Nearest recorded accessible change facility is 1730 m away, beyond your 1000 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"MORELA13025\", \"name\": \"Brunswick Sports Stadium\", \"suburb\": \"Brunswick\", \"distance_m\": 5343, \"href\": \"/venues/MORELA13025\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"not_available_alternative\", \"distance_m\": null, \"message\": \"Not at this venue. Nearest public accessible parking 1510 m away.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}, \"alternative\": {\"name\": \"The Avenue between Ievers Street and Park Street\", \"distance_m\": 1510}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2052, \"message\": \"Nearest recorded accessible change facility is 2052 m away, beyond your 1000 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"BANYUL12837\", \"name\": \"Macleod Recreation & Fitness Centre\", \"suburb\": \"Macleod\", \"distance_m\": 5831, \"href\": \"/venues/BANYUL12837\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2599, \"message\": \"Nearest recorded accessible change facility is 2599 m away, beyond your 1000 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"MANNIN11030\", \"name\": \"The Veneto Club\", \"suburb\": \"Bulleen\", \"distance_m\": 7084, \"href\": \"/venues/MANNIN11030\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"nearby\", \"distance_m\": 689, \"message\": \"Public accessible toilet 689 m away (straight line).\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}, {\"type\": \"accessible_parking\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2423, \"message\": \"Nearest recorded accessible change facility is 2423 m away, beyond your 1000 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}, {\"id\": \"MORELA13044\", \"name\": \"Oak Park Stadium\", \"suburb\": \"Oak Park\", \"distance_m\": 7844, \"href\": \"/venues/MORELA13044\", \"facilities\": [{\"type\": \"accessible_toilet\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_parking\", \"display\": \"at_venue\", \"distance_m\": null, \"message\": \"At the venue, per Sport and Recreational Facilities List.\", \"source\": {\"name\": \"Sport and Recreational Facilities List\", \"publisher_last_updated\": \"2024-12-17\"}}, {\"type\": \"accessible_transport_stop\", \"display\": \"no_published_information\", \"distance_m\": null, \"message\": \"No published information - check with the venue.\", \"source\": null}, {\"type\": \"accessible_change_facility\", \"display\": \"beyond_limit\", \"distance_m\": 2599, \"message\": \"Nearest recorded accessible change facility is 2599 m away, beyond your 1000 m limit.\", \"source\": {\"name\": \"National Public Toilet Map\", \"publisher_last_updated\": \"2022-01-12\"}}]}]}, \"not_available\": {\"label\": \"0 venues record that they do not have accessible change facility\", \"venues\": []}, \"note\": \"Distances are straight-line metres from the place named above.\"}"
+        ],
+        "elapsed_s": 6.6,
+        "model": "claude-haiku-5-5",
+        "retrieval_mode": "tool",
+        "stop_reasons": [
+          "tool_use",
+          "tool_use",
+          "tool_use"
+        ],
+        "usage": {
+          "input": 5030,
+          "output": 1197,
+          "cache_read": 11889
+        }
+      },
+      "checks": {
+        "grounded_hrefs": true,
+        "ungrounded_hrefs": [],
+        "grounded_numbers": true,
+        "ungrounded_numbers": [],
+        "must_contain": true,
+        "missing": [],
+        "must_not_contain": true,
+        "leaked": [],
+        "tools_expected": true,
+        "tools_called": [
+          "resolve_location",
+          "search_venues"
+        ]
+      },
+      "pass": true
+    }
+  ]
+}
