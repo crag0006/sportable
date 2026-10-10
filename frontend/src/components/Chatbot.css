@@ -11,7 +11,7 @@
   font-family: inherit;
 }
 
-/* Floating chatbot button */
+/* Floating button to open or close the chatbot */
 .chat-fab {
   position: relative;
   width: 64px;
@@ -46,7 +46,7 @@
   transform: translateY(-1px) scale(0.98);
 }
 
-/* Shows an outline when the button is selected using the keyboard */
+/* Shows an outline when the button is selected using a keyboard */
 .chat-fab:focus-visible {
   outline: 3px solid #2b8c69;
   outline-offset: 2px;
@@ -57,7 +57,7 @@
   z-index: 1;
 }
 
-/* Adds a pulsing effect around the chatbot button */
+/* Adds a pulsing ring around the chatbot button */
 .chat-fab-ring {
   position: absolute;
   inset: -6px;
@@ -110,7 +110,7 @@
   margin: 0;
 }
 
-/* Close button for the greeting message */
+/* Button to close the greeting message */
 .chat-greeting-close {
   position: absolute;
   top: 6px;
@@ -219,7 +219,7 @@
   background: #f6f8f7;
 }
 
-/* Aligns messages based on who sent them */
+/* Aligns user messages to the right and bot messages to the left */
 .chat-bubble-row {
   display: flex;
 }
@@ -257,7 +257,7 @@
   border-bottom-right-radius: 4px;
 }
 
-/* Shows animated dots while the chatbot is typing */
+/* Shows animated dots while waiting for a reply */
 .chat-bubble--typing {
   display: flex;
   align-items: center;
@@ -265,6 +265,178 @@
   padding: 12px 14px;
 }
 
+.chat-bubble-text {
+  margin: 0;
+}
+
+/* Highlights chatbot error messages */
+.chat-bubble--error {
+  border-color: #e3b8b2;
+  background: #fdf3f1;
+  color: #7a2e22;
+}
+
+/* Venue and event cards shown in the chatbot */
+.chat-result-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.chat-result-card {
+  background: #f6f8f7;
+  border: 1px solid #dde5e3;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.chat-result-card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.chat-result-card-name {
+  font-size: 0.88rem;
+  color: #1a2733;
+}
+
+.chat-result-card-distance {
+  flex-shrink: 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #14507a;
+  white-space: nowrap;
+}
+
+.chat-result-card-sub {
+  margin: 2px 0 0 0;
+  font-size: 0.78rem;
+  color: #66777a;
+}
+
+/* Link to view the selected venue or event */
+.chat-result-card-link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #14507a;
+  text-decoration: none;
+}
+
+.chat-result-card-link:hover {
+  text-decoration: underline;
+}
+
+/* Accessibility facilities shown in chatbot results */
+.chat-result-facilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.chat-result-facility {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: #eef3f2;
+  color: #3f545e;
+  border: 1px solid #dde5e3;
+}
+
+.chat-result-facility-symbol {
+  margin-left: 2px;
+}
+
+/* Green symbol for facilities at the venue or within the limit */
+.chat-result-facility--at_venue .chat-result-facility-symbol,
+.chat-result-facility--within_limit .chat-result-facility-symbol {
+  color: #2b8c69;
+}
+
+/* Yellow symbol for facilities beyond the selected limit */
+.chat-result-facility--beyond_limit .chat-result-facility-symbol {
+  color: #b8860b;
+}
+
+/* Red symbol for facilities recorded as unavailable */
+.chat-result-facility--not_available .chat-result-facility-symbol {
+  color: #a6342a;
+}
+
+/* Links provided with the chatbot's response */
+.chat-message-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.chat-message-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #14507a;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.chat-message-link:hover {
+  background: #0c3a5c;
+}
+
+/* Data sources used in the chatbot's response */
+.chat-message-sources {
+  margin: 10px 0 0 0;
+  font-size: 0.72rem;
+  color: #8a9699;
+}
+
+/* Suggested questions displayed below the chatbot response */
+.chat-suggested-questions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.chat-suggested-chip {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid #14507a;
+  background: #fff;
+  color: #14507a;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.chat-suggested-chip:hover:not(:disabled) {
+  background: #eef5fa;
+}
+
+.chat-suggested-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Animated dots shown while the chatbot prepares a reply */
 .chat-typing-dot {
   width: 6px;
   height: 6px;
@@ -273,7 +445,6 @@
   animation: chat-typing-bounce 1.2s infinite ease-in-out;
 }
 
-/* Adds a delay so the dots move one after another */
 .chat-typing-dot:nth-child(2) {
   animation-delay: 0.15s;
 }
@@ -282,7 +453,7 @@
   animation-delay: 0.3s;
 }
 
-/* Moves the typing dots up and down */
+/* Makes the typing dots move up and down */
 @keyframes chat-typing-bounce {
   0%,
   60%,
@@ -318,13 +489,13 @@
   min-width: 0;
 }
 
-/* Highlights the input field when using the keyboard */
+/* Highlights the message input when using a keyboard */
 .chat-panel-input-row input:focus-visible {
   outline: 2px solid #2b8c69;
   outline-offset: 1px;
 }
 
-/* Button to send a message */
+/* Button to send a chat message */
 .chat-panel-send {
   appearance: none;
   -webkit-appearance: none;
@@ -353,7 +524,7 @@
   background: #0c3a5c;
 }
 
-/* Adjusts chatbot spacing and width on mobile screens */
+/* Adjusts chatbot spacing and width for mobile screens */
 @media (max-width: 480px) {
   .chat-widget {
     right: 16px;
