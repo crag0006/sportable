@@ -11,6 +11,7 @@ from app.api.queries import (
     DateToQ,
     DistanceQ,
     FacilitiesQ,
+    IdsQ,
     IncludePastQ,
     NearQ,
     OptionalOriginQ,
@@ -40,6 +41,18 @@ router = APIRouter()
 
 MAX_WITHIN_M = 50_000
 MAX_PAGE_SIZE = 200
+MAX_IDS = 50
+
+
+def _ids(request: Request) -> tuple[str, ...]:
+    """``ids=a,b,c`` as a tuple in request order, at most MAX_IDS, de-duplicated."""
+    seen: list[str] = []
+    for value in _csv(request, "ids"):
+        if value not in seen:
+            seen.append(value)
+    if len(seen) > MAX_IDS:
+        raise ApiError(422, "validation_error", f"ids: at most {MAX_IDS} ids per request")
+    return tuple(seen)
 
 
 def _parse_date(raw: str | None, name: str) -> date | None:
@@ -114,14 +127,16 @@ def _list_query(request: Request, settings: Settings, today: date) -> EventListQ
     q = request.query_params
     date_from, date_to = _window(request, settings, today)
     status = _choice(q.get("status"), "status", ("listable", "all"), "listable")
+    ids = _ids(request)
     return EventListQuery(
+        ids=ids,
         date_from=date_from,
         date_to=date_to,
         place=place_input(q.get("suburb") or q.get("place"), q.get("postcode"), q.get("near")),
         within_m=_int(q.get("within_m"), "within_m", 10_000, 1, MAX_WITHIN_M),
         sports=_csv(request, "sport"),
         venue_id=(q.get("venue_id") or "").strip() or None,
-        status=status or "listable",
+        status="all" if ids else (status or "listable"),
         include_past=(q.get("include_past") or "").lower() in ("1", "true", "yes"),
         weekdays=_weekdays(request),
         time_of_day=tuple(t.lower() for t in _csv(request, "time_of_day")),
@@ -129,9 +144,9 @@ def _list_query(request: Request, settings: Settings, today: date) -> EventListQ
         kinds=[KEY_TO_KIND[key] for key in parse_facilities(request)],
         limit_m=parse_band(first_of(request, "distance_m", "limit"), settings.search),
         page=_int(q.get("page"), "page", 1, 1, 10_000),
-        page_size=_int(
-            q.get("page_size"), "page_size", settings.events.page_size, 1, MAX_PAGE_SIZE
-        ),
+        page_size=len(ids)
+        if ids
+        else _int(q.get("page_size"), "page_size", settings.events.page_size, 1, MAX_PAGE_SIZE),
     )
 
 
@@ -158,6 +173,7 @@ def events(
     price: PriceQ = None,
     page: PageQ = None,
     page_size: PageSizeQ = None,
+    ids: IdsQ = None,
 ) -> EventListOut:
     """Upcoming fixtures and weekly programs with the venue's four tiles beside each."""
     return events.list(_list_query(request, settings, now.date()), now)
@@ -177,17 +193,23 @@ def event_sports(
     return events.sports(date_from, date_to, now)
 
 
-@router.get("/events/calendar.ics", include_in_schema=True)
-def events_calendar_file() -> None:
-    """Reserved for the multi-event file (contract v0.3 §7.6). 404 until built.
+@router.get("/events/calendar.ics", response_class=Response)
+def events_calendar_file(
+    request: Request, events: Events, now: NowDep, ids: IdsQ = None
+) -> Response:
+    """Several chosen events as one file (contract v0.3 §7.6).
 
     Registered before ``/events/{event_id}.ics`` so the path is not read as an
     event called ``calendar``.
     """
-    raise ApiError(
-        404,
-        "not_implemented",
-        "The multi-event calendar file is not available yet. Use /events/{id}.ics.",
+    chosen = _ids(request)
+    if not chosen:
+        raise ApiError(422, "validation_error", "ids is required: a comma list of event ids")
+    file = events.calendar_file_many(chosen, now)
+    return Response(
+        content=file.body,
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{file.filename}"'},
     )
 
 

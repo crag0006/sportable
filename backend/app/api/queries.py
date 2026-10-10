@@ -119,4 +119,11 @@ TimeOfDayQ = Annotated[
 ]
 PriceQ = Annotated[str | None, Query(description="free or paid.")]
 PageQ = Annotated[int | None, Query(description="1-based.")]
+IdsQ = Annotated[
+    str | None,
+    Query(
+        description="Comma list of event ids, at most 50: these events in request order, whatever "
+        "their status; the other filters are ignored and `missing` lists ids that no longer exist."
+    ),
+]
 PageSizeQ = Annotated[int | None, Query(description="Default from /config, max 200.")]

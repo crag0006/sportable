@@ -142,10 +142,10 @@ def test_weekdays_in_window_matches_the_list_rule():
 
 
 # ------------------------------------------------------------------- §7.6
-def test_multi_event_calendar_file_is_reserved_not_an_unknown_event(client: TestClient):
+def test_multi_event_calendar_file_is_its_own_route_not_an_unknown_event(client: TestClient):
     response = client.get("/api/v1/events/calendar.ics")
-    assert response.status_code == 404
-    assert response.json()["error"]["code"] == "not_implemented"
+    assert response.status_code == 422  # the route exists and wants ids; never event_not_found
+    assert response.json()["error"]["code"] == "validation_error"
 
 
 # ------------------------------------------------------------ §8.5 / §11.2

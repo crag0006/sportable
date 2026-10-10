@@ -2,7 +2,7 @@
 
 from datetime import date, datetime
 
-from app.domain.ics import build_ics, next_weekday
+from app.domain.ics import build_calendar, next_weekday, vevent_lines, when_lines
 from fastapi.testclient import TestClient
 
 EVENTS = "/api/v1/events"
@@ -168,26 +168,36 @@ def test_ics_for_a_fixture(client: TestClient):
 def test_ics_for_a_program_is_a_weekly_rule(client: TestClient):
     text = client.get(f"{EVENTS}/aaaplay:25089.ics").text
     assert "RRULE:FREQ=WEEKLY;BYDAY=WE" in text
-    assert "DTSTART;VALUE=DATE:" in text
+    # The description states a time, so the entry is timed in the site's zone (v0.3 §7.6).
+    assert "DTSTART;TZID=Australia/Melbourne:" in text and "T183000" in text
+    assert "BEGIN:VTIMEZONE" in text
     assert "Wednesdays\\, evenings" in text
 
 
 def test_ics_builder_folds_long_lines_and_escapes():
-    text = build_ics(
+    starts = datetime(2026, 9, 26, 9, 30, tzinfo=datetime.now().astimezone().tzinfo)
+    when = when_lines(
+        starts_at=starts,
+        ends_at=None,
+        weekdays=(),
+        anchor=date(2026, 9, 26),
+        start_local=None,
+        end_local=None,
+        timezone="Australia/Melbourne",
+    )
+    event = vevent_lines(
         uid="x@test",
         summary="A; b, c",
         description="line one\nline two " + "x" * 120,
         location=None,
         url="https://example.test/events/x",
         status="CONFIRMED",
-        starts_at=datetime(2026, 9, 26, 9, 30, tzinfo=datetime.now().astimezone().tzinfo),
-        ends_at=None,
-        weekdays=(),
-        timezone="Australia/Melbourne",
+        when=when,
         latitude=None,
         longitude=None,
-        now=datetime(2026, 9, 14, 0, 0),
+        stamp=datetime(2026, 9, 14, 0, 0),
     )
+    text = build_calendar([event], timezone="Australia/Melbourne")
     assert "SUMMARY:A\\; b\\, c" in text
     assert all(len(line.encode()) <= 75 for line in text.split("\r\n"))
     assert next_weekday(date(2026, 9, 14), "wednesday") == date(2026, 9, 16)

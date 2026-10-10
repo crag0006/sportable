@@ -104,8 +104,11 @@ SELECT {EVENT_COLUMNS},
             ELSE ST_Distance(coalesce(pv.geom, p.geom)::geography, ref.g) END AS distance_m
   {EVENT_FROM}
  CROSS JOIN ref
- WHERE (%(status_all)s OR {EVENT_LISTABLE})
-   AND (p.kind = 'program'
+ WHERE (%(ids)s::text[] IS NULL OR p.program_id = ANY(%(ids)s::text[]))
+   AND (%(status_all)s OR {EVENT_LISTABLE})
+   -- A fixed set of ids ignores the date window (a saved event stays findable).
+   AND (%(ids)s::text[] IS NOT NULL
+        OR p.kind = 'program'
         OR (p.starts_at AT TIME ZONE 'Australia/Melbourne')::date
            BETWEEN %(date_from)s AND %(date_to)s)
    -- Every vocabulary sport the crosswalk gives this programme, not just the
@@ -264,6 +267,7 @@ def _filter_params(filters: EventFilters) -> dict[str, Any]:
         "weekdays": list(filters.weekdays) or None,
         "time_of_day": list(filters.time_of_day) or None,
         "price": filters.price,
+        "ids": list(filters.ids) or None,
         "limit": filters.limit,
     }
 
