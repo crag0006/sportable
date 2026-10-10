@@ -77,6 +77,14 @@ class TimeHintOut(BaseModel):
     confidence: Literal["high", "medium", "low"]
 
 
+class CalendarLinkOut(BaseModel):
+    """One Google "new event" link of the block and what its button says (section 7.7.1)."""
+
+    slot: str
+    label: str
+    url: str
+
+
 class CalendarOut(BaseModel):
     """Everything a calendar entry for this event is built from (section 7.7.1)."""
 
@@ -102,6 +110,7 @@ class CalendarOut(BaseModel):
     ics_url: str
     google_template_url: str | None = None
     google_template_urls: list[str] = Field(default_factory=list)
+    google_template_links: list[CalendarLinkOut] = Field(default_factory=list)
     dedupe_key: str
 
 

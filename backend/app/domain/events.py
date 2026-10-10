@@ -13,7 +13,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from app.domain.calendar import calendar_out, description_lines
+from app.domain.calendar import calendar_out, description_lines, slot_hints, slot_keys
 from app.domain.facilities import KINDS, present, presentations_for, verdict
 from app.domain.ics import build_calendar, next_weekday, today_in, vevent_lines, when_lines
 from app.domain.presenters import _iso, facility_out, reference_out
@@ -375,31 +375,7 @@ def _slots(row: EventRow, hints: list[TimeHint], days: tuple[str, ...]) -> list[
     """The time slots a program gets an entry for: one per hint on a published day, else one."""
     if row.kind != "program":
         return [None]
-    on_days = [h for h in hints if days and set(h.weekdays) & set(days)]
-    if on_days:
-        return list(on_days)
-    main = hint_for_weekday(hints, days[0] if days else None)
-    return [main]
-
-
-def _slot_labels(slots: list[TimeHint | None], days: tuple[str, ...]) -> list[str | None]:
-    """The UID suffix of each slot when an event has several entries; None when it has one.
-
-    The audience label when the hint carries one (``juniors``), else the hint's
-    weekdays (``friday``), and ``-2``, ``-3`` on a repeat. Two plain sentences both
-    label their hint ``main``, and calendar apps treat entries with one UID as one
-    event, so the second slot silently vanished on import (found by the frontend).
-    """
-    if len(slots) < 2:
-        return [None] * len(slots)
-    labels: list[str | None] = []
-    counts: dict[str, int] = {}
-    for slot in slots:
-        own = [d for d in days if slot and d in slot.weekdays] or list(days)
-        base = slot.slot if slot and slot.slot != "main" else "-".join(own) or "main"
-        counts[base] = counts.get(base, 0) + 1
-        labels.append(base if counts[base] == 1 else f"{base}-{counts[base]}")
-    return labels
+    return slot_hints(hints, days, hint_for_weekday(hints, days[0] if days else None))
 
 
 def _slot_vevent(
@@ -449,10 +425,10 @@ def event_vevents(row: EventRow, out: EventOut, share_url: str, now: datetime) -
     hints = hints_for(row.description, tuple(row.weekdays))
     days = tuple(d for d in WEEKDAYS if d in row.weekdays)
     slots = _slots(row, hints, days)
-    labels = _slot_labels(slots, days)
+    keys: list[str | None] = list(slot_keys(slots, days)) if len(slots) > 1 else [None]
     return [
-        _slot_vevent(row, out, share_url, now, slot, label)
-        for slot, label in zip(slots, labels, strict=True)
+        _slot_vevent(row, out, share_url, now, slot, key)
+        for slot, key in zip(slots, keys, strict=True)
     ]
 
 
