@@ -1,98 +1,114 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from "react";
 
-async function getBotReply(userText) {
-  // Simulated "thinking" delay so the typing indicator is visible.
-  await new Promise((resolve) => setTimeout(resolve, 700))
-  return "Thanks for your message! I can't answer questions yet — this chat is just a preview of how the assistant will work once it's connected to the backend."
+// Returns a sample reply after a short delay
+function getBotReply(userText) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(
+        "Thanks for your message! I can't answer questions yet — this chat is just a preview of how the assistant will work once it's connected to the backend."
+      );
+    }, 700);
+  });
 }
 
-let nextId = 1
+// Creates a message with an ID, sender and text
+let nextId = 1;
 function makeMessage(sender, text) {
-  nextId += 1
-  return { id: nextId, sender, text }
+  nextId += 1;
+  return { id: nextId, sender, text };
 }
 
-const GREETING_DISMISSED_KEY = 'sportable-chat-greeting-dismissed'
+// Key used to remember if the greeting was closed
+const GREETING_DISMISSED_KEY = "sportable-chat-greeting-dismissed";
 
 export default function ChatWidget() {
-  const [isOpen, setIsOpen] = useState(false)
-  const [showGreeting, setShowGreeting] = useState(false)
+  // Stores the chatbot's current state and messages
+  const [isOpen, setIsOpen] = useState(false);
+  const [showGreeting, setShowGreeting] = useState(false);
   const [messages, setMessages] = useState([
-    makeMessage('bot', "Hi! I'm the SportAble assistant (preview). Ask me anything — I can't give real answers yet, but go ahead and try it out."),
-  ])
-  const [inputValue, setInputValue] = useState('')
-  const [isBotTyping, setIsBotTyping] = useState(false)
+    makeMessage(
+      "bot",
+      "Hi! I'm the SportAble assistant (preview). Ask me anything — I can't give real answers yet, but go ahead and try it out."
+    )
+  ]);
+  const [inputValue, setInputValue] = useState("");
+  const [isBotTyping, setIsBotTyping] = useState(false);
 
-  const messageListRef = useRef(null)
-  const inputRef = useRef(null)
+  // References to the message area and input field
+  const messageListRef = useRef(null);
+  const inputRef = useRef(null);
 
-  // Keep the thread scrolled to the latest message.
+  // Scrolls to the latest message automatically
   useEffect(() => {
     if (messageListRef.current) {
-      messageListRef.current.scrollTop = messageListRef.current.scrollHeight
+      messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
     }
-  }, [messages, isBotTyping, isOpen])
+  }, [messages, isBotTyping, isOpen]);
 
-  // Focus the input whenever the panel opens.
+  // Focuses the message input when the chat opens
   useEffect(() => {
     if (isOpen && inputRef.current) {
-      inputRef.current.focus()
+      inputRef.current.focus();
     }
-  }, [isOpen])
+  }, [isOpen]);
 
+  // Shows the greeting if it has not been dismissed in this session
   useEffect(() => {
-    let dismissed = false
+    let dismissed = false;
     try {
-      dismissed = sessionStorage.getItem(GREETING_DISMISSED_KEY) === 'true'
-    } catch {
-      
-    }
-    if (dismissed || isOpen) return
+      dismissed = sessionStorage.getItem(GREETING_DISMISSED_KEY) === "true";
+    } catch {}
+    if (dismissed || isOpen) return;
 
-    const timer = setTimeout(() => setShowGreeting(true), 1800)
-    return () => clearTimeout(timer)
-  }, [isOpen])
+    const timer = setTimeout(() => setShowGreeting(true), 1800);
+    return () => clearTimeout(timer);
+  }, [isOpen]);
 
+  // Hides the greeting and remembers the choice for this session
   function dismissGreeting() {
-    setShowGreeting(false)
+    setShowGreeting(false);
     try {
-      sessionStorage.setItem(GREETING_DISMISSED_KEY, 'true')
+      sessionStorage.setItem(GREETING_DISMISSED_KEY, "true");
     } catch {
-      // Not critical.
+      // The greeting can still be closed if storage is unavailable
     }
   }
 
-
+  // Opens or closes the chatbot
   function handleToggle() {
-    setIsOpen((open) => !open)
-    dismissGreeting()
+    setIsOpen((open) => !open);
+    dismissGreeting();
   }
 
+  // Sends the user's message and displays the sample bot reply
   async function handleSubmit(event) {
-    event.preventDefault()
-    const text = inputValue.trim()
-    if (!text || isBotTyping) return
+    event.preventDefault();
+    const text = inputValue.trim();
+    if (!text || isBotTyping) return;
 
-    setMessages((prev) => [...prev, makeMessage('user', text)])
-    setInputValue('')
-    setIsBotTyping(true)
+    // Adds the user's message to the chat
+    setMessages((prev) => [...prev, makeMessage("user", text)]);
+    setInputValue("");
+    setIsBotTyping(true);
 
     try {
-      const replyText = await getBotReply(text)
-      setMessages((prev) => [...prev, makeMessage('bot', replyText)])
+      const replyText = await getBotReply(text);
+      setMessages((prev) => [...prev, makeMessage("bot", replyText)]);
     } finally {
-      setIsBotTyping(false)
+      setIsBotTyping(false);
     }
   }
 
+  // Closes the chatbot when Escape is pressed
   function handleKeyDown(event) {
-    if (event.key === 'Escape') {
-      setIsOpen(false)
+    if (event.key === "Escape") {
+      setIsOpen(false);
     }
   }
 
   return (
     <div className="chat-widget">
+      {/* Displays the chat window when it is open */}
       {isOpen && (
         <div
           className="chat-panel"
@@ -101,10 +117,13 @@ export default function ChatWidget() {
           aria-label="SportAble assistant chat"
           onKeyDown={handleKeyDown}
         >
+          {/* Chatbot heading and close button */}
           <div className="chat-panel-header">
             <div>
               <div className="chat-panel-title">SportAble Assistant</div>
-              <div className="chat-panel-subtitle">Ask about - Venues and Events</div>
+              <div className="chat-panel-subtitle">
+                Ask about - Venues and Events
+              </div>
             </div>
             <button
               type="button"
@@ -116,7 +135,12 @@ export default function ChatWidget() {
             </button>
           </div>
 
-          <div className="chat-panel-messages" ref={messageListRef} aria-live="polite">
+          {/* Displays the conversation messages */}
+          <div
+            className="chat-panel-messages"
+            ref={messageListRef}
+            aria-live="polite"
+          >
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -128,6 +152,7 @@ export default function ChatWidget() {
               </div>
             ))}
 
+            {/* Shows typing dots while the bot prepares a reply */}
             {isBotTyping && (
               <div className="chat-bubble-row chat-bubble-row--bot">
                 <div className="chat-bubble chat-bubble--bot chat-bubble--typing">
@@ -139,6 +164,7 @@ export default function ChatWidget() {
             )}
           </div>
 
+          {/* Message input and send button */}
           <form className="chat-panel-input-row" onSubmit={handleSubmit}>
             <input
               ref={inputRef}
@@ -161,6 +187,7 @@ export default function ChatWidget() {
         </div>
       )}
 
+      {/* Greeting shown when the chat is closed */}
       {showGreeting && !isOpen && (
         <div className="chat-greeting">
           <button
@@ -177,25 +204,46 @@ export default function ChatWidget() {
         </div>
       )}
 
+      {/* Floating button to open or close the chatbot */}
       <button
         type="button"
         className="chat-fab"
         onClick={handleToggle}
-        aria-label={isOpen ? 'Close chat' : 'Open chat'}
+        aria-label={isOpen ? "Close chat" : "Open chat"}
         aria-expanded={isOpen}
       >
         <span className="chat-fab-ring" aria-hidden="true" />
         {isOpen ? (
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
             <line x1="6" y1="6" x2="18" y2="18" />
             <line x1="18" y1="6" x2="6" y2="18" />
           </svg>
         ) : (
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
             <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
           </svg>
         )}
       </button>
     </div>
-  )
+  );
 }

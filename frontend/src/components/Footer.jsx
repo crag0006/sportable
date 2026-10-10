@@ -6,7 +6,7 @@ export default function Footer() {
     <footer className="site-footer">
       <div className="site-footer-inner">
         <div className="footer-grid">
-          {/* Brand */}
+          {/* SportAble logo and description */}
           <div className="footer-col">
             <div className="footer-brand">
               <span aria-hidden="true">♿</span>
@@ -18,28 +18,34 @@ export default function Footer() {
             </p>
           </div>
 
-          {/* Quick links */}
+          {/* Links to the main pages */}
           <div className="footer-col">
             <h3 className="footer-heading">Explore</h3>
             <ul className="footer-links">
-              <li><Link to="/">Home</Link></li>
-              <li><Link to="/venues">Venue search</Link></li>
-              <li><Link to="/events">Events</Link></li>
+              <li>
+                <Link to="/">Home</Link>
+              </li>
+              <li>
+                <Link to="/venues">Venue search</Link>
+              </li>
+              <li>
+                <Link to="/events">Events</Link>
+              </li>
             </ul>
           </div>
 
-          {/* Data & sources */}
+          {/* Information about the data sources used */}
           <div className="footer-col">
             <h3 className="footer-heading">Data &amp; sources</h3>
             <p className="footer-text">
-              Facility information is drawn from the National Public Toilet
-              Map, the Sport and Recreation Victoria facilities list, and
-              the ASGS suburb layer. Distances shown are straight-line, not
-              a walked path.
+              Facility information is drawn from the National Public Toilet Map,
+              the Sport and Recreation Victoria facilities list, and the ASGS
+              suburb layer. Distances shown are straight-line, not a walked
+              path.
             </p>
           </div>
 
-          {/* About / legal */}
+          {/* Project information */}
           <div className="footer-col">
             <h3 className="footer-heading">About this project</h3>
             <ul className="footer-links">
@@ -48,10 +54,11 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* Copyright and student project disclaimer */}
         <div className="footer-bottom">
           <p>
-            © {new Date().getFullYear()} SportAble Melbourne. Built as a
-            student project — not an official government or council service.
+            © {new Date().getFullYear()} SportAble Melbourne. Built as a student
+            project — not an official government or council service.
           </p>
         </div>
       </div>
