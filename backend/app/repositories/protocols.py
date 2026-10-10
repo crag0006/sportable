@@ -280,6 +280,9 @@ class EventFilters:
     weekdays: tuple[str, ...] = ()
     time_of_day: tuple[str, ...] = ()
     price: str | None = None
+    # A fixed set of ids (contract v0.3 section 7.7.3): the other filters and
+    # the date window do not apply, and ``status`` is ``all``.
+    ids: tuple[str, ...] = ()
     limit: int = 1000
 
 

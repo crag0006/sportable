@@ -346,6 +346,10 @@ EVENTS: list[EventRow] = [
         sport="Basketball",
         sport_raw="Basketball",
         organisation="PlayOn Victoria",
+        description=(
+            "Social basketball for adults of all abilities. Sessions run on Wednesday evenings "
+            "from 6:30 pm to 8:00 pm during school terms. Juniors 5:30 pm to 6:30 pm. Bring water."
+        ),
         weekdays=("wednesday",),
         time_of_day=("evening",),
         price="free",
@@ -403,6 +407,8 @@ class FakeEventRepository:
 
     def list_events(self, f: EventFilters) -> list[EventRow]:
         out: list[EventRow] = []
+        if f.ids:
+            return [e for e in EVENTS if e.event_id in f.ids]
         for e in EVENTS:
             if not _listable(e, f):
                 continue

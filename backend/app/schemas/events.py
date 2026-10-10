@@ -59,6 +59,52 @@ class EventSourceOut(SourceRefOut):
     attribution: str | None = None
 
 
+class TimeHintOut(BaseModel):
+    """A clock time read from the publisher's description, with its quote (section 7.7.2).
+
+    Never promoted into ``starts_at`` or ``time_local``: it is offered, with
+    the sentence it came from, for the user to accept or change.
+    """
+
+    slot: str
+    start_local: str
+    end_local: str | None = None
+    weekdays: list[str] = Field(default_factory=list)
+    basis: Literal["regex", "model"]
+    quote: str
+    char_start: int
+    char_end: int
+    confidence: Literal["high", "medium", "low"]
+
+
+class CalendarOut(BaseModel):
+    """Everything a calendar entry for this event is built from (section 7.7.1)."""
+
+    exportable: bool
+    reason: Literal["no_weekday_published", "cancelled", "finished"] | None = None
+    message: str | None = None
+    mode: Literal["weekly", "single"] | None = None
+    title: str
+    weekdays: list[str] = Field(default_factory=list)
+    rrule: str | None = None
+    first_date: str | None = None
+    start: str | None = None
+    end: str | None = None
+    time_published: bool
+    time_of_day: list[str] = Field(default_factory=list)
+    time_hint: TimeHintOut | None = None
+    time_hints: list[TimeHintOut] = Field(default_factory=list)
+    default_duration_minutes: int
+    timezone: str
+    location: str | None = None
+    description_lines: list[str]
+    event_url: str
+    ics_url: str
+    google_template_url: str | None = None
+    google_template_urls: list[str] = Field(default_factory=list)
+    dedupe_key: str
+
+
 class EventOut(BaseModel):
     id: str
     kind: Kind
@@ -89,6 +135,9 @@ class EventOut(BaseModel):
     access: EventAccessOut
     links: EventLinksOut
     source: EventSourceOut
+    # Attached after construction from the finished object (like the Read
+    # Aloud sentences), so the entry can never describe a tile the row lacks.
+    calendar: CalendarOut | None = None
 
 
 class WindowOut(BaseModel):
@@ -141,6 +190,8 @@ class EventListOut(BaseModel):
     not_available_group: EventGroupOut | None = None
     attribution: list[str] = Field(default_factory=list)
     empty_message: str | None = None
+    # Only with ``ids``: the requested ids that no longer exist (section 7.7.3).
+    missing: list[str] | None = None
 
 
 class EventSportOut(BaseModel):

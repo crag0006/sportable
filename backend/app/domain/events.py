@@ -9,14 +9,16 @@ title, a description or a publisher's tag.
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from app.domain.calendar import calendar_out, description_lines
 from app.domain.facilities import KINDS, present, presentations_for, verdict
-from app.domain.ics import build_ics
+from app.domain.ics import build_calendar, next_weekday, today_in, vevent_lines, when_lines
 from app.domain.presenters import _iso, facility_out, reference_out
 from app.domain.provenance import source_ref
+from app.domain.time_hints import TimeHint, hint_for_weekday, hints_for
 from app.repositories.protocols import EventRow, ReferencePoint
 from app.schemas.common import FacilityOut, ReferencePointOut
 from app.schemas.events import (
@@ -273,8 +275,10 @@ def event_out(
     limit_m: int,
     stale_default: int,
     kinds: Sequence[str],
+    today: date | None = None,
+    base_url: str = "",
 ) -> Built:
-    """One event as the contract's event object, with its venue's four tiles."""
+    """One event as the contract's event object, with its venue's four tiles and calendar block."""
     tiles = tiles_for(row, limit_m, stale_default)
     grp = group_of(tiles, kinds)
     venue = _event_venue_out(row)
@@ -292,6 +296,10 @@ def event_out(
         links=_event_links_out(row, venue),
         source=_event_source_out(row, stale_default),
     )
+    # From the finished object, like the Read Aloud sentences: the entry
+    # cannot name a facility status the row does not carry.
+    hints = hints_for(row.description, tuple(row.weekdays))
+    out.calendar = calendar_out(row, out, hints, today or today_in(row.timezone, None), base_url)
     return Built(out, grp)
 
 
@@ -363,39 +371,68 @@ def reference_for(reference: ReferencePoint | None) -> ReferencePointOut | None:
     return reference_out(reference) if reference is not None else None
 
 
-def event_ics(row: EventRow, out: EventOut, share_url: str, now: datetime | None = None) -> str:
-    """The iCalendar file for one event: summary, timing, venue, access summary, links."""
-    venue_line = ", ".join(p for p in (out.venue.name, out.venue.address) if p)
-    description_parts = [
-        " · ".join(p for p in (out.sport or out.sport_raw, out.grade, out.round) if p),
-        out.recurrence.summary if out.recurrence else None,
-        out.access.summary,
-        f"Venue page: {share_url.rsplit('/events/', 1)[0]}{out.links.venue}"
-        if out.links.venue
-        else None,
-        f"Publisher page: {out.links.external}",
-        out.source.attribution,
-        "End time is estimated." if row.kind == "fixture" and row.ends_at is None else None,
-        "Times for weekly programs are as published by the provider."
-        if row.kind == "program"
-        else None,
-    ]
-    status = "CANCELLED" if row.status in ("CANCELLED", "ABANDONED") else "CONFIRMED"
-    summary = (
-        f"{out.sport or out.sport_raw}: {out.title}" if (out.sport or out.sport_raw) else out.title
+def _slots(row: EventRow, hints: list[TimeHint], days: tuple[str, ...]) -> list[TimeHint | None]:
+    """The time slots a program gets an entry for: one per hint on a published day, else one."""
+    if row.kind != "program":
+        return [None]
+    on_days = [h for h in hints if days and set(h.weekdays) & set(days)]
+    if on_days:
+        return list(on_days)
+    main = hint_for_weekday(hints, days[0] if days else None)
+    return [main]
+
+
+def _slot_vevent(
+    row: EventRow,
+    out: EventOut,
+    share_url: str,
+    now: datetime,
+    slot: TimeHint | None,
+    several: bool,
+) -> list[str]:
+    """One VEVENT for one slot of an event (section 7.6)."""
+    days = tuple(d for d in WEEKDAYS if d in row.weekdays)
+    own = tuple(d for d in days if slot and d in slot.weekdays) or days
+    today = today_in(row.timezone, now)
+    anchor = next_weekday(today, own[0]) if own else today
+    uid = (
+        f"{row.event_id}#{slot.slot}@sportablemelbourne.me"
+        if several and slot
+        else f"{row.event_id}@sportablemelbourne.me"
     )
-    return build_ics(
-        uid=f"{row.event_id}@sportablemelbourne.me",
-        summary=summary,
-        description="\n".join(p for p in description_parts if p),
-        location=venue_line or None,
-        url=share_url,
-        status=status,
+    when = when_lines(
         starts_at=row.starts_at,
         ends_at=row.ends_at,
-        weekdays=row.weekdays,
+        weekdays=own,
+        anchor=anchor,
+        start_local=slot.start_local if slot else None,
+        end_local=slot.end_local if slot else None,
         timezone=row.timezone,
+    )
+    sport = out.sport or out.sport_raw
+    return vevent_lines(
+        uid=uid,
+        summary=f"{sport}: {out.title}" if sport else out.title,
+        description="\n".join(description_lines(out, slot, share_url)),
+        location=", ".join(p for p in (out.venue.name, out.venue.address) if p) or None,
+        url=share_url,
+        status="CANCELLED" if row.status in ("CANCELLED", "ABANDONED") else "CONFIRMED",
+        when=when,
         latitude=out.venue.latitude,
         longitude=out.venue.longitude,
-        now=now,
+        stamp=now,
     )
+
+
+def event_vevents(row: EventRow, out: EventOut, share_url: str, now: datetime) -> list[list[str]]:
+    """The VEVENTs of one event: one per time slot (sections 7.5 and 7.6)."""
+    hints = hints_for(row.description, tuple(row.weekdays))
+    days = tuple(d for d in WEEKDAYS if d in row.weekdays)
+    slots = _slots(row, hints, days)
+    return [_slot_vevent(row, out, share_url, now, slot, len(slots) > 1) for slot in slots]
+
+
+def event_ics(row: EventRow, out: EventOut, share_url: str, now: datetime | None = None) -> str:
+    """The iCalendar file for one event (section 7.5): its slots in one VCALENDAR."""
+    stamp = now or datetime.now(UTC)
+    return build_calendar(event_vevents(row, out, share_url, stamp), timezone=row.timezone)

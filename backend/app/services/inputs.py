@@ -80,3 +80,5 @@ class EventListQuery:
     limit_m: int = 500
     page: int = 1
     page_size: int = 50
+    # ``?ids=``: these events in request order, whatever their status (section 7.7.3).
+    ids: tuple[str, ...] = ()

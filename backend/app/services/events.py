@@ -13,6 +13,7 @@ from app.domain.events import (
     empty_message,
     event_ics,
     event_out,
+    event_vevents,
     in_window,
     local_time,
     recurrence_out,
@@ -20,6 +21,7 @@ from app.domain.events import (
     window_out,
 )
 from app.domain.facilities import KIND_LABELS
+from app.domain.ics import build_calendar
 from app.domain.presenters import venue_card_out
 from app.domain.summary import event_summary_sentences
 from app.repositories.protocols import (
@@ -209,25 +211,57 @@ class EventService:
             raise ApiError(404, "event_not_found", f"No event with id {event_id!r}.")
         return row
 
-    def _built(self, row: EventRow, limit_m: int, kinds: Sequence[str]) -> Built:
-        """The event response object at the band, with the venue's tiles."""
+    def _built(self, row: EventRow, limit_m: int, kinds: Sequence[str], now: datetime) -> Built:
+        """The event response object at the band, with the venue's tiles and calendar block."""
         stale = self.settings.search.default_stale_after_days
-        return event_out(row, limit_m=limit_m, stale_default=stale, kinds=kinds)
+        return event_out(
+            row,
+            limit_m=limit_m,
+            stale_default=stale,
+            kinds=kinds,
+            today=now.date(),
+            base_url=self._base_url(),
+        )
+
+    def _base_url(self) -> str:
+        """This environment's site origin for absolute links, or empty for relative ones."""
+        return (self.settings.public_base_url or "").rstrip("/")
 
     def _share_url(self, event_id: str) -> str:
         """Absolute link to the event page on this environment's site."""
-        base = (self.settings.public_base_url or "").rstrip("/")
-        return f"{base}/events/{event_id}"
+        return f"{self._base_url()}/events/{event_id}"
+
+    def _rows_for(
+        self, query: EventListQuery, reference: ReferencePoint | None, now: datetime
+    ) -> list[EventRow]:
+        """The rows of a list query: a fixed id set in request order, or the filtered window."""
+        if query.ids:
+            found = {
+                r.event_id: r
+                for r in self.events.list_events(
+                    EventFilters(
+                        date_from=query.date_from,
+                        date_to=query.date_to,
+                        now=now,
+                        status="all",
+                        ids=query.ids,
+                    )
+                )
+            }
+            return [found[i] for i in query.ids if i in found]
+        rows = self.events.list_events(_filters(query, reference, now))
+        return [r for r in rows if in_window(r, query.date_from, query.date_to)]
 
     def list(self, query: EventListQuery, now: datetime) -> EventListOut:
         """Upcoming fixtures and weekly programs with the venue's four tiles beside each."""
         reference = self.locations.resolve_optional(query.place)
         place = _place_label(query, reference)
-        rows = self.events.list_events(_filters(query, reference, now))
-        rows = [r for r in rows if in_window(r, query.date_from, query.date_to)]
-        groups = _grouped([self._built(r, query.limit_m, query.kinds) for r in rows])
+        rows = self._rows_for(query, reference, now)
+        groups = _grouped([self._built(r, query.limit_m, query.kinds, now) for r in rows])
         joined = _joined_labels(query.kinds)
+        found = {r.event_id for r in rows}
         return EventListOut(
+            missing=[i for i in query.ids if i not in found] if query.ids else None,
             window=window_out(query.date_from, query.date_to, self.settings.timezone),
             filters=_filters_out(query, reference),
             reference_point=reference_for(reference),
@@ -262,7 +296,7 @@ class EventService:
     def detail(self, event_id: str, limit_m: int, now: datetime) -> EventDetailOut:
         """One event, the share-link target (AC5.3.3). Cancelled and past events still resolve."""
         row = self.load(event_id)
-        built = self._built(row, limit_m, [])
+        built = self._built(row, limit_m, [], now)
         card = None
         if row.venue is not None:
             card = venue_card_out(
@@ -282,11 +316,34 @@ class EventService:
         )
 
     def calendar_file(self, event_id: str, now: datetime) -> CalendarFile:
-        """One VEVENT (AC5.3.2): name, date, start time, venue address, links."""
+        """The event's entries (AC5.3.2): name, day and time, venue address, links."""
         row = self.load(event_id)
-        built = self._built(row, self.settings.search.default_distance_m, [])
+        built = self._built(row, self.settings.search.default_distance_m, [], now)
         body = event_ics(row, built.out, self._share_url(event_id), now=now)
         return CalendarFile(body=body, filename=f"sportable-{event_id}.ics")
+
+    def calendar_file_many(self, ids: Sequence[str], now: datetime) -> CalendarFile:
+        """Several chosen events as one file (section 7.6): one VEVENT per event and time slot."""
+        query = EventListQuery(
+            date_from=now.date(), date_to=now.date(), place=None, within_m=0, ids=tuple(ids)
+        )
+        rows = self._rows_for(query, None, now)
+        events: list[list[str]] = []
+        for row in rows:
+            built = self._built(row, self.settings.search.default_distance_m, [], now)
+            events.extend(event_vevents(row, built.out, self._share_url(row.event_id), now))
+        attribution = next((r.source_attribution for r in rows if r.source_attribution), None)
+        body = build_calendar(
+            events,
+            timezone=self.settings.timezone,
+            name="SportAble events",
+            description=(
+                "Published sport programs and events from SportAble Melbourne. Facility statuses "
+                "are as published by the named sources; distances are straight-line."
+                + (f" {attribution}" if attribution else "")
+            ),
+        )
+        return CalendarFile(body=body, filename="sportable-events.ics")
 
     def directions(self, event_id: str, query: CorridorQuery) -> EventDirectionsOut:
         """AC4.2.4: the venue corridor pointed at the event's matched venue.
