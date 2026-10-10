@@ -1,6 +1,7 @@
 """Events (contract v0.2 section 7): list and calendar, sports, detail, calendar file."""
 
 from datetime import date, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Request, Response
 
@@ -37,7 +38,14 @@ from app.domain.facilities import KEY_TO_KIND
 from app.schemas.events import EventDetailOut, EventDirectionsOut, EventListOut, EventSportsOut
 from app.services.inputs import EventListQuery
 
-router = APIRouter()
+router = APIRouter(tags=["Events"])
+
+ICS_RESPONSE: dict[int | str, dict[str, Any]] = {
+    200: {
+        "description": "An iCalendar file: one VEVENT per time slot, Melbourne VTIMEZONE.",
+        "content": {"text/calendar": {"schema": {"type": "string", "format": "binary"}}},
+    }
+}
 
 MAX_WITHIN_M = 50_000
 MAX_PAGE_SIZE = 200
@@ -193,7 +201,12 @@ def event_sports(
     return events.sports(date_from, date_to, now)
 
 
-@router.get("/events/calendar.ics", response_class=Response)
+@router.get(
+    "/events/calendar.ics",
+    response_class=Response,
+    responses=ICS_RESPONSE,
+    summary="Download several events as one .ics file",
+)
 def events_calendar_file(
     request: Request, events: Events, now: NowDep, ids: IdsQ = None
 ) -> Response:
@@ -213,7 +226,12 @@ def events_calendar_file(
     )
 
 
-@router.get("/events/{event_id}.ics", response_class=Response)
+@router.get(
+    "/events/{event_id}.ics",
+    response_class=Response,
+    responses=ICS_RESPONSE,
+    summary="Download one event as an .ics file",
+)
 def event_calendar_file(event_id: str, events: Events, now: NowDep) -> Response:
     """One VEVENT (AC5.3.2): name, date, start time, venue address, links."""
     file = events.calendar_file(event_id, now)
