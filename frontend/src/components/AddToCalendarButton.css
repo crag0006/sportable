@@ -177,9 +177,10 @@
 }
 
 .calendar-added-note {
-  width: 100%;
   margin: 0;
   text-align: left;
+  color: #1a7a4c;
+  font-weight: 700;
 }
 
 /* The day picker for a program with more than one weekly time (<details>/
