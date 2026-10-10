@@ -226,3 +226,16 @@ variable "enable_extended_alarms" {
   type        = bool
   default     = false
 }
+
+variable "bedrock_bridge_ssm_prefix" {
+  description = <<-EOT
+    TEMPORARY. SSM path holding access_key_id and secret_access_key for an
+    account that IS allowlisted for Bedrock, while this one is not. When set,
+    the Bedrock-calling functions get BEDROCK_ACCESS_KEY_ID and
+    BEDROCK_SECRET_ACCESS_KEY and sign their Bedrock calls with them. Empty
+    (the default) means they use the execution role, the permanent
+    arrangement. Clear this, apply, then delete the key in the other account.
+  EOT
+  type        = string
+  default     = ""
+}

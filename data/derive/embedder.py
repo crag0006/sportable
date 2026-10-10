@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import random
 import time
 from collections.abc import Callable
@@ -27,6 +28,25 @@ RETRYABLE_CODES = {
     "ServiceUnavailableException",
     "InternalServerException",
 }
+
+
+def bridge_credentials() -> dict[str, str]:
+    """Credentials for a Bedrock account other than the one this runs in.
+
+    TEMPORARY. The staging account is not yet allowlisted for Bedrock, so calls
+    are signed with a key from an account that is. The request still goes
+    through this VPC's Bedrock interface endpoint; only the signature differs.
+    Lambda reserves the AWS_* names, hence BEDROCK_*. Unset, boto3 falls back
+    to the execution role, which is the permanent arrangement. Remove the two
+    variables, and delete the key, once the staging account is allowlisted.
+    """
+    key_id = os.environ.get("BEDROCK_ACCESS_KEY_ID", "")
+    secret = os.environ.get("BEDROCK_SECRET_ACCESS_KEY", "")
+
+    if not (key_id and secret):
+        return {}
+
+    return {"aws_access_key_id": key_id, "aws_secret_access_key": secret}
 
 
 class EmbeddingError(RuntimeError):
@@ -62,6 +82,7 @@ class TitanEmbedder:
                     connect_timeout=10,
                     read_timeout=60,
                 ),
+                **bridge_credentials(),
             )
         return self._client
 

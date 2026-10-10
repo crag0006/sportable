@@ -486,7 +486,10 @@ account holder. Two things are needed:
 
 1. `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream` on the
    assistant and derive roles, scoped to `anthropic.claude-haiku-4-5-*` and
-   `amazon.titan-embed-text-v2*`.
+   `amazon.titan-embed-text-v2*`. Haiku 4.5 is called through the
+   `au.anthropic.claude-haiku-4-5-20251001-v1:0` inference profile (it has no
+   on-demand throughput in ap-southeast-2), so the grant must name the profile
+   ARN and the foundation-model ARN in both ap-southeast-2 and ap-southeast-4.
 2. **Bedrock model access enabled** for Anthropic and Amazon models in
    ap-southeast-2 — a separate per-account console opt-in. A model appearing in
    `list-foundation-models` does not mean the account may invoke it.

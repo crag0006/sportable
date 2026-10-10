@@ -231,9 +231,14 @@ variable "assistant_throttle_burst_limit" {
 }
 
 variable "bedrock_text_model_id" {
-  description = "Model for intent and slot extraction. Confirmed available in ap-southeast-2."
+  # Haiku 4.5 has no on-demand throughput in ap-southeast-2: it is reachable only
+  # through an inference profile, and the bare model id fails with "on-demand
+  # throughput isn't supported". The au. profile keeps traffic in Australia
+  # (Sydney and Melbourne); the IAM grant must cover the profile ARN and the
+  # foundation-model ARN in both ap-southeast-2 and ap-southeast-4.
+  description = "Model for intent and slot extraction. An inference profile id, not a bare model id."
   type        = string
-  default     = "anthropic.claude-haiku-4-5-20251001-v1:0"
+  default     = "au.anthropic.claude-haiku-4-5-20251001-v1:0"
 }
 
 variable "bedrock_embedding_model_id" {
@@ -257,4 +262,17 @@ variable "assistant_config" {
     max_output_tokens    = "500"
     daily_invocation_cap = "2000"
   }
+}
+
+variable "bedrock_bridge_ssm_prefix" {
+  description = <<-EOT
+    TEMPORARY. SSM path holding access_key_id and secret_access_key for an
+    account that IS allowlisted for Bedrock, while this one is not. When set,
+    the Bedrock-calling functions get BEDROCK_ACCESS_KEY_ID and
+    BEDROCK_SECRET_ACCESS_KEY and sign their Bedrock calls with them. Empty
+    (the default) means they use the execution role, the permanent
+    arrangement. Clear this, apply, then delete the key in the other account.
+  EOT
+  type        = string
+  default     = ""
 }
