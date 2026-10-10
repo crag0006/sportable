@@ -1,0 +1,9 @@
+# The lab inherits the repository rules. It is a prototype with long SQL,
+# prompt and format strings, so the line-length rule is off here; everything
+# else (imports, docstrings on public functions, bugbear, pyupgrade) applies.
+# It is not part of the backend package and CI does not lint it.
+extend = "../../ruff.toml"
+line-length = 120
+
+[lint]
+extend-ignore = ["E501"]

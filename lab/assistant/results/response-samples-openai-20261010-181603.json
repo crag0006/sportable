@@ -1,0 +1,96 @@
+[
+  {
+    "question": "Which programs mention audible tennis balls?",
+    "context": null,
+    "final_answer": {
+      "kind": "results",
+      "answer": "One program description on this site mentions audible tennis balls: the Blind Tennis Program. The publisher writes that their six-week adult program runs during school terms on Friday nights on indoor courts at the National Tennis Centre, and that \"we use various types of balls, including audible tennis balls and different sized and coloured balls\". The same publisher's page also describes a Junior Blind Tennis program for kids aged 5 to 15 who are blind or have vision problems. No other program description here mentions audible balls.",
+      "venue_ids": [],
+      "event_ids": [
+        "DS-09:activity:20905"
+      ],
+      "actions": [
+        {
+          "kind": "event",
+          "venue_id": null,
+          "event_id": "DS-09:activity:20905",
+          "sport": null,
+          "location": null,
+          "facilities": null,
+          "distance_m": null,
+          "weekday": null,
+          "from": null
+        }
+      ],
+      "suggested_questions": [
+        "What access facilities does the National Tennis Centre have?",
+        "Are there other tennis programs for people who are blind or have low vision?"
+      ]
+    },
+    "response": {
+      "kind": "results",
+      "answer": "One program description on this site mentions audible tennis balls: the Blind Tennis Program. The publisher writes that their six-week adult program runs during school terms on Friday nights on indoor courts at the National Tennis Centre, and that \"we use various types of balls, including audible tennis balls and different sized and coloured balls\". The same publisher's page also describes a Junior Blind Tennis program for kids aged 5 to 15 who are blind or have vision problems. No other program description here mentions audible balls.",
+      "results": {
+        "venues": [],
+        "events": [
+          {
+            "id": "DS-09:activity:20905",
+            "title": "Blind Tennis Program",
+            "href": "/events/DS-09:activity:20905",
+            "from_passage": true
+          }
+        ]
+      },
+      "links": [
+        {
+          "kind": "event",
+          "label": "Open Blind Tennis Program",
+          "href": "/events/DS-09:activity:20905"
+        }
+      ],
+      "sources": [
+        {
+          "name": "AAA Play activity finder",
+          "publisher_last_updated": null
+        }
+      ],
+      "trace": [
+        {
+          "step": 1,
+          "tool": "search_program_descriptions",
+          "summary": "Read 2 passage(s) from AAA Play program descriptions.",
+          "passages": [
+            {
+              "program_id": "DS-09:activity:20905",
+              "title": "Blind Tennis Program",
+              "quote": "Adults During school terms, we have a six-week blind tennis program. It is held on Friday nights at the National Tennis Centre on indoor courts. This program is run by Blind Sports & Recreation Victoria, Tennis Victoria, and Tennis Seniors ",
+              "href": "/events/DS-09:activity:20905",
+              "source": "AAA Play activity finder"
+            },
+            {
+              "program_id": "DS-09:activity:20905",
+              "title": "Blind Tennis Program",
+              "quote": "balls, including audible tennis balls and different sized and coloured balls. Before this program, people with total blindness could not play tennis. Now, people of all ages and backgrounds can join. You can play for fun or improve your ski",
+              "href": "/events/DS-09:activity:20905",
+              "source": "AAA Play activity finder"
+            }
+          ]
+        }
+      ],
+      "suggested_questions": [
+        "What access facilities does the National Tennis Centre have?",
+        "Are there other tennis programs for people who are blind or have low vision?"
+      ],
+      "notice": "This conversation is not stored.",
+      "model_called": true,
+      "builder": {
+        "urls_removed_from_answer": [],
+        "actions_dropped": [],
+        "ids_not_seen": []
+      }
+    },
+    "tools": [
+      "search_program_descriptions({\"question\":\"Which programs mention audible tennis balls?\"})"
+    ]
+  }
+]
