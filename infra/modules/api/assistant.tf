@@ -20,6 +20,20 @@
 #   prod and iteration-1 call this module and neither runs an assistant.
 # ==============================================================================
 
+# TEMPORARY Bedrock credentials from another account. See the variable.
+data "aws_ssm_parameter" "bedrock_bridge" {
+  for_each = var.enable_assistant && var.bedrock_bridge_ssm_prefix != "" ? toset(["access_key_id", "secret_access_key"]) : toset([])
+
+  name = "${var.bedrock_bridge_ssm_prefix}/${each.key}"
+}
+
+locals {
+  bedrock_bridge_env = length(data.aws_ssm_parameter.bedrock_bridge) == 0 ? {} : {
+    BEDROCK_ACCESS_KEY_ID     = data.aws_ssm_parameter.bedrock_bridge["access_key_id"].value
+    BEDROCK_SECRET_ACCESS_KEY = data.aws_ssm_parameter.bedrock_bridge["secret_access_key"].value
+  }
+}
+
 resource "aws_cloudwatch_log_group" "assistant" {
   count = var.enable_assistant ? 1 : 0
 
@@ -73,7 +87,7 @@ resource "aws_lambda_function" "assistant" {
   }
 
   environment {
-    variables = {
+    variables = merge(local.bedrock_bridge_env, {
       DATABASE_URL = data.aws_ssm_parameter.db_url.value
       ENVIRONMENT  = "staging"
       LOG_LEVEL    = "INFO"
@@ -88,7 +102,7 @@ resource "aws_lambda_function" "assistant" {
       # relevance floor, token ceilings and the daily cap. Resolved at apply
       # time so a threshold can change without editing Python.
       ASSISTANT_CONFIG = jsonencode(var.assistant_config)
-    }
+    })
   }
 
   tags = { Name = "${var.name_prefix}-assistant" }

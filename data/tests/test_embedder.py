@@ -2,7 +2,7 @@ import json
 
 import pytest
 from botocore.exceptions import ClientError
-from derive.embedder import DIMENSIONS, EmbeddingError, TitanEmbedder
+from derive.embedder import DIMENSIONS, EmbeddingError, TitanEmbedder, bridge_credentials
 
 
 class _Body:
@@ -74,3 +74,24 @@ def test_wrong_dimension_is_rejected():
 def test_blank_text_rejected():
     with pytest.raises(ValueError):
         _embedder(_Client([])).embed("   ")
+
+
+def test_bridge_credentials_unset_falls_back_to_the_role(monkeypatch):
+    monkeypatch.delenv("BEDROCK_ACCESS_KEY_ID", raising=False)
+    monkeypatch.delenv("BEDROCK_SECRET_ACCESS_KEY", raising=False)
+    assert bridge_credentials() == {}
+
+
+def test_bridge_credentials_need_both_halves(monkeypatch):
+    monkeypatch.setenv("BEDROCK_ACCESS_KEY_ID", "AKIAEXAMPLE")
+    monkeypatch.delenv("BEDROCK_SECRET_ACCESS_KEY", raising=False)
+    assert bridge_credentials() == {}
+
+
+def test_bridge_credentials_are_passed_to_boto3(monkeypatch):
+    monkeypatch.setenv("BEDROCK_ACCESS_KEY_ID", "AKIAEXAMPLE")
+    monkeypatch.setenv("BEDROCK_SECRET_ACCESS_KEY", "example-secret")
+    assert bridge_credentials() == {
+        "aws_access_key_id": "AKIAEXAMPLE",
+        "aws_secret_access_key": "example-secret",
+    }

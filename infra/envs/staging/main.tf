@@ -110,6 +110,11 @@ module "api" {
   # timeout, which looks like a slow bug rather than a missing route.
   enable_assistant = true
 
+  # TEMPORARY, until this account is allowlisted for Bedrock (AWS case
+  # 179145572300703). Remove from both modules, apply, then delete the
+  # sportable-bedrock-bridge access key in the account that issued it.
+  bedrock_bridge_ssm_prefix = "/sportable/staging/bedrock"
+
   depends_on = [module.app_config]
 }
 
@@ -196,6 +201,9 @@ module "ingestion" {
   security_group_id = module.network.lambda_security_group_id
 
   ssm_db_url_parameter = module.database.ssm_url_parameter
+
+  # TEMPORARY. See the same setting on module.api.
+  bedrock_bridge_ssm_prefix = "/sportable/staging/bedrock"
 
   fetch_source_dir  = "${path.root}/../../../data/build/fetch"
   load_source_dir   = "${path.root}/../../../data/build/load"
