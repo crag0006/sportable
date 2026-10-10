@@ -78,6 +78,11 @@ def test_google_template_link_carries_the_entry(client: TestClient):
     ].replace("-", "")
     assert q["location"].startswith("Northcote Aquatic and Recreation Centre")
     assert "Accessible toilet:" in q["details"]
+    assert [(link["slot"], link["label"]) for link in cal["google_template_links"]] == [
+        ("wednesday", "Wednesday 6:30 pm to 8:00 pm"),
+        ("juniors", "Juniors, Wednesday 5:30 pm to 6:30 pm"),
+    ]
+    assert [link["url"] for link in cal["google_template_links"]] == cal["google_template_urls"]
 
 
 def test_program_without_a_weekday_is_not_exportable(client: TestClient):
@@ -85,6 +90,7 @@ def test_program_without_a_weekday_is_not_exportable(client: TestClient):
     assert cal["exportable"] is False and cal["reason"] == "no_weekday_published"
     assert cal["message"].startswith("The provider has not published which day this runs")
     assert "google_template_url" not in cal and cal["google_template_urls"] == []
+    assert cal["google_template_links"] == []
     assert "first_date" not in cal and "rrule" not in cal
 
 
@@ -154,7 +160,10 @@ def test_two_plain_slots_get_distinct_uids(client: TestClient, monkeypatch: pyte
         event_id="aaaplay:twice",
         description="Wednesdays 10:00 am to 11:00 am. A second group runs Wednesdays 6 pm to 7 pm.",
     )
-    monkeypatch.setattr(conftest, "EVENTS", [*conftest.EVENTS, weekend, same_day])
+    plain = replace(
+        base, event_id="aaaplay:plain", description="Social basketball.", weekdays=("monday",)
+    )
+    monkeypatch.setattr(conftest, "EVENTS", [*conftest.EVENTS, weekend, same_day, plain])
     assert _uids(client, "aaaplay:badminton") == [
         "aaaplay:badminton#friday@sportablemelbourne.me",
         "aaaplay:badminton#sunday@sportablemelbourne.me",
@@ -166,6 +175,46 @@ def test_two_plain_slots_get_distinct_uids(client: TestClient, monkeypatch: pyte
     assert _uids(client, "aaaplay:25089") == [
         "aaaplay:25089#wednesday@sportablemelbourne.me",
         "aaaplay:25089#juniors@sportablemelbourne.me",
+    ]
+    assert _uids(client, "aaaplay:plain") == ["aaaplay:plain@sportablemelbourne.me"]
+
+
+def _link_labels(client: TestClient, event_id: str) -> list[tuple[str, str]]:
+    """``(slot, label)`` of every Google link on the event's calendar block."""
+    links = client.get(f"{EVENTS}/{event_id}").json()["calendar"]["google_template_links"]
+    return [(link["slot"], link["label"]) for link in links]
+
+
+def test_google_links_carry_a_label_the_frontend_can_show(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    """Abinaya's dropdown needs text per slot; the weekday guess moves from the frontend here."""
+    base = next(e for e in conftest.EVENTS if e.event_id == "aaaplay:25089")
+    weekend = replace(
+        base,
+        event_id="aaaplay:badminton",
+        description="Social badminton. Fridays 7:00 pm to 9:00 pm and Sundays 2:00 pm to 4:00 pm.",
+        weekdays=("friday", "sunday"),
+    )
+    plain = replace(
+        base, event_id="aaaplay:plain", description="Social basketball.", weekdays=("monday",)
+    )
+    open_end = replace(
+        base,
+        event_id="aaaplay:open",
+        description="Every Saturday at 8:00 am.",
+        weekdays=("saturday",),
+    )
+    monkeypatch.setattr(conftest, "EVENTS", [*conftest.EVENTS, weekend, plain, open_end])
+    assert _link_labels(client, "aaaplay:badminton") == [
+        ("friday", "Friday 7:00 pm to 9:00 pm"),
+        ("sunday", "Sunday 2:00 pm to 4:00 pm"),
+    ]
+    assert _link_labels(client, "aaaplay:plain") == [("monday", "Monday, time not published")]
+    assert _link_labels(client, "aaaplay:open") == [("saturday", "Saturday from 8:00 am")]
+    fixture = client.get(f"{EVENTS}/fx-1").json()
+    assert _link_labels(client, "fx-1") == [
+        ("main", f"{fixture['date_local']} {fixture['time_local']}")
     ]
 
 

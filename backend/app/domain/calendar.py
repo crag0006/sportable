@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 from app.domain.ics import _end_clock, next_weekday, rrule
 from app.domain.time_hints import WEEKDAYS, TimeHint, hint_for_weekday
 from app.repositories.protocols import EventRow
-from app.schemas.events import CalendarOut, EventOut, TimeHintOut
+from app.schemas.events import CalendarLinkOut, CalendarOut, EventOut, TimeHintOut
 
 DEFAULT_DURATION_MINUTES = 60
 FIXTURE_DEFAULT_LENGTH = timedelta(hours=2)
@@ -58,6 +58,38 @@ def hint_out(h: TimeHint) -> TimeHintOut:
         char_end=h.char_end,
         confidence=h.confidence,
     )
+
+
+def slot_hints(
+    hints: list[TimeHint], days: tuple[str, ...], fallback: TimeHint | None
+) -> list[TimeHint | None]:
+    """The slots an event gets an entry for: each hint on a published weekday, else the fallback."""
+    on_days: list[TimeHint | None] = [h for h in hints if days and set(h.weekdays) & set(days)]
+    return on_days or [fallback]
+
+
+def slot_keys(slots: Sequence[TimeHint | None], days: tuple[str, ...]) -> list[str]:
+    """A short key per slot, distinct within the event; the ``.ics`` UID suffix uses it too.
+
+    The audience label when the hint carries one (``juniors``), else the hint's
+    weekdays (``friday``), and ``-2``, ``-3`` on a repeat. Two plain sentences both
+    label their hint ``main``, and calendar apps treat entries with one UID as one
+    event, so a shared key hid the second slot on import (found by the frontend).
+    """
+    keys: list[str] = []
+    counts: dict[str, int] = {}
+    for slot in slots:
+        own = [d for d in days if slot and d in slot.weekdays] or list(days)
+        base = slot.slot if slot and slot.slot != "main" else "-".join(own) or "main"
+        counts[base] = counts.get(base, 0) + 1
+        keys.append(base if counts[base] == 1 else f"{base}-{counts[base]}")
+    return keys
+
+
+def _clock12(clock: str) -> str:
+    """``19:00`` as ``7:00 pm``."""
+    hh, mm = (int(part) for part in clock.split(":"))
+    return f"{(hh % 12) or 12}:{mm:02d} {'am' if hh < 12 else 'pm'}"
 
 
 def _timing_line(out: EventOut, hint: TimeHint | None) -> str:
@@ -132,36 +164,41 @@ class _Entry:
     anchor: date | None
 
 
-def _slot_urls(entry: _Entry, hints: list[TimeHint], hint: TimeHint | None) -> list[str]:
-    """One Google link per time slot on a published weekday; one all-day link otherwise."""
-    slots = [h for h in hints if entry.days and set(h.weekdays) & set(entry.days)] or (
-        [hint] if hint else []
+def _slot_label(entry: _Entry, out: EventOut, h: TimeHint | None) -> str:
+    """What the button for one slot says: audience, weekday(s) and the hinted times."""
+    if entry.row.kind != "program":
+        return " ".join(p for p in (out.date_local, out.time_local) if p) or entry.title
+    own = tuple(d for d in entry.days if h and d in h.weekdays) or entry.days
+    days = " and ".join(d.capitalize() for d in own)
+    if h is None:
+        return f"{days}, time not published"
+    times = (
+        f"{_clock12(h.start_local)} to {_clock12(h.end_local)}"
+        if h.end_local
+        else f"from {_clock12(h.start_local)}"
     )
-    urls: list[str] = []
-    for h in slots:
-        own_days = tuple(d for d in entry.days if d in h.weekdays) or entry.days
-        urls.append(
-            google_template_url(
-                title=entry.title,
-                dates=_google_dates(entry.row, entry.anchor, h),
-                timezone=entry.row.timezone,
-                rule=rrule(own_days) if entry.row.kind == "program" else None,
-                location=entry.location,
-                details=entry.lines,
-            )
+    who = f"{h.slot.capitalize()}, " if h.slot != "main" else ""
+    return f"{who}{days} {times}"
+
+
+def _slot_links(
+    entry: _Entry, out: EventOut, hints: list[TimeHint], hint: TimeHint | None
+) -> list[CalendarLinkOut]:
+    """One Google link per time slot on a published weekday; one all-day link otherwise."""
+    slots = slot_hints(hints, entry.days, hint)
+    links: list[CalendarLinkOut] = []
+    for h, key in zip(slots, slot_keys(slots, entry.days), strict=True):
+        own_days = tuple(d for d in entry.days if h and d in h.weekdays) or entry.days
+        url = google_template_url(
+            title=entry.title,
+            dates=_google_dates(entry.row, entry.anchor, h),
+            timezone=entry.row.timezone,
+            rule=rrule(own_days) if entry.row.kind == "program" else None,
+            location=entry.location,
+            details=entry.lines,
         )
-    if not urls:
-        urls.append(
-            google_template_url(
-                title=entry.title,
-                dates=_google_dates(entry.row, entry.anchor, None),
-                timezone=entry.row.timezone,
-                rule=rrule(entry.days) if entry.row.kind == "program" else None,
-                location=entry.location,
-                details=entry.lines,
-            )
-        )
-    return urls
+        links.append(CalendarLinkOut(slot=key, label=_slot_label(entry, out, h), url=url))
+    return links
 
 
 def _entry(row: EventRow, out: EventOut, hint: TimeHint | None, today: date, base: str) -> _Entry:
@@ -202,7 +239,7 @@ def calendar_out(
     days = tuple(d for d in WEEKDAYS if d in row.weekdays)
     hint = hint_for_weekday(hints, days[0] if days else None)
     entry = _entry(row, out, hint, today, base_url)
-    urls = _slot_urls(entry, hints, hint) if exportable else []
+    links = _slot_links(entry, out, hints, hint) if exportable else []
     return CalendarOut(
         exportable=exportable,
         reason=reason,
@@ -216,8 +253,9 @@ def calendar_out(
         description_lines=entry.lines,
         event_url=f"{base_url}/events/{row.event_id}",
         ics_url=f"/api/v1/events/{row.event_id}.ics",
-        google_template_url=urls[0] if urls else None,
-        google_template_urls=urls,
+        google_template_url=links[0].url if links else None,
+        google_template_urls=[link.url for link in links],
+        google_template_links=links,
         dedupe_key=f"sportable:{row.event_id}"
         + (f":{hint.slot}" if hint and hint.slot != "main" else ""),
     )
