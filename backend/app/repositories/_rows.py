@@ -49,16 +49,20 @@ SELECT d.venue_id, d.kind, d.status, d.basis, d.distance_m,
        d.opening_hours_unrecorded, d.key_requirement_unrecorded, d.transport_mode,
        d.detail_amenity_id, d.detail_source_id, d.detail_source_name,
        d.detail_source_last_updated, d.detail_distance_m,
+       dsrc.stale_after_days AS detail_stale_after_days,
        d.alternative_amenity_id, d.alternative_name, d.alternative_distance_m,
        ST_Y(alt.geom) AS alternative_lat, ST_X(alt.geom) AS alternative_lon,
        d.alternative_opening_hours, d.alternative_key_required,
        alt.source_id AS alternative_source_id, d.alternative_source_name,
-       d.alternative_source_last_updated
+       d.alternative_source_last_updated,
+       altsrc.stale_after_days AS alternative_stale_after_days
   FROM venue_facility_detail d
   JOIN venue v      ON v.venue_id = d.venue_id
   LEFT JOIN amenity a    ON a.amenity_id = d.amenity_id
   LEFT JOIN source  asrc ON asrc.source_id = a.source_id
+  LEFT JOIN source  dsrc ON dsrc.source_id = d.detail_source_id
   LEFT JOIN amenity alt  ON alt.amenity_id = d.alternative_amenity_id
+  LEFT JOIN source  altsrc ON altsrc.source_id = alt.source_id
  WHERE d.venue_id = ANY(%(ids)s)
  ORDER BY d.venue_id, d.kind
 """
@@ -118,6 +122,7 @@ def _attachment_columns(row: dict[str, Any]) -> dict[str, Any]:
         "detail_source_id": row["detail_source_id"],
         "detail_source_name": row["detail_source_name"],
         "detail_source_updated": to_date(row["detail_source_last_updated"]),
+        "detail_stale_after_days": row["detail_stale_after_days"],
         "detail_distance_m": to_float(row["detail_distance_m"]),
         "alternative_amenity_id": row["alternative_amenity_id"],
         "alternative_name": row["alternative_name"],
@@ -129,6 +134,7 @@ def _attachment_columns(row: dict[str, Any]) -> dict[str, Any]:
         "alternative_source_id": row["alternative_source_id"],
         "alternative_source_name": row["alternative_source_name"],
         "alternative_source_updated": to_date(row["alternative_source_last_updated"]),
+        "alternative_stale_after_days": row["alternative_stale_after_days"],
     }
 
 

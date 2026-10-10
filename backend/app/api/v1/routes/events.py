@@ -177,6 +177,20 @@ def event_sports(
     return events.sports(date_from, date_to, now)
 
 
+@router.get("/events/calendar.ics", include_in_schema=True)
+def events_calendar_file() -> None:
+    """Reserved for the multi-event file (contract v0.3 §7.6). 404 until built.
+
+    Registered before ``/events/{event_id}.ics`` so the path is not read as an
+    event called ``calendar``.
+    """
+    raise ApiError(
+        404,
+        "not_implemented",
+        "The multi-event calendar file is not available yet. Use /events/{id}.ics.",
+    )
+
+
 @router.get("/events/{event_id}.ics", response_class=Response)
 def event_calendar_file(event_id: str, events: Events, now: NowDep) -> Response:
     """One VEVENT (AC5.3.2): name, date, start time, venue address, links."""

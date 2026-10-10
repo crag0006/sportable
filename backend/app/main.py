@@ -26,7 +26,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="SportAble Melbourne API",
-        version="0.2.0",
+        version="0.3.0",
         docs_url="/api/v1/docs",
         openapi_url="/api/v1/openapi.json",
         redoc_url=None,

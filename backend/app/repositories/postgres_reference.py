@@ -123,36 +123,64 @@ SELECT ST_Y(c) AS lat, ST_X(c) AS lon
 """
 
 # AC1.1.4: a typo gets suggestions, never an empty list. The postcode shown
-# beside a suburb is the one most of its venues carry.
+# beside a suburb is the postal area its own point falls in (so two suburbs
+# with the same name get their own postcodes), with the venues' commonest
+# postcode as the fallback before DS-08 is loaded.
 SQL_LOCATION_SUGGEST = f"""
 WITH g AS (
-    SELECT {PLAIN_LABEL} AS label, location_kind, code, in_greater_melbourne
+    SELECT {PLAIN_LABEL} AS label, location_kind, code, in_greater_melbourne, search_point
       FROM search_location
 )
 SELECT g.label, g.location_kind, g.code,
-       (SELECT v.postcode FROM venue v
-         WHERE lower(v.suburb_name) = lower(g.label) AND v.postcode IS NOT NULL
-         GROUP BY v.postcode ORDER BY count(*) DESC LIMIT 1) AS postcode
+       coalesce(
+         (SELECT p.code FROM search_location p
+           WHERE p.location_kind = 'postcode' AND ST_Intersects(p.geom, g.search_point)
+           LIMIT 1),
+         (SELECT v.postcode FROM venue v
+           WHERE lower(v.suburb_name) = lower(g.label) AND v.postcode IS NOT NULL
+           GROUP BY v.postcode ORDER BY count(*) DESC LIMIT 1)
+       ) AS postcode
   FROM g
  WHERE similarity(lower(g.label), lower(%(q)s)) > 0.25
  ORDER BY similarity(lower(g.label), lower(%(q)s)) DESC, g.in_greater_melbourne DESC, g.label
  LIMIT %(n)s
 """
 
+# Two load runs per source: the latest good one (what is in service, so
+# retrieved_at and row_count describe real rows) and the latest of any
+# outcome (so a failure after a good load is reported, not hidden).
 SQL_SOURCES = """
 SELECT s.source_id, s.name, s.publisher, s.licence_name, s.licence_url,
        s.attribution_text, s.landing_page, s.publisher_scope, s.publisher_last_updated,
        s.stale_after_days,
-       r.completed_at AS retrieved_at, r.rows_loaded, r.outcome
+       good.completed_at AS retrieved_at, good.rows_loaded, latest.outcome
   FROM source s
   LEFT JOIN LATERAL (
-      SELECT completed_at, rows_loaded, outcome
+      SELECT completed_at, rows_loaded
+        FROM load_run
+       WHERE source_id = s.source_id AND completed_at IS NOT NULL
+         AND rows_loaded > 0
+         AND outcome IN ('landed', 'loaded', 'succeeded', 'ok', 'success')
+       ORDER BY completed_at DESC
+       LIMIT 1
+  ) good ON true
+  LEFT JOIN LATERAL (
+      SELECT outcome
         FROM load_run
        WHERE source_id = s.source_id AND completed_at IS NOT NULL
        ORDER BY completed_at DESC
        LIMIT 1
-  ) r ON true
+  ) latest ON true
  ORDER BY s.source_id
+"""
+
+# Coverage for a coordinate pair: inside an in-scope council area (data/sql/001).
+SQL_POINT_IN_SCOPE = """
+SELECT EXISTS (
+    SELECT 1 FROM lga
+     WHERE in_greater_melbourne
+       AND ST_Contains(geom, ST_SetSRID(ST_MakePoint(%(lon)s, %(lat)s), 7844))
+) AS in_scope
 """
 
 
@@ -203,19 +231,28 @@ def _centroid_row(conn: Any, postcode: str) -> list[dict[str, Any]]:
     ]
 
 
-def _candidate_rows(conn: Any, suburb: str | None, postcode: str | None) -> list[Any]:
-    """Gazetteer rows for the typed place, trying the narrowest query first."""
+def _candidate_rows(conn: Any, suburb: str | None, postcode: str | None) -> tuple[list[Any], bool]:
+    """Gazetteer rows for the typed place, trying the narrowest query first.
+
+    The flag says whether the postcode actually narrowed the answer. When it
+    did not (no postal layer, or a postcode that matches no suburb of that
+    name), the rows are the name-only ones and a duplicate name must still be
+    treated as ambiguous rather than resolved to the biggest polygon.
+    """
     rows: list[Any] = []
+    narrowed = False
     if suburb and postcode:
         params = {"name": suburb, "postcode": postcode}
         rows = conn.execute(SQL_LOCATION_BY_NAME_AND_POSTCODE, params).fetchall()
+        narrowed = bool(rows)
     if suburb and not rows:
         rows = conn.execute(SQL_LOCATION_BY_NAME, {"name": suburb}).fetchall()
     if not suburb and postcode:
         rows = conn.execute(SQL_LOCATION_BY_POSTCODE, {"postcode": postcode}).fetchall()
         if not rows:
             rows = _centroid_row(conn, postcode)
-    return rows
+        narrowed = True
+    return rows, narrowed
 
 
 def _with_postcode(reference: ReferencePoint, label: str, postcode: str) -> ReferencePoint:
@@ -258,14 +295,21 @@ class PostgresReferenceRepository:
         """v0.2 §3.4: resolved, outside_coverage, or unresolved with suggestions."""
         typed = " ".join(p for p in (suburb, postcode) if p)
         with connection() as conn:
-            rows = _candidate_rows(conn, suburb, postcode)
+            rows, narrowed = _candidate_rows(conn, suburb, postcode)
             in_scope = [r for r in rows if r["in_scope"]]
-            if rows and not (len(in_scope) > 1 and not postcode):
+            ambiguous = len(in_scope) > 1 and not narrowed
+            if rows and not ambiguous:
                 return self._match(in_scope[0] if in_scope else rows[0], suburb, postcode)
-            # No row, or two in-scope suburbs share the name (Victoria-wide
-            # scope): ask rather than guess the biggest polygon.
+            # No row, or two in-scope suburbs share the name and nothing told
+            # them apart: ask rather than guess the biggest polygon.
             suggestions = self._suggest(conn, suburb or typed, 5)
         return LocationMatch("unresolved", suggestions=suggestions)
+
+    def point_in_scope(self, latitude: float, longitude: float) -> bool:
+        """Whether the point lies in an in-scope council area."""
+        with connection() as conn:
+            row = conn.execute(SQL_POINT_IN_SCOPE, {"lat": latitude, "lon": longitude}).fetchone()
+        return bool(row and row["in_scope"])
 
     def _match(self, chosen: Any, suburb: str | None, postcode: str | None) -> LocationMatch:
         """The resolved or outside_coverage outcome for the chosen gazetteer row."""
@@ -295,7 +339,9 @@ class PostgresReferenceRepository:
             if r["location_kind"] == "suburb" and r["postcode"]:
                 label = f"{label} {r['postcode']}"
             elif r["location_kind"] == "postcode":
-                label = f"postcode {r['code']}"
+                # The bare code: every suggestion label must be sendable back
+                # as ``q`` / ``suburb`` / ``from`` and parse to the same place.
+                label = str(r["code"])
             out.append(LocationSuggestion(label=label, kind=r["location_kind"], code=r["code"]))
         return tuple(out)
 

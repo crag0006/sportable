@@ -214,6 +214,7 @@ def _detail_source_out(row: FacilityRow, stale_default: int) -> DetailSourceOut 
         source_id=row.detail_source_id,
         publisher_last_updated=row.detail_source_updated,
         retrieved_at=row.retrieved_at,
+        stale_after_days=row.detail_stale_after_days,
         default_stale_after_days=stale_default,
     )
     if ref is None:
@@ -225,16 +226,19 @@ def _detail_source_out(row: FacilityRow, stale_default: int) -> DetailSourceOut 
 
 
 def _described_attributes(row: FacilityRow, described: bool) -> dict[str, Any]:
-    """The recorded attributes of the amenity, only when that amenity is the answer."""
+    """The recorded attributes of the amenity, only when that amenity is the answer.
+
+    The ``*_unrecorded`` flags describe what this tile emits, not what the
+    read model stored for some other row: a flag is true exactly when the
+    attribute beside it is absent (AC2.1.4).
+    """
+    opening_hours = row.opening_hours if described else None
+    key_required = row.key_required if described else None
     return {
-        "opening_hours": row.opening_hours if described else None,
-        "opening_hours_unrecorded": bool(row.opening_hours_unrecorded)
-        if row.opening_hours_unrecorded is not None
-        else (row.opening_hours is None),
-        "key_required": row.key_required if described else None,
-        "key_requirement_unrecorded": bool(row.key_requirement_unrecorded)
-        if row.key_requirement_unrecorded is not None
-        else (row.key_required is None),
+        "opening_hours": opening_hours,
+        "opening_hours_unrecorded": opening_hours is None,
+        "key_required": key_required,
+        "key_requirement_unrecorded": key_required is None,
         "mlak_24h": row.mlak_24h if described else None,
         "payment_required": row.payment_required if described else None,
         "left_hand_transfer": row.left_hand_transfer if described else None,
@@ -278,6 +282,7 @@ def _alternative_out(p: Presentation, stale_default: int) -> AlternativeOut | No
         source_id=row.alternative_source_id,
         publisher_last_updated=row.alternative_source_updated,
         retrieved_at=row.retrieved_at,
+        stale_after_days=row.alternative_stale_after_days,
         default_stale_after_days=stale_default,
     )
     return AlternativeOut(
@@ -625,11 +630,29 @@ SOURCE_FEEDS: dict[str, list[str]] = {
     "DS-09": ["events"],
 }
 SOURCE_TIERS: dict[str, str] = {"DS-05": "live", "DS-09": "scheduled"}
+# ``load_run.outcome`` values the pipeline writes for a run that landed rows.
+GOOD_OUTCOMES: frozenset[str] = frozenset({"landed", "loaded", "succeeded", "ok", "success"})
 SOURCE_NOTES: dict[str, str] = {
     "DS-05": (
         "Nothing it returns is stored. Credited because routing computes over OpenStreetMap."
     ),
 }
+
+
+def _source_status(row: SourceRow) -> SourceStatus:
+    """loaded, empty, failed_using_last_good or not_used (contract §3.6).
+
+    ``rows_loaded`` and ``retrieved_at`` come from the last good run and
+    ``outcome`` from the latest run of any kind, so a failure after a good
+    load leaves the good rows in service and says so.
+    """
+    if SOURCE_TIERS.get(row.source_id) == "live":
+        return "not_used"
+    if not row.rows_loaded:
+        return "empty"
+    if row.outcome and row.outcome not in GOOD_OUTCOMES:
+        return "failed_using_last_good"
+    return "loaded"
 
 
 def register_source_out(row: SourceRow, stale_default: int) -> RegisterSourceOut:
@@ -643,15 +666,6 @@ def register_source_out(row: SourceRow, stale_default: int) -> RegisterSourceOut
         default_stale_after_days=stale_default,
     )
     assert ref is not None  # name is NOT NULL in the register
-    status: SourceStatus
-    if row.source_id in SOURCE_TIERS and SOURCE_TIERS[row.source_id] == "live":
-        status = "not_used"
-    elif row.rows_loaded:
-        status = "loaded"
-    elif row.outcome and row.outcome not in ("landed", "ok", "success"):
-        status = "failed_using_last_good"
-    else:
-        status = "empty"
     return RegisterSourceOut(
         id=row.source_id,
         name=row.name,
@@ -667,7 +681,7 @@ def register_source_out(row: SourceRow, stale_default: int) -> RegisterSourceOut
         stale_after_days=ref.stale_after_days,
         possibly_out_of_date=ref.possibly_out_of_date,
         feeds=SOURCE_FEEDS.get(row.source_id, []),
-        status=status,
+        status=_source_status(row),
         row_count=row.rows_loaded,
         mode="sample" if row.source_id == "DS-09" and not row.rows_loaded else None,
         note=SOURCE_NOTES.get(row.source_id),
@@ -703,8 +717,10 @@ def _corridor_facility_out(
     """One amenity in the corridor, in travel order (AC2.3.2), with its source."""
     ref = source_ref(
         row.source_name,
+        source_id=row.source_id,
         publisher_last_updated=row.source_updated,
         retrieved_at=row.retrieved_at,
+        stale_after_days=row.stale_after_days,
         default_stale_after_days=stale_default,
     )
     return CorridorFacilityOut(

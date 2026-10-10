@@ -57,7 +57,8 @@ SELECT a.kind::text AS kind, a.name, a.address,
        a.opening_hours, a.key_required, a.retrieved_at,
        ST_Distance(a.geom::geography, p.line::geography) AS distance_from_path_m,
        ST_LineLocatePoint(p.line, a.geom) AS fraction,
-       s.name AS source_name, s.publisher_last_updated AS source_updated
+       s.source_id, s.name AS source_name, s.publisher_last_updated AS source_updated,
+       s.stale_after_days
   FROM amenity a
  CROSS JOIN path p
   LEFT JOIN source s ON s.source_id = a.source_id
@@ -87,8 +88,10 @@ def _corridor_row(r: dict[str, Any]) -> CorridorFacilityRow:
         fraction=float(r["fraction"]),
         opening_hours=r["opening_hours"],
         key_required=r["key_required"],
+        source_id=r["source_id"],
         source_name=r["source_name"],
         source_updated=to_date(r["source_updated"]),
+        stale_after_days=r["stale_after_days"],
         retrieved_at=to_datetime(r["retrieved_at"]),
     )
 

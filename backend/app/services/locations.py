@@ -26,8 +26,8 @@ def _did_you_mean(match: LocationMatch) -> str:
 
 
 def _kind(value: str | None) -> str:
-    """Narrow a gazetteer kind to the two the contract names."""
-    return "postcode" if value == "postcode" else "suburb"
+    """Narrow a gazetteer kind to the three the contract names."""
+    return value if value in ("postcode", "point") else "suburb"
 
 
 @dataclass(frozen=True)
@@ -36,9 +36,19 @@ class LocationService:
 
     reference: ReferenceRepository
 
+    def _check_point(self, point: ReferencePoint) -> None:
+        """A coordinate pair outside the covered area is a 422 like a named place would be."""
+        if not self.reference.point_in_scope(point.latitude, point.longitude):
+            raise ApiError(
+                422,
+                "outside_coverage",
+                f"That point is outside the area SportAble covers. {COVERAGE_DESCRIPTION}",
+            )
+
     def resolve_place(self, place: PlaceInput) -> ReferencePoint:
         """The point for a typed place, or the right 422 (unknown_place, outside_coverage)."""
         if place.point is not None:
+            self._check_point(place.point)
             return place.point
         match = self.reference.resolve_location(place.suburb, place.postcode)
         if match.outcome == "resolved" and match.reference is not None:
@@ -66,6 +76,13 @@ class LocationService:
     def resolve_query(self, place: PlaceInput, typed: str) -> ResolveOut:
         """``GET /locations/resolve``: one of three outcomes, never empty (AC1.1.4)."""
         if place.point is not None:
+            if not self.reference.point_in_scope(place.point.latitude, place.point.longitude):
+                return _outside_coverage_out(
+                    LocationMatch(
+                        "outside_coverage", matched_label="That point", matched_kind="point"
+                    ),
+                    typed,
+                )
             return ResolveOut(
                 outcome="resolved",
                 query=typed,

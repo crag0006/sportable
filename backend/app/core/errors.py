@@ -11,6 +11,11 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+# Codes for the framework's own HTTP failures, so an unknown path or a wrong
+# method is still the envelope and never FastAPI's ``{"detail": ...}``.
+HTTP_CODES: dict[int, str] = {404: "route_not_found", 405: "method_not_allowed"}
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +50,15 @@ def install_error_handlers(app: FastAPI) -> None:
         detail = str(first.get("msg", "invalid request"))
         message = f"{where}: {detail}" if where else detail
         return _envelope(422, "validation_error", message)
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        """Unknown path, wrong method and the like: the envelope with a stable code."""
+        code = HTTP_CODES.get(exc.status_code, "http_error")
+        detail = str(exc.detail) if exc.detail else "Request failed."
+        if exc.status_code == 404:
+            detail = f"No route for {request.url.path}."
+        return _envelope(exc.status_code, code, detail)
 
     @app.exception_handler(Exception)
     async def _unhandled(_: Request, exc: Exception) -> JSONResponse:

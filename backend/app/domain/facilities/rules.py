@@ -52,6 +52,10 @@ def display(row: FacilityRow | None, limit_m: int) -> Display:
             return "at_venue"
         if within_limit(row, limit_m):
             return "nearby"
+        if row.distance_m is None:
+            # Confirmed by proximity but the builder kept no distance: there
+            # is nothing to say "beyond" of, so it is unknown, not "0 m away".
+            return "no_published_information"
         return "beyond_limit"
     # no_published_information. The builder keeps the nearest amenity up to
     # 5 km; a recorded distance is shown, never the no-information sentence.
