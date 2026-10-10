@@ -1,20 +1,19 @@
-
 import { getEventFacilityState } from "../pages/Events";
 
+// Google Calendar settings
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-
 
 const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
+// Names used for accessibility facilities
 const FACILITY_LABELS = {
   accessible_toilet: "Accessible toilet",
   accessible_parking: "Accessible parking",
   accessible_transport_stop: "Accessible transport",
-  accessible_change_facility: "Accessible change facility",
+  accessible_change_facility: "Accessible change facility"
 };
 
-// --- Loading the Google Identity Services script, once ---------------------
-
+// Loads the Google sign-in script only once
 let gisScriptPromise = null;
 
 function loadGoogleIdentityScript() {
@@ -43,18 +42,16 @@ function loadGoogleIdentityScript() {
   return gisScriptPromise;
 }
 
-// --- Getting an access token -----------------------------------------------
-
+// Stores the Google sign-in details and access token
 let tokenClient = null;
-let cachedToken = null; // { accessToken, expiresAt }
+let cachedToken = null;
 
+// Checks whether the saved access token is still valid
 function hasValidCachedToken() {
   return Boolean(cachedToken) && cachedToken.expiresAt > Date.now() + 30_000;
 }
 
-// Signs the user in to Google (if needed) and resolves an access token
-// scoped to calendar.events. Each call reuses a still-valid cached token
-// instead of prompting again.
+// Gets a Google access token to add events to the calendar
 export async function getGoogleAccessToken() {
   if (hasValidCachedToken()) {
     return cachedToken.accessToken;
@@ -73,15 +70,17 @@ export async function getGoogleAccessToken() {
       tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: CALENDAR_SCOPE,
-        callback: () => {}, // replaced per-request just below
+        callback: () => {}
       });
     }
 
+    // Handles the response from Google sign-in
     tokenClient.callback = (response) => {
       if (response.error) {
         reject(
           new Error(
-            response.error === "access_denied" || response.error === "popup_closed"
+            response.error === "access_denied" ||
+              response.error === "popup_closed"
               ? "Google sign-in was cancelled."
               : "Google sign-in failed. Please try again."
           )
@@ -89,21 +88,21 @@ export async function getGoogleAccessToken() {
         return;
       }
 
+      // Saves the access token so it can be reused
       cachedToken = {
         accessToken: response.access_token,
-        expiresAt: Date.now() + (response.expires_in || 3600) * 1000,
+        expiresAt: Date.now() + (response.expires_in || 3600) * 1000
       };
       resolve(response.access_token);
     };
 
-  
     tokenClient.requestAccessToken({
-      prompt: hasValidCachedToken() ? "" : "consent",
+      prompt: hasValidCachedToken() ? "" : "consent"
     });
   });
 }
 
-
+// Weekday codes used by Google Calendar for repeating events
 const WEEKDAY_TO_RRULE_DAY = {
   sunday: "SU",
   monday: "MO",
@@ -111,9 +110,10 @@ const WEEKDAY_TO_RRULE_DAY = {
   wednesday: "WE",
   thursday: "TH",
   friday: "FR",
-  saturday: "SA",
+  saturday: "SA"
 };
 
+// Creates a weekly repeat rule for the selected weekday
 export function buildWeeklyRecurrenceRule(weekday) {
   const dayName = Array.isArray(weekday) ? weekday[0] : weekday;
   if (!dayName) return null;
@@ -122,8 +122,7 @@ export function buildWeeklyRecurrenceRule(weekday) {
   return byDay ? `RRULE:FREQ=WEEKLY;BYDAY=${byDay}` : null;
 }
 
-// --- Building the event payload ---------------------------------------------
-
+// Creates a readable description of a facility and its availability
 function describeFacilityForCalendar(facility) {
   const label = FACILITY_LABELS[facility.type] || facility.type;
   const state = getEventFacilityState(facility);
@@ -147,7 +146,7 @@ function describeFacilityForCalendar(facility) {
   return `${label}: Unknown`;
 }
 
-
+// Builds the event description using accessibility and organiser details
 function buildDescription({
   venueHref,
   facilities,
@@ -155,10 +154,11 @@ function buildDescription({
   publishedTimeQuote,
   checkedDateLabel,
   sourceLink,
-  contactLink,
+  contactLink
 }) {
   const lines = [];
 
+  // Adds accessibility information to the description
   if (facilities && facilities.length > 0) {
     lines.push("Accessibility:");
     facilities.forEach((facility) => {
@@ -167,6 +167,7 @@ function buildDescription({
     lines.push("");
   }
 
+  // Adds time information for weekly activities
   if (isRecurring) {
     if (publishedTimeQuote) {
       lines.push(
@@ -188,6 +189,7 @@ function buildDescription({
     lines.push("");
   }
 
+  // Adds a link to the venue details
   if (venueHref) {
     lines.push(`More details: ${venueHref}`);
     lines.push("");
@@ -198,7 +200,7 @@ function buildDescription({
   return lines.join("\n");
 }
 
-
+// Prepares the event details in the format required by Google Calendar
 export function buildCalendarEventPayload({
   title,
   startDate,
@@ -212,7 +214,7 @@ export function buildCalendarEventPayload({
   checkedDateLabel,
   sourceLink,
   contactLink,
-  descriptionOverride,
+  descriptionOverride
 }) {
   const payload = {
     summary: title,
@@ -226,12 +228,16 @@ export function buildCalendarEventPayload({
         publishedTimeQuote,
         checkedDateLabel,
         sourceLink,
-        contactLink,
+        contactLink
       }),
-    start: { dateTime: startDate.toISOString(), timeZone: "Australia/Melbourne" },
-    end: { dateTime: endDate.toISOString(), timeZone: "Australia/Melbourne" },
+    start: {
+      dateTime: startDate.toISOString(),
+      timeZone: "Australia/Melbourne"
+    },
+    end: { dateTime: endDate.toISOString(), timeZone: "Australia/Melbourne" }
   };
 
+  // Adds the weekly repeat rule if the event is recurring
   if (recurrenceRule) {
     payload.recurrence = [recurrenceRule];
   }
@@ -239,8 +245,7 @@ export function buildCalendarEventPayload({
   return payload;
 }
 
-// --- Creating the event -----------------------------------------------------
-
+// Sends the event details to Google Calendar
 export async function createGoogleCalendarEvent(eventPayload) {
   const accessToken = await getGoogleAccessToken();
 
@@ -250,12 +255,13 @@ export async function createGoogleCalendarEvent(eventPayload) {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
+        "Content-Type": "application/json"
       },
-      body: JSON.stringify(eventPayload),
+      body: JSON.stringify(eventPayload)
     }
   );
 
+  // Shows an error if Google Calendar cannot create the event
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);
     throw new Error(
@@ -264,12 +270,13 @@ export async function createGoogleCalendarEvent(eventPayload) {
     );
   }
 
-  return response.json(); 
+  return response.json();
 }
 
-
+// Key used to store events added during the current browser session
 const ADDED_EVENTS_KEY = "sportable-calendar-added-events";
 
+// Gets the IDs of events already added in this session
 function readAddedIds() {
   try {
     const raw = sessionStorage.getItem(ADDED_EVENTS_KEY);
@@ -280,10 +287,12 @@ function readAddedIds() {
   }
 }
 
+// Checks whether the event has already been added during this session
 export function hasAddedToCalendarThisSession(eventId) {
   return readAddedIds().includes(eventId);
 }
 
+// Saves the event ID to help prevent duplicate calendar entries
 export function markAddedToCalendarThisSession(eventId) {
   try {
     const ids = readAddedIds();
@@ -294,6 +303,6 @@ export function markAddedToCalendarThisSession(eventId) {
       );
     }
   } catch {
-    // Not critical — worst case, the duplicate warning just doesn't fire.
+    // The calendar can still work if session storage is unavailable
   }
 }

@@ -1,24 +1,21 @@
+// Icons used for different accessibility facilities
 const ICON_EMOJI = {
   toilet: "🚻",
   parking: "🅿",
   transport: "🚋",
-  change: "♿",
+  change: "♿"
 };
 
-// Builds a Google Maps "directions to" link. Leaving the origin out means
-// Google Maps uses the visitor's current location automatically — this is
-// the exact facility's own coordinates (from the corridor/directions API),
-// not just the venue, so it routes to the right place even for a facility
-// that isn't at the venue itself.
+// Creates a Google Maps directions link using the facility's location
 function buildMapsUrl(lat, lon) {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=walking`;
 }
 
 function FacilityCard({ facility }) {
-  // "state" decides the colour: green = good news, red = bad news,
-  // grey = nothing published.
+  // Gets the facility status, or uses unknown if no status is available
   const state = facility.state || "unknown";
 
+  // Checks whether the facility's location coordinates are available
   const hasCoordinates =
     facility.lat !== undefined &&
     facility.lat !== null &&
@@ -27,12 +24,12 @@ function FacilityCard({ facility }) {
 
   return (
     <article className={`facility-card facility-${state}`}>
-      <div className="facility-icon">
-        {ICON_EMOJI[facility.icon] || "📍"}
-      </div>
+      {/* Facility icon */}
+      <div className="facility-icon">{ICON_EMOJI[facility.icon] || "📍"}</div>
 
       <div className="facility-body">
         <div className="facility-top">
+          {/* Facility name and description */}
           <div>
             <h3>{facility.title}</h3>
             <p>{facility.description}</p>
@@ -43,13 +40,15 @@ function FacilityCard({ facility }) {
               display: "flex",
               flexDirection: "column",
               alignItems: "flex-end",
-              gap: "6px",
+              gap: "6px"
             }}
           >
+            {/* Shows the facility distance or status */}
             <div className={`distance-pill distance-pill--${state}`}>
               {facility.pillText || facility.distance || "—"}
             </div>
 
+            {/* Shows the map link when facility coordinates are available */}
             {hasCoordinates && (
               <a
                 href={buildMapsUrl(facility.lat, facility.lon)}
@@ -66,7 +65,7 @@ function FacilityCard({ facility }) {
                   fontWeight: 700,
                   color: "#14507a",
                   textDecoration: "none",
-                  whiteSpace: "nowrap",
+                  whiteSpace: "nowrap"
                 }}
               >
                 <span aria-hidden="true">🧭</span> Map

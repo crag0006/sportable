@@ -1,3 +1,4 @@
+/* Message shown when an event cannot be added to the calendar */
 .calendar-unavailable-note {
   margin: 0;
   align-self: center;
@@ -5,6 +6,7 @@
   font-size: 0.85rem;
 }
 
+/* Background overlay for the calendar popup */
 .calendar-modal-overlay {
   position: fixed;
   inset: 0;
@@ -16,6 +18,7 @@
   padding: 16px;
 }
 
+/* Calendar popup */
 .calendar-modal {
   width: min(440px, 100%);
   max-height: calc(100vh - 48px);
@@ -39,6 +42,7 @@
   line-height: 1.4;
 }
 
+/* Input fields in the calendar popup */
 .calendar-field {
   display: block;
   margin-bottom: 14px;
@@ -64,12 +68,14 @@
   font-family: inherit;
 }
 
+/* Displays event details that cannot be edited */
 .calendar-field--readonly p {
   margin: 0;
   font-size: 0.9rem;
   color: #1a2b2e;
 }
 
+/* Places calendar fields next to each other */
 .calendar-field-row {
   display: flex;
   gap: 12px;
@@ -81,6 +87,7 @@
   min-width: 110px;
 }
 
+/* List of accessibility facilities */
 .calendar-facility-list {
   margin: 0;
   padding-left: 18px;
@@ -92,9 +99,7 @@
   margin-bottom: 2px;
 }
 
-/* Recurring-program callout — the honest "we don't know the exact time"
-   note shown above the Starts from / Start time fields (US5.1 recurring
-   extension). Amber, not red: it's informational, not an error. */
+/* Message shown when the event time is not published */
 .calendar-recurrence-note {
   margin: 0 0 14px 0;
   padding: 10px 12px;
@@ -116,11 +121,7 @@
   text-decoration: underline;
 }
 
-/* Published-time quote callout — shown instead of the amber "not
-   published" note when the organiser's description does mention a clock
-   time. Blue, not amber: it's a found fact (quoted verbatim), just one
-   SportAble hasn't confirmed — distinct from the "nothing published at
-   all" case above. */
+/* Shows time information found in the event description */
 .calendar-quote-block {
   margin: 0 0 14px 0;
   padding: 10px 12px;
@@ -147,11 +148,7 @@
   text-decoration: underline;
 }
 
-/* The calendar-block path (API contract v0.3 §7.7): one or more plain
-   "Add to Google Calendar" links straight to Google's own prefilled page,
-   plus a .ics download and a small way back into the OAuth modal for
-   anyone who prefers that instead. No modal needed for the main path —
-   Google's own new-event page is the preview. */
+/* Google Calendar links and download options */
 .calendar-quick-add {
   display: flex;
   flex-wrap: wrap;
@@ -176,6 +173,7 @@
   color: #3f545e;
 }
 
+/* Message shown after clicking the calendar link */
 .calendar-added-note {
   margin: 0;
   text-align: left;
@@ -183,10 +181,7 @@
   font-weight: 700;
 }
 
-/* The day picker for a program with more than one weekly time (<details>/
-   <summary>). The summary is styled like the usual primary button; the
-   marker triangle is hidden since the button text already says what it
-   does. */
+/* Dropdown for events with multiple time options */
 .calendar-add-dropdown {
   position: relative;
 }
@@ -196,20 +191,24 @@
   list-style: none;
 }
 
+/* Hides the default dropdown arrow */
 .calendar-add-dropdown > summary::-webkit-details-marker {
   display: none;
 }
 
+/* Shows an arrow when the dropdown is closed */
 .calendar-add-dropdown > summary::after {
   content: "▾";
   margin-left: 6px;
   font-size: 0.75em;
 }
 
+/* Changes the arrow when the dropdown is open */
 .calendar-add-dropdown[open] > summary::after {
   content: "▴";
 }
 
+/* List of available calendar time options */
 .calendar-add-dropdown-menu {
   position: absolute;
   top: calc(100% + 6px);
@@ -253,6 +252,7 @@
   white-space: nowrap;
 }
 
+/* Buttons at the bottom of the calendar popup */
 .calendar-modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -277,6 +277,7 @@
   justify-content: center;
 }
 
+/* Primary button for confirming the calendar event */
 .calendar-btn-primary {
   background: #14507a;
   color: #fff;
@@ -286,6 +287,7 @@
   background: #0c3a5c;
 }
 
+/* Secondary button for cancelling or closing */
 .calendar-btn-secondary {
   background: #f0f3f2;
   color: #3f545e;
@@ -295,6 +297,7 @@
   background: #e3e9e7;
 }
 
+/* Shows the loading, success or error status */
 .calendar-status {
   text-align: center;
   padding: 12px 4px;
@@ -311,6 +314,7 @@
   margin: 0;
 }
 
+/* Error message heading */
 .calendar-status-heading--error {
   color: #a6342a;
 }
@@ -324,6 +328,7 @@
   margin-top: 4px;
 }
 
+/* Loading spinner shown while the event is being added */
 .calendar-spinner {
   width: 28px;
   height: 28px;
@@ -333,6 +338,7 @@
   animation: calendar-spin 0.8s linear infinite;
 }
 
+/* Rotates the loading spinner */
 @keyframes calendar-spin {
   to {
     transform: rotate(360deg);

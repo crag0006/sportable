@@ -1,3 +1,4 @@
+/* Positions the chatbot at the bottom-right of the page */
 .chat-widget {
   position: fixed;
   right: 24px;
@@ -10,8 +11,7 @@
   font-family: inherit;
 }
 
-/* --- Floating action button --- */
-
+/* Floating chatbot button */
 .chat-fab {
   position: relative;
   width: 64px;
@@ -27,19 +27,26 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 12px 28px rgba(12, 28, 45, 0.4), 0 2px 6px rgba(12, 28, 45, 0.25);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow:
+    0 12px 28px rgba(12, 28, 45, 0.4),
+    0 2px 6px rgba(12, 28, 45, 0.25);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .chat-fab:hover {
   transform: translateY(-3px) scale(1.04);
-  box-shadow: 0 16px 32px rgba(12, 28, 45, 0.45), 0 2px 6px rgba(12, 28, 45, 0.3);
+  box-shadow:
+    0 16px 32px rgba(12, 28, 45, 0.45),
+    0 2px 6px rgba(12, 28, 45, 0.3);
 }
 
 .chat-fab:active {
   transform: translateY(-1px) scale(0.98);
 }
 
+/* Shows an outline when the button is selected using the keyboard */
 .chat-fab:focus-visible {
   outline: 3px solid #2b8c69;
   outline-offset: 2px;
@@ -50,7 +57,7 @@
   z-index: 1;
 }
 
-/* Soft pulsing ring so the button catches the eye without being annoying */
+/* Adds a pulsing effect around the chatbot button */
 .chat-fab-ring {
   position: absolute;
   inset: -6px;
@@ -60,6 +67,7 @@
   pointer-events: none;
 }
 
+/* Makes the ring expand and fade away */
 @keyframes chat-fab-pulse {
   0% {
     transform: scale(0.85);
@@ -75,6 +83,7 @@
   }
 }
 
+/* Turns off the animation for users who prefer less movement */
 @media (prefers-reduced-motion: reduce) {
   .chat-fab-ring {
     animation: none;
@@ -82,8 +91,7 @@
   }
 }
 
-/* --- Greeting bubble --- */
-
+/* Greeting message shown near the chatbot button */
 .chat-greeting {
   position: relative;
   max-width: 240px;
@@ -102,6 +110,7 @@
   margin: 0;
 }
 
+/* Close button for the greeting message */
 .chat-greeting-close {
   position: absolute;
   top: 6px;
@@ -125,6 +134,7 @@
   background: #e3e9e7;
 }
 
+/* Makes the greeting message fade in */
 @keyframes chat-greeting-in {
   from {
     opacity: 0;
@@ -136,8 +146,7 @@
   }
 }
 
-/* --- Chat panel --- */
-
+/* Main chatbot window */
 .chat-panel {
   width: min(360px, calc(100vw - 48px));
   height: min(480px, calc(100vh - 140px));
@@ -150,13 +159,18 @@
   overflow: hidden;
 }
 
+/* Header of the chatbot window */
 .chat-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 14px 16px;
-  background: linear-gradient(120deg, rgba(12, 28, 45, 0.95), rgba(12, 28, 45, 0.88));
+  background: linear-gradient(
+    120deg,
+    rgba(12, 28, 45, 0.95),
+    rgba(12, 28, 45, 0.88)
+  );
   color: #fff;
   flex-shrink: 0;
 }
@@ -172,6 +186,7 @@
   margin-top: 2px;
 }
 
+/* Button to close the chatbot window */
 .chat-panel-close {
   appearance: none;
   -webkit-appearance: none;
@@ -193,6 +208,7 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
+/* Area where chat messages are displayed */
 .chat-panel-messages {
   flex: 1;
   overflow-y: auto;
@@ -203,6 +219,7 @@
   background: #f6f8f7;
 }
 
+/* Aligns messages based on who sent them */
 .chat-bubble-row {
   display: flex;
 }
@@ -215,6 +232,7 @@
   justify-content: flex-start;
 }
 
+/* Common styling for chat messages */
 .chat-bubble {
   max-width: 80%;
   padding: 10px 14px;
@@ -224,6 +242,7 @@
   word-wrap: break-word;
 }
 
+/* Chatbot messages */
 .chat-bubble--bot {
   background: #fff;
   border: 1px solid #dde5e3;
@@ -231,12 +250,14 @@
   border-bottom-left-radius: 4px;
 }
 
+/* User messages */
 .chat-bubble--user {
   background: #14507a;
   color: #fff;
   border-bottom-right-radius: 4px;
 }
 
+/* Shows animated dots while the chatbot is typing */
 .chat-bubble--typing {
   display: flex;
   align-items: center;
@@ -252,6 +273,7 @@
   animation: chat-typing-bounce 1.2s infinite ease-in-out;
 }
 
+/* Adds a delay so the dots move one after another */
 .chat-typing-dot:nth-child(2) {
   animation-delay: 0.15s;
 }
@@ -260,8 +282,11 @@
   animation-delay: 0.3s;
 }
 
+/* Moves the typing dots up and down */
 @keyframes chat-typing-bounce {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
     opacity: 0.6;
   }
@@ -271,6 +296,7 @@
   }
 }
 
+/* Message input area at the bottom of the chatbot */
 .chat-panel-input-row {
   display: flex;
   align-items: center;
@@ -292,11 +318,13 @@
   min-width: 0;
 }
 
+/* Highlights the input field when using the keyboard */
 .chat-panel-input-row input:focus-visible {
   outline: 2px solid #2b8c69;
   outline-offset: 1px;
 }
 
+/* Button to send a message */
 .chat-panel-send {
   appearance: none;
   -webkit-appearance: none;
@@ -315,6 +343,7 @@
   transition: opacity 0.15s ease;
 }
 
+/* Changes the appearance when the send button is disabled */
 .chat-panel-send:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -324,6 +353,7 @@
   background: #0c3a5c;
 }
 
+/* Adjusts chatbot spacing and width on mobile screens */
 @media (max-width: 480px) {
   .chat-widget {
     right: 16px;
