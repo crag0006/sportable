@@ -403,14 +403,6 @@ export default function AddToCalendarButton({ event }) {
               ✓ Added to your calendar
             </p>
           )}
-
-          <button
-            type="button"
-            className="calendar-secondary-link"
-            onClick={openPreview}
-          >
-            Prefer to add it a different way?
-          </button>
         </div>
       ) : (
         <button
