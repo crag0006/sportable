@@ -72,6 +72,15 @@ function formatEventDateTime(event) {
       : event.recurrence.summary;
   }
 
+  // Confirmed on the live site: an activity listing's REST record only
+  // ever has `weekday` (e.g. "Thursday") and `activity_when` (e.g. "After
+  // school") — never a clock time. This badge is honest about that: it
+  // shows the published weekday/when, not a time we don't have.
+  if (event.weekday) {
+    const label = `Every ${event.weekday}`;
+    return event.activity_when ? `${label} · ${event.activity_when}` : label;
+  }
+
   if (event.status_label) return event.status_label;
 
   return "Date to be confirmed";
@@ -170,7 +179,37 @@ function EventCard({ event }) {
       timeLocal: event.time_local || null,
       venueAddress: venue.address || "",
       venueHref: venue.href || null,
-      facilities: facilities
+      facilities: facilities,
+      // --- Added so recurring "activity" events (no date_local — e.g.
+      // weekly netball/swim programs) can also be added to Google Calendar
+      // as a weekly recurring entry.
+      //
+      // Confirmed on the live site: the API never gives a clock time for
+      // these — only `weekday` (e.g. "Thursday") and `activity_when` (a
+      // coarse bucket like "After school"). Where a clock time exists at
+      // all, it's unlabelled free text inside `description` (e.g.
+      // "Thursdays 4:30pm – 5:15pm"), in no fixed format, on roughly 60% of
+      // listings. We keep description so the calendar button can quote the
+      // organiser's own sentence — never to parse a time out of it. The
+      // user always confirms the real time themselves. externalLink/
+      // registrationLink give the user somewhere to check that time (or a
+      // contact, when none was published at all).
+      weekday: event.weekday || null,
+      activityWhen: event.activity_when || null,
+      description: event.description || "",
+      externalLink: event.links?.external || null,
+      registrationLink: event.links?.registration || null,
+      // --- API contract v0.3 §7.7: once `feature/event-calendar-v03` is
+      // live, every event carries a `calendar` block that is the single
+      // source of truth for exportability, the RRULE, the time hint and
+      // the description — the backend already did the regex/model
+      // extraction and facility-tile wording, so the button should read
+      // this instead of recomputing anything, per Jiahe's frontend brief.
+      // Kept as-is (not flattened) so AddToCalendarButton can tell at a
+      // glance whether it's there. null on current production, which
+      // doesn't send this field yet — the weekday/activityWhen/description
+      // fields above remain the fallback for that case.
+      calendarBlock: event.calendar || null
     });
     setIsSaved(true);
   }

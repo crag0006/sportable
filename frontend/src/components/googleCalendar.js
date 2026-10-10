@@ -1,3 +1,4 @@
+
 import { getEventFacilityState } from "../pages/Events";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -12,6 +13,7 @@ const FACILITY_LABELS = {
   accessible_change_facility: "Accessible change facility",
 };
 
+// --- Loading the Google Identity Services script, once ---------------------
 
 let gisScriptPromise = null;
 
@@ -41,6 +43,8 @@ function loadGoogleIdentityScript() {
   return gisScriptPromise;
 }
 
+// --- Getting an access token -----------------------------------------------
+
 let tokenClient = null;
 let cachedToken = null; // { accessToken, expiresAt }
 
@@ -48,7 +52,9 @@ function hasValidCachedToken() {
   return Boolean(cachedToken) && cachedToken.expiresAt > Date.now() + 30_000;
 }
 
-
+// Signs the user in to Google (if needed) and resolves an access token
+// scoped to calendar.events. Each call reuses a still-valid cached token
+// instead of prompting again.
 export async function getGoogleAccessToken() {
   if (hasValidCachedToken()) {
     return cachedToken.accessToken;
@@ -90,11 +96,33 @@ export async function getGoogleAccessToken() {
       resolve(response.access_token);
     };
 
+  
     tokenClient.requestAccessToken({
       prompt: hasValidCachedToken() ? "" : "consent",
     });
   });
 }
+
+
+const WEEKDAY_TO_RRULE_DAY = {
+  sunday: "SU",
+  monday: "MO",
+  tuesday: "TU",
+  wednesday: "WE",
+  thursday: "TH",
+  friday: "FR",
+  saturday: "SA",
+};
+
+export function buildWeeklyRecurrenceRule(weekday) {
+  const dayName = Array.isArray(weekday) ? weekday[0] : weekday;
+  if (!dayName) return null;
+
+  const byDay = WEEKDAY_TO_RRULE_DAY[dayName.trim().toLowerCase()];
+  return byDay ? `RRULE:FREQ=WEEKLY;BYDAY=${byDay}` : null;
+}
+
+// --- Building the event payload ---------------------------------------------
 
 function describeFacilityForCalendar(facility) {
   const label = FACILITY_LABELS[facility.type] || facility.type;
@@ -119,7 +147,16 @@ function describeFacilityForCalendar(facility) {
   return `${label}: Unknown`;
 }
 
-function buildDescription({ venueHref, facilities }) {
+
+function buildDescription({
+  venueHref,
+  facilities,
+  isRecurring,
+  publishedTimeQuote,
+  checkedDateLabel,
+  sourceLink,
+  contactLink,
+}) {
   const lines = [];
 
   if (facilities && facilities.length > 0) {
@@ -127,6 +164,27 @@ function buildDescription({ venueHref, facilities }) {
     facilities.forEach((facility) => {
       lines.push("- " + describeFacilityForCalendar(facility));
     });
+    lines.push("");
+  }
+
+  if (isRecurring) {
+    if (publishedTimeQuote) {
+      lines.push(
+        `As published by the organiser (checked ${checkedDateLabel}): "${publishedTimeQuote}"`
+      );
+      if (sourceLink) lines.push(`Source: ${sourceLink}`);
+      lines.push(
+        "This time was not confirmed by SportAble — the time on this entry was entered by you."
+      );
+    } else {
+      lines.push(
+        "SportAble could not find a published time for this activity."
+      );
+      if (contactLink) lines.push(`Check with the organiser: ${contactLink}`);
+      lines.push(
+        "The time on this entry was entered by you, not confirmed by SportAble."
+      );
+    }
     lines.push("");
   }
 
@@ -140,6 +198,7 @@ function buildDescription({ venueHref, facilities }) {
   return lines.join("\n");
 }
 
+
 export function buildCalendarEventPayload({
   title,
   startDate,
@@ -148,16 +207,39 @@ export function buildCalendarEventPayload({
   venueAddress,
   venueHref,
   facilities,
+  recurrenceRule,
+  publishedTimeQuote,
+  checkedDateLabel,
+  sourceLink,
+  contactLink,
+  descriptionOverride,
 }) {
-  return {
+  const payload = {
     summary: title,
     location: [venueName, venueAddress].filter(Boolean).join(", "),
-    description: buildDescription({ venueHref, facilities }),
+    description:
+      descriptionOverride ||
+      buildDescription({
+        venueHref,
+        facilities,
+        isRecurring: Boolean(recurrenceRule),
+        publishedTimeQuote,
+        checkedDateLabel,
+        sourceLink,
+        contactLink,
+      }),
     start: { dateTime: startDate.toISOString(), timeZone: "Australia/Melbourne" },
     end: { dateTime: endDate.toISOString(), timeZone: "Australia/Melbourne" },
   };
+
+  if (recurrenceRule) {
+    payload.recurrence = [recurrenceRule];
+  }
+
+  return payload;
 }
 
+// --- Creating the event -----------------------------------------------------
 
 export async function createGoogleCalendarEvent(eventPayload) {
   const accessToken = await getGoogleAccessToken();
@@ -182,8 +264,9 @@ export async function createGoogleCalendarEvent(eventPayload) {
     );
   }
 
-  return response.json(); // includes .htmlLink to open the event in Google Calendar
+  return response.json(); 
 }
+
 
 const ADDED_EVENTS_KEY = "sportable-calendar-added-events";
 
@@ -210,6 +293,7 @@ export function markAddedToCalendarThisSession(eventId) {
         JSON.stringify([...ids, eventId])
       );
     }
-  } catch {    
+  } catch {
+    // Not critical — worst case, the duplicate warning just doesn't fire.
   }
 }

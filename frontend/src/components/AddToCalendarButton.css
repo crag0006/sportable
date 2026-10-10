@@ -1,3 +1,5 @@
+/* Add to Google Calendar — button + confirmation modal (US5.1 / US5.2) */
+
 .calendar-unavailable-note {
   margin: 0;
   align-self: center;
@@ -53,7 +55,8 @@
 }
 
 .calendar-field input[type="text"],
-.calendar-field input[type="time"] {
+.calendar-field input[type="time"],
+.calendar-field input[type="date"] {
   width: 100%;
   box-sizing: border-box;
   padding: 9px 12px;
@@ -89,6 +92,96 @@
 
 .calendar-facility-list li {
   margin-bottom: 2px;
+}
+
+/* Recurring-program callout — the honest "we don't know the exact time"
+   note shown above the Starts from / Start time fields (US5.1 recurring
+   extension). Amber, not red: it's informational, not an error. */
+.calendar-recurrence-note {
+  margin: 0 0 14px 0;
+  padding: 10px 12px;
+  background: #fdf6e8;
+  border: 1px solid #f0dfb0;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #6b5a28;
+}
+
+.calendar-recurrence-note a {
+  color: #14507a;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.calendar-recurrence-note a:hover {
+  text-decoration: underline;
+}
+
+/* Published-time quote callout — shown instead of the amber "not
+   published" note when the organiser's description does mention a clock
+   time. Blue, not amber: it's a found fact (quoted verbatim), just one
+   SportAble hasn't confirmed — distinct from the "nothing published at
+   all" case above. */
+.calendar-quote-block {
+  margin: 0 0 14px 0;
+  padding: 10px 12px;
+  background: #eaf2f8;
+  border: 1px solid #c3d9ea;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #1a3c52;
+}
+
+.calendar-quote-block em {
+  font-style: normal;
+  font-weight: 700;
+}
+
+.calendar-quote-block a {
+  color: #14507a;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.calendar-quote-block a:hover {
+  text-decoration: underline;
+}
+
+/* The calendar-block path (API contract v0.3 §7.7): one or more plain
+   "Add to Google Calendar" links straight to Google's own prefilled page,
+   plus a .ics download and a small way back into the OAuth modal for
+   anyone who prefers that instead. No modal needed for the main path —
+   Google's own new-event page is the preview. */
+.calendar-quick-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.calendar-secondary-link {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  color: #6b7a7d;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.calendar-secondary-link:hover {
+  color: #3f545e;
+}
+
+.calendar-added-note {
+  width: 100%;
+  margin: 0;
+  text-align: left;
 }
 
 .calendar-modal-actions {
