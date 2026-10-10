@@ -646,8 +646,17 @@
   flex-wrap: wrap;
 }
 
+/* .chip is shared/inline (main.css) — force inline-block here so its own
+   margin-bottom actually takes effect, since an inline element ignores
+   vertical margins. Scoped to .event-top so other pages' chips are
+   untouched. */
+.event-top .chip {
+  display: inline-block;
+  margin-bottom: 6px;
+}
+
 .event-teams {
-  margin: 0.5rem 0 0 0;
+  margin: 10px 0 0 0;
   font-size: 1.1rem;
   font-weight: 700;
   color: #0c1c2d;
