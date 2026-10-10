@@ -22,7 +22,7 @@ from app.domain.facilities import KEY_TO_KIND
 from app.schemas.venues import CorridorOut, SearchOut, VenueCardOut
 from app.services.inputs import CorridorQuery, SearchQuery, VenuePageQuery
 
-router = APIRouter()
+router = APIRouter(tags=["Venues"])
 
 
 def _search_query(request: Request, settings: Settings) -> SearchQuery:

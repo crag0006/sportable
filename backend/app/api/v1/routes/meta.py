@@ -12,7 +12,7 @@ from app.schemas.venues import ConfigOut, HealthOut, SportsOut, SuburbsOut
 from app.services.inputs import PlaceInput
 from app.services.reference import config_out, facility_types_out
 
-router = APIRouter()
+router = APIRouter(tags=["Reference"])
 
 
 @router.get("/health", response_model=HealthOut)
