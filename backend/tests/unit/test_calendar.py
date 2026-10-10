@@ -1,7 +1,11 @@
 """The calendar block, time hints, the ids filter and the multi-event file (v0.3 §7.6, §7.7)."""
 
+import re
+from dataclasses import replace
 from urllib.parse import parse_qs, urlparse
 
+import conftest
+import pytest
 from app.domain.time_hints import hints_for
 from fastapi.testclient import TestClient
 
@@ -120,12 +124,49 @@ def test_multi_event_file_has_one_entry_per_slot_with_a_timezone(client: TestCli
     assert 'attachment; filename="sportable-events.ics"' in response.headers["content-disposition"]
     text = response.text.replace("\r\n ", "")
     assert "X-WR-CALNAME:SportAble events" in text and "BEGIN:VTIMEZONE" in text
-    assert "UID:aaaplay:25089#main@sportablemelbourne.me" in text
+    assert "UID:aaaplay:25089#wednesday@sportablemelbourne.me" in text
     assert "UID:aaaplay:25089#juniors@sportablemelbourne.me" in text
     assert "DTSTART;TZID=Australia/Melbourne:" in text and "T173000" in text and "T183000" in text
     assert "UID:fx-cancelled@sportablemelbourne.me" in text and "STATUS:CANCELLED" in text
     assert text.count("BEGIN:VEVENT") == 3
     assert "Activity and facility listings from AAA Play" in text
+
+
+def _uids(client: TestClient, event_id: str) -> list[str]:
+    """The UID lines of one event's .ics file, in order."""
+    text = client.get(f"{EVENTS}/{event_id}.ics").text.replace("\r\n ", "")
+    assert text.count("BEGIN:VEVENT") == text.count("UID:")
+    return re.findall(r"UID:(\S+)", text)
+
+
+def test_two_plain_slots_get_distinct_uids(client: TestClient, monkeypatch: pytest.MonkeyPatch):
+    """Two sentences without an audience word both label their hint ``main``; the UIDs
+    must still differ, or a calendar app imports one of the two slots only."""
+    base = next(e for e in conftest.EVENTS if e.event_id == "aaaplay:25089")
+    weekend = replace(
+        base,
+        event_id="aaaplay:badminton",
+        description="Social badminton. Fridays 7:00 pm to 9:00 pm and Sundays 2:00 pm to 4:00 pm.",
+        weekdays=("friday", "sunday"),
+    )
+    same_day = replace(
+        base,
+        event_id="aaaplay:twice",
+        description="Wednesdays 10:00 am to 11:00 am. A second group runs Wednesdays 6 pm to 7 pm.",
+    )
+    monkeypatch.setattr(conftest, "EVENTS", [*conftest.EVENTS, weekend, same_day])
+    assert _uids(client, "aaaplay:badminton") == [
+        "aaaplay:badminton#friday@sportablemelbourne.me",
+        "aaaplay:badminton#sunday@sportablemelbourne.me",
+    ]
+    assert _uids(client, "aaaplay:twice") == [
+        "aaaplay:twice#wednesday@sportablemelbourne.me",
+        "aaaplay:twice#wednesday-2@sportablemelbourne.me",
+    ]
+    assert _uids(client, "aaaplay:25089") == [
+        "aaaplay:25089#wednesday@sportablemelbourne.me",
+        "aaaplay:25089#juniors@sportablemelbourne.me",
+    ]
 
 
 def test_multi_event_file_requires_ids(client: TestClient):

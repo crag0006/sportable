@@ -382,22 +382,42 @@ def _slots(row: EventRow, hints: list[TimeHint], days: tuple[str, ...]) -> list[
     return [main]
 
 
+def _slot_labels(slots: list[TimeHint | None], days: tuple[str, ...]) -> list[str | None]:
+    """The UID suffix of each slot when an event has several entries; None when it has one.
+
+    The audience label when the hint carries one (``juniors``), else the hint's
+    weekdays (``friday``), and ``-2``, ``-3`` on a repeat. Two plain sentences both
+    label their hint ``main``, and calendar apps treat entries with one UID as one
+    event, so the second slot silently vanished on import (found by the frontend).
+    """
+    if len(slots) < 2:
+        return [None] * len(slots)
+    labels: list[str | None] = []
+    counts: dict[str, int] = {}
+    for slot in slots:
+        own = [d for d in days if slot and d in slot.weekdays] or list(days)
+        base = slot.slot if slot and slot.slot != "main" else "-".join(own) or "main"
+        counts[base] = counts.get(base, 0) + 1
+        labels.append(base if counts[base] == 1 else f"{base}-{counts[base]}")
+    return labels
+
+
 def _slot_vevent(
     row: EventRow,
     out: EventOut,
     share_url: str,
     now: datetime,
     slot: TimeHint | None,
-    several: bool,
+    label: str | None,
 ) -> list[str]:
-    """One VEVENT for one slot of an event (section 7.6)."""
+    """One VEVENT for one slot of an event (section 7.6); ``label`` is its UID suffix."""
     days = tuple(d for d in WEEKDAYS if d in row.weekdays)
     own = tuple(d for d in days if slot and d in slot.weekdays) or days
     today = today_in(row.timezone, now)
     anchor = next_weekday(today, own[0]) if own else today
     uid = (
-        f"{row.event_id}#{slot.slot}@sportablemelbourne.me"
-        if several and slot
+        f"{row.event_id}#{label}@sportablemelbourne.me"
+        if label
         else f"{row.event_id}@sportablemelbourne.me"
     )
     when = when_lines(
@@ -429,7 +449,11 @@ def event_vevents(row: EventRow, out: EventOut, share_url: str, now: datetime) -
     hints = hints_for(row.description, tuple(row.weekdays))
     days = tuple(d for d in WEEKDAYS if d in row.weekdays)
     slots = _slots(row, hints, days)
-    return [_slot_vevent(row, out, share_url, now, slot, len(slots) > 1) for slot in slots]
+    labels = _slot_labels(slots, days)
+    return [
+        _slot_vevent(row, out, share_url, now, slot, label)
+        for slot, label in zip(slots, labels, strict=True)
+    ]
 
 
 def event_ics(row: EventRow, out: EventOut, share_url: str, now: datetime | None = None) -> str:
