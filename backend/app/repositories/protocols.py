@@ -48,8 +48,10 @@ class SourceRow:
     publisher_scope: str | None
     publisher_last_updated: date | None
     stale_after_days: int | None = None
+    # The latest SUCCESSFUL load: what the site is actually serving.
     retrieved_at: datetime | None = None
     rows_loaded: int | None = None
+    # The latest load of any outcome, so a failure after a good load is visible.
     outcome: str | None = None
 
 
@@ -133,6 +135,7 @@ class FacilityRow:
     detail_source_id: str | None = None
     detail_source_name: str | None = None
     detail_source_updated: date | None = None
+    detail_stale_after_days: int | None = None
     detail_distance_m: float | None = None
     # The nearby public alternative to a published absence (migration 007).
     alternative_amenity_id: str | None = None
@@ -145,6 +148,7 @@ class FacilityRow:
     alternative_source_id: str | None = None
     alternative_source_name: str | None = None
     alternative_source_updated: date | None = None
+    alternative_stale_after_days: int | None = None
 
 
 @dataclass(frozen=True)
@@ -160,8 +164,10 @@ class CorridorFacilityRow:
     fraction: float  # 0..1 along the line - the travel order
     opening_hours: str | None = None
     key_required: bool | None = None
+    source_id: str | None = None
     source_name: str | None = None
     source_updated: date | None = None
+    stale_after_days: int | None = None
     retrieved_at: datetime | None = None
 
 
@@ -302,6 +308,10 @@ class ReferenceRepository(Protocol):
 
     def resolve_location(self, suburb: str | None, postcode: str | None) -> LocationMatch:
         """A typed place to a named point: resolved, outside_coverage or unresolved."""
+        ...
+
+    def point_in_scope(self, latitude: float, longitude: float) -> bool:
+        """Whether a coordinate pair falls inside the area SportAble covers."""
         ...
 
     def list_sources(self) -> list[SourceRow]:

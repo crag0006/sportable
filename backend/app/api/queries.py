@@ -32,12 +32,15 @@ FacilitiesQ = Annotated[
         "Aliases: needs, types, amenities, or flag style toilet=true. Groups; never hides."
     ),
 ]
+# Declared as text, not int, so a value such as ``abc`` or ``500.5`` reaches
+# ``parse_band`` and is answered as ``invalid_distance_band`` (contract §10)
+# rather than by FastAPI's own integer check.
 DistanceQ = Annotated[
-    int | None,
+    str | None,
     Query(
         description="Facility distance limit in metres, one of the bands in /config. "
         "Aliases: limit, within.",
-        examples=[500],
+        examples=["500"],
     ),
 ]
 FromQ = Annotated[
@@ -65,10 +68,11 @@ OptionalOriginQ = Annotated[
     ),
 ]
 WithinQ = Annotated[
-    int | None,
+    str | None,
     Query(
         description="Corridor half-width in metres, one of the bands in /config. "
-        "Default corridor_default_m."
+        "Default corridor_default_m.",
+        examples=["400"],
     ),
 ]
 TypesQ = Annotated[

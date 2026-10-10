@@ -14,6 +14,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 from app.core.db import connection
+from app.domain.events import weekdays_in_window
 from app.domain.matching import match_basis
 from app.repositories._rows import SRID, to_date, to_datetime, to_float, venues_by_id
 from app.repositories.protocols import EventFilters, EventRow, EventSportRow, UpcomingRow, VenueRow
@@ -144,6 +145,9 @@ SELECT {EVENT_COLUMNS}, NULL::double precision AS distance_m
 # out. An unreviewed term keeps its published label, so a taxonomy change
 # upstream shows up as a new filter option rather than as events that silently
 # cannot be filtered for.
+# The same window rule as /events: a program counts when one of its weekdays
+# falls inside the window, or when it states no weekday. ``window_days`` is
+# NULL for a window of a week or more (every weekday is in it).
 SQL_EVENT_SPORTS = f"""
 SELECT name, count(DISTINCT program_id) AS event_count
   FROM (
@@ -156,6 +160,10 @@ SELECT name, count(DISTINCT program_id) AS event_count
        AND (p.kind = 'program'
             OR (p.starts_at AT TIME ZONE 'Australia/Melbourne')::date
                BETWEEN %(date_from)s AND %(date_to)s)
+       AND (p.kind = 'fixture'
+            OR %(window_days)s::text[] IS NULL
+            OR cardinality(p.recurrence_weekdays) = 0
+            OR p.recurrence_weekdays && %(window_days)s::text[])
   ) named
  WHERE name IS NOT NULL
  GROUP BY name
@@ -282,7 +290,14 @@ class PostgresEventRepository:
 
     def event_sports(self, date_from: date, date_to: date, now: datetime) -> list[EventSportRow]:
         """Sports with a listable event in the window, through the crosswalk."""
-        params = {"date_from": date_from, "date_to": date_to, "now": now, "include_past": False}
+        days = weekdays_in_window(date_from, date_to)
+        params = {
+            "date_from": date_from,
+            "date_to": date_to,
+            "now": now,
+            "include_past": False,
+            "window_days": list(days) if days is not None else None,
+        }
         with connection() as conn:
             rows = conn.execute(SQL_EVENT_SPORTS, params).fetchall()
         return [EventSportRow(name=r["name"], event_count=int(r["event_count"])) for r in rows]

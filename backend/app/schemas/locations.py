@@ -9,6 +9,8 @@ from app.schemas.common import ReferencePointOut
 
 
 class MatchedOut(BaseModel):
+    """What the gazetteer (or the coordinate pair) matched."""
+
     label: str
     kind: Literal["suburb", "postcode", "point"]
 

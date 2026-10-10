@@ -295,17 +295,28 @@ def event_out(
     return Built(out, grp)
 
 
+def weekdays_in_window(date_from: date, date_to: date) -> tuple[str, ...] | None:
+    """The weekday names a window contains, or None when it holds a whole week.
+
+    One rule for ``/events`` and ``/events/sports``: the list applies it in
+    Python, the sports count applies it in SQL, both from this function.
+    """
+    span = (date_to - date_from).days
+    if span >= 6:
+        return None
+    return tuple(WEEKDAYS[(date_from + timedelta(days=i)).weekday()] for i in range(span + 1))
+
+
 def in_window(row: EventRow, date_from: date, date_to: date) -> bool:
     """The window rule for programs; fixtures were selected in SQL."""
     if row.kind != "program":
         return True
     if not row.weekdays:
         return True
-    span = (date_to - date_from).days
-    if span >= 6:
+    days = weekdays_in_window(date_from, date_to)
+    if days is None:
         return True
-    days_in_window = {WEEKDAYS[(date_from + timedelta(days=i)).weekday()] for i in range(span + 1)}
-    return bool(days_in_window & set(row.weekdays))
+    return bool(set(days) & set(row.weekdays))
 
 
 def counts_by_date(rows: Sequence[EventRow], date_from: date, date_to: date) -> dict[str, int]:

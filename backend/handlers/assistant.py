@@ -60,8 +60,9 @@ CAPABILITY_MESSAGE = (
     "take bookings or remember anything you tell me."
 )
 
+# SPA routes: the venue search page is /venues; / is the landing page.
 SEARCH_LINKS = [
-    {"label": "Search venues", "href": "/"},
+    {"label": "Search venues", "href": "/venues"},
     {"label": "Browse events", "href": "/events"},
 ]
 
@@ -84,15 +85,51 @@ def response(status: int, body: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _body(event: dict[str, Any]) -> dict[str, Any] | None:
+    """The request body as a JSON object, or None when it is not one.
+
+    A base64-encoded body (API Gateway sets ``isBase64Encoded``) is decoded
+    first. A body that parses but is not an object (``[]``, ``"hi"``) is
+    treated the same as invalid JSON: the handler needs an object.
+    """
+    import base64
+    import binascii
+
+    raw = event.get("body") or "{}"
+    if event.get("isBase64Encoded"):
+        try:
+            raw = base64.b64decode(raw).decode("utf-8")
+        except (binascii.Error, UnicodeDecodeError):
+            return None
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """POST /api/v1/assistant
 
     Returns the capability message for every question, with no model call,
-    until intent handling lands.
+    until intent handling lands. Every failure is the JSON envelope: nothing
+    here may fall through to API Gateway's own 500 page.
     """
     try:
-        payload = json.loads(event.get("body") or "{}")
-    except json.JSONDecodeError:
+        return _answer(event)
+    except Exception:
+        # Nothing from the body is logged, only that the handler failed.
+        log_event("ASSISTANT_ERROR", reason="unhandled")
+        return response(
+            500,
+            {"error": {"code": "internal_error", "message": "Something went wrong on our side."}},
+        )
+
+
+def _answer(event: dict[str, Any]) -> dict[str, Any]:
+    """The skeleton's answer: a capability message, or a 400 for a bad body."""
+    payload = _body(event)
+    if payload is None:
         # The body is not echoed back and not logged — it is the user's words.
         log_event("ASSISTANT_BAD_REQUEST", reason="invalid_json")
         return response(400, {"error": {"code": "invalid_json", "message": "Send a JSON body."}})
