@@ -1,5 +1,3 @@
-/* Add to Google Calendar — button + confirmation modal (US5.1 / US5.2) */
-
 .calendar-unavailable-note {
   margin: 0;
   align-self: center;
@@ -182,6 +180,76 @@
   width: 100%;
   margin: 0;
   text-align: left;
+}
+
+/* The day picker for a program with more than one weekly time (<details>/
+   <summary>). The summary is styled like the usual primary button; the
+   marker triangle is hidden since the button text already says what it
+   does. */
+.calendar-add-dropdown {
+  position: relative;
+}
+
+.calendar-add-dropdown > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.calendar-add-dropdown > summary::-webkit-details-marker {
+  display: none;
+}
+
+.calendar-add-dropdown > summary::after {
+  content: "▾";
+  margin-left: 6px;
+  font-size: 0.75em;
+}
+
+.calendar-add-dropdown[open] > summary::after {
+  content: "▴";
+}
+
+.calendar-add-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 10;
+  min-width: 220px;
+  background: #fff;
+  border: 1px solid #dde5e3;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(12, 28, 45, 0.18);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.calendar-add-dropdown-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #1a2b2e;
+  font-size: 0.88rem;
+}
+
+.calendar-add-dropdown-item:hover,
+.calendar-add-dropdown-item:focus {
+  background: #eef3f2;
+}
+
+.calendar-add-dropdown-day {
+  font-weight: 700;
+}
+
+.calendar-add-dropdown-time {
+  color: #6b7a7d;
+  font-size: 0.82rem;
+  white-space: nowrap;
 }
 
 .calendar-modal-actions {
