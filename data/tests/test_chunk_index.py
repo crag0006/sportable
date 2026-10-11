@@ -7,6 +7,7 @@ import os
 
 import psycopg
 import pytest
+from derive import bm25_index
 from derive.chunk_index import build_index
 from derive.chunker import chunk_description
 from psycopg.rows import dict_row
@@ -150,3 +151,77 @@ def test_every_chunk_traces_to_source_and_run(seeded):
         "WHERE c.source_id <> p.source_id OR c.load_run_id <> p.load_run_id"
     ).fetchone()["n"]
     assert orphans == 0
+
+
+def _wanted() -> int:
+    return len(chunk_description(LONG)) + len(chunk_description(OTHER))
+
+
+def test_failure_mid_run_keeps_the_batches_already_committed(seeded):
+    commits = []
+
+    with pytest.raises(RuntimeError):
+        build_index(
+            seeded,
+            FakeEmbedder(fail_after=3),
+            batch_size=2,
+            workers=1,
+            checkpoint=lambda: commits.append(1),
+        )
+
+    assert len(commits) == 1
+    assert _count(seeded, "TEST:1") + _count(seeded, "TEST:2") == 2
+
+
+def test_deadline_stops_cleanly_and_the_next_run_finishes(seeded):
+    ticks = {"n": 0}
+
+    def time_left():
+        ticks["n"] += 1
+        return 500.0 if ticks["n"] == 1 else 5.0
+
+    first = build_index(seeded, FakeEmbedder(), batch_size=2, workers=1, time_left=time_left)
+    assert not first.complete
+    assert first.written == 2
+    assert first.pending == _wanted() - 2
+
+    second = FakeEmbedder()
+    done = build_index(seeded, second, batch_size=2, workers=1)
+    assert done.complete
+    assert second.calls == _wanted() - 2
+
+
+def test_parallel_run_stores_everything_and_repeats_for_free(seeded):
+    out = build_index(seeded, FakeEmbedder(), batch_size=5, workers=4)
+    assert out.complete
+    assert _count(seeded, "TEST:1") + _count(seeded, "TEST:2") == _wanted()
+
+    again = FakeEmbedder()
+    build_index(seeded, again, workers=1)
+    assert again.calls == 0
+
+
+def test_bm25_rebuild_is_repeatable_and_consistent(seeded):
+    build_index(seeded, FakeEmbedder())
+
+    first = bm25_index.rebuild(seeded, MODEL)
+    assert all(n > 0 for n in first.values())
+    assert bm25_index.rebuild(seeded, MODEL) == first
+
+    bring = seeded.execute(
+        "SELECT count(*) AS n FROM chunk_term WHERE lexeme = 'bring'"
+    ).fetchone()["n"]
+    df = seeded.execute("SELECT df FROM term_df WHERE lexeme = 'bring'").fetchone()["df"]
+    assert bring > 0
+    assert df == bring
+
+    mismatched = seeded.execute(
+        """
+        SELECT count(*) AS n
+          FROM chunk_stats s
+          JOIN (SELECT chunk_id, sum(tf) AS total FROM chunk_term GROUP BY chunk_id) t
+               USING (chunk_id)
+         WHERE s.len <> t.total
+        """
+    ).fetchone()["n"]
+    assert mismatched == 0

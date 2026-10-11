@@ -70,6 +70,7 @@ class FakeConn:
 
 def install_fakes(monkeypatch, calls: list[str]) -> None:
     """Replace the three derive modules the sequence calls."""
+
     monkeypatch.setattr(
         run.status_builder,
         "build",
@@ -156,7 +157,11 @@ def test_the_derive_lambda_runs_the_same_sequence(monkeypatch) -> None:
     assert seen["load_run_id"] == 7
 
     # By default the RAG index is rebuilt after the derive, on its own connection.
-    monkeypatch.setattr(handler, "build_rag_index", lambda dsn, allow_large_delete: {"chunks": 3})
+    monkeypatch.setattr(
+        handler,
+        "build_rag_index",
+        lambda dsn, allow_large_delete, time_left=None: {"chunks": 3},
+    )
 
     assert handler.handler({"load_run_id": 7}, None) == {"ok": True, "rag": {"chunks": 3}}
 

@@ -2,7 +2,7 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE TABLE public.program_description_chunk (
+CREATE TABLE IF NOT EXISTS public.program_description_chunk (
     chunk_id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     program_id         text NOT NULL,
     chunk_index        integer NOT NULL,
@@ -27,10 +27,10 @@ CREATE TABLE public.program_description_chunk (
         REFERENCES public.load_run(load_run_id)
 );
 
-CREATE INDEX pdc_sha_model_idx
+CREATE INDEX IF NOT EXISTS pdc_sha_model_idx
     ON public.program_description_chunk (content_sha256, embedding_model_id);
 
-CREATE INDEX pdc_embedding_hnsw
+CREATE INDEX IF NOT EXISTS pdc_embedding_hnsw
     ON public.program_description_chunk
     USING hnsw (embedding public.vector_cosine_ops)
     WITH (m = 16, ef_construction = 64);

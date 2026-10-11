@@ -53,7 +53,7 @@ from psycopg.rows import dict_row
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from derive import run
+from derive import rag, run
 from ingestion.extractors import aaaplay
 from ingestion.loaders import loader
 from ingestion.transformers import ds01_sport_facilities as ds01
@@ -340,7 +340,9 @@ def run_load(
         elif source_id == "DS-09":
             # DS-09 is not part of the access chain. It writes to the program
             # tables only, and nothing it carries can produce a facility status,
-            # so no derive step follows it. See the source card.
+            # so the venue stages of derive do not follow it. The programme text
+            # is indexed for retrieval after derive, in handler(). See the source
+            # card.
             collected = document(raw)
             program_result = ds09.transform(
                 activities=collected["activities"],
@@ -469,6 +471,24 @@ def handle_record(
     }
 
 
+def rag_after_load(results: list[dict[str, Any]], context: Any) -> dict[str, Any] | None:
+    """Index programme text after a DS-09 load. Never fails the load.
+
+    The index is derived data, rebuildable from program.description. If this
+    fails, or runs out of time, the load and the derive stages have already
+    committed, the next DS-09 load carries on where this one stopped, and
+    {"rag_only": true} on the derive function finishes it by hand.
+    """
+    if not any(r["source_id"] == "DS-09" for r in results):
+        return None
+
+    try:
+        return rag.build_rag_index(database_url(), time_left=rag.seconds_left(context))
+    except Exception as error:  # derived data: must not fail the load
+        log("RAG_INDEX_FAILED", error_type=type(error).__name__, error=str(error))
+        return None
+
+
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     register = load_register()
     results: list[dict[str, Any]] = []
@@ -504,6 +524,14 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 conn, load_run_id=load_run_id, venue_stages=venue_stages, log=log
             )
 
-        return {"loaded": results, "derived": derived}
+        # After derive, on its own connection, and only for a DS-09 load. A
+        # failure here is logged and swallowed: see rag_after_load.
+        rag_result = rag_after_load(results, context)
+        response: dict[str, Any] = {"loaded": results, "derived": derived}
+
+        if rag_result is not None:
+            response["rag"] = rag_result
+
+        return response
 
     return {"loaded": results}
