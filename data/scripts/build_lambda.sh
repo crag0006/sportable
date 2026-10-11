@@ -121,6 +121,9 @@ cp "$DATA_DIR/derive/run.py" "$BUILD_DIR/load/derive/"
 cp "$DATA_DIR/derive/status_builder.py" "$BUILD_DIR/load/derive/"
 cp "$DATA_DIR/derive/venue_match.py" "$BUILD_DIR/load/derive/"
 cp "$DATA_DIR/derive/place_geography.py" "$BUILD_DIR/load/derive/"
+cp "$DATA_DIR/derive/bm25_index.py" "$BUILD_DIR/load/derive/"
+cp "$DATA_DIR/derive/chunk_index.py" "$BUILD_DIR/load/derive/"
+cp "$DATA_DIR/derive/rag.py" "$BUILD_DIR/load/derive/"
 
 pip_install "$BUILD_DIR/load" \
   "psycopg[binary]==3.2.3" \
@@ -149,6 +152,8 @@ cp "$DATA_DIR/derive/embedder.py" "$BUILD_DIR/derive/derive/"
 cp "$DATA_DIR/derive/chunk_index.py" "$BUILD_DIR/derive/derive/"
 cp "$DATA_DIR/derive/venue_match.py" "$BUILD_DIR/derive/derive/"
 cp "$DATA_DIR/derive/place_geography.py" "$BUILD_DIR/derive/derive/"
+cp "$DATA_DIR/derive/bm25_index.py" "$BUILD_DIR/derive/derive/"
+cp "$DATA_DIR/derive/rag.py" "$BUILD_DIR/derive/derive/"
 touch "$BUILD_DIR/derive/derive/__init__.py"
 
 pip_install "$BUILD_DIR/derive" "psycopg[binary]==3.2.3"

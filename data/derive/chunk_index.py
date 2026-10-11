@@ -1,20 +1,29 @@
 """Build and maintain program_description_chunk from program.description.
 
-Idempotent. A chunk is identified by (program_id, chunk_index, model). Per run:
+Idempotent and resumable. A chunk is identified by (program_id, chunk_index, model).
+Per run:
 
     unchanged   same text, offsets and run      -> untouched
     relocated   same text, offsets/run differ   -> cheap UPDATE, no embedding
     written     new or changed text             -> vector from the SHA-256 cache
-                                                   or from Bedrock, then upserted
-    stale       no longer wanted                -> deleted
+                                                   or from Bedrock, upserted in batches
+    stale       no longer wanted                -> deleted, but only after every
+                                                   batch has been written
 
-All Bedrock calls happen BEFORE any write, so a failed call leaves the previous
-index intact. The caller owns the transaction (commit on clean exit).
+Bedrock calls run in a small thread pool, one batch at a time. After each batch
+the caller's checkpoint commits it, so a timeout or a failure later in the run
+keeps the earlier batches, and the next run carries on from there: finished
+chunks are found by their SHA-256 and cost nothing. Without the checkpoints a
+first build that outlasts the Lambda would store nothing at all.
+
+checkpoint is None in tests, which run in one transaction that is rolled back.
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -26,6 +35,12 @@ LOG = logging.getLogger("sportable.derive.chunk_index")
 # a broken load, not a publisher clearing out half its programmes.
 MIN_ROWS_FOR_GUARD = 50
 MAX_STALE_FRACTION = 0.5
+
+DEFAULT_BATCH_SIZE = 50
+DEFAULT_WORKERS = 4
+# Stop starting new batches when less than this is left, so the last commit and
+# the BM25 rebuild that follows always have room.
+DEFAULT_RESERVE_SECONDS = 60.0
 
 
 class IndexAbortedError(RuntimeError):
@@ -49,6 +64,9 @@ class IndexOutcome:
     embedded_new: int
     reused_vectors: int
     deleted: int
+    complete: bool = True
+    pending: int = 0
+    batches: int = 0
 
 
 @dataclass
@@ -82,7 +100,31 @@ def _cached_vectors(conn: Any, model_id: str, shas: set[str]) -> dict[str, str]:
     return {row["sha"]: row["vec"] for row in rows}
 
 
-def build_index(conn: Any, embedder: Embedder, *, allow_large_delete: bool = False) -> IndexOutcome:
+def _embed_texts(embedder: Embedder, texts: dict[str, str], workers: int) -> dict[str, str]:
+    """Vector literal per SHA-256, embedding the texts in parallel.
+
+    The first exception wins. Calls already in flight finish before it
+    propagates, which is at most `workers` of them.
+    """
+    if workers <= 1 or len(texts) <= 1:
+        return {sha: _vector_literal(embedder.embed(text)) for sha, text in texts.items()}
+
+    with ThreadPoolExecutor(max_workers=min(workers, len(texts))) as pool:
+        futures = {sha: pool.submit(embedder.embed, text) for sha, text in texts.items()}
+        return {sha: _vector_literal(future.result()) for sha, future in futures.items()}
+
+
+def build_index(
+    conn: Any,
+    embedder: Embedder,
+    *,
+    allow_large_delete: bool = False,
+    batch_size: int = DEFAULT_BATCH_SIZE,
+    workers: int = DEFAULT_WORKERS,
+    checkpoint: Callable[[], None] | None = None,
+    time_left: Callable[[], float] | None = None,
+    reserve_seconds: float = DEFAULT_RESERVE_SECONDS,
+) -> IndexOutcome:
     model_id = embedder.model_id
 
     programs = conn.execute(
@@ -120,6 +162,7 @@ def build_index(conn: Any, embedder: Embedder, *, allow_large_delete: bool = Fal
 
     stale = [key for key in existing if key not in wanted]
 
+    # Raised before anything is written, so a refused run changes nothing.
     if (
         not allow_large_delete
         and len(existing) >= MIN_ROWS_FOR_GUARD
@@ -164,49 +207,9 @@ def build_index(conn: Any, embedder: Embedder, *, allow_large_delete: bool = Fal
 
         to_write.append((key, want))
 
-    # ---- every Bedrock call happens here, before any write -------------------
-    cache = _cached_vectors(conn, model_id, {w.chunk.content_sha256 for _, w in to_write})
-    fresh: dict[str, str] = {}
-    embedded_new = 0
-    reused = 0
-    upserts: list[tuple[Any, ...]] = []
-
-    for (program_id, chunk_index), want in to_write:
-        sha = want.chunk.content_sha256
-        literal = cache.get(sha) or fresh.get(sha)
-
-        if literal is None:
-            literal = _vector_literal(embedder.embed(want.chunk.text))
-            fresh[sha] = literal
-            embedded_new += 1
-        else:
-            reused += 1
-
-        upserts.append(
-            (
-                program_id,
-                chunk_index,
-                want.chunk.text,
-                want.chunk.char_start,
-                want.chunk.char_end,
-                sha,
-                literal,
-                model_id,
-                want.source_id,
-                want.load_run_id,
-            )
-        )
-
-    # ---- writes ---------------------------------------------------------------
-    with conn.cursor() as cur:
-        if stale:
-            cur.executemany(
-                "DELETE FROM public.program_description_chunk "
-                "WHERE program_id = %s AND chunk_index = %s AND embedding_model_id = %s",
-                [(program_id, index, model_id) for program_id, index in stale],
-            )
-
-        if relocated:
+    # ---- cheap in-place fixes first: no Bedrock, nothing to lose --------------
+    if relocated:
+        with conn.cursor() as cur:
             cur.executemany(
                 "UPDATE public.program_description_chunk "
                 "SET char_start = %s, char_end = %s, source_id = %s, load_run_id = %s "
@@ -214,7 +217,51 @@ def build_index(conn: Any, embedder: Embedder, *, allow_large_delete: bool = Fal
                 relocated,
             )
 
-        if upserts:
+        if checkpoint:
+            checkpoint()
+
+    # ---- embed and write, one committed batch at a time ----------------------
+    vectors = _cached_vectors(conn, model_id, {w.chunk.content_sha256 for _, w in to_write})
+    embedded_new = 0
+    reused = 0
+    written = 0
+    batches = 0
+    pending = len(to_write)
+
+    for offset in range(0, len(to_write), max(batch_size, 1)):
+        if time_left is not None and time_left() < reserve_seconds:
+            break
+
+        batch = to_write[offset : offset + max(batch_size, 1)]
+
+        # Texts this batch still has to embed, one per distinct SHA-256.
+        texts: dict[str, str] = {}
+        for _, want in batch:
+            sha = want.chunk.content_sha256
+            if sha not in vectors and sha not in texts:
+                texts[sha] = want.chunk.text
+
+        vectors.update(_embed_texts(embedder, texts, workers))
+        embedded_new += len(texts)
+        reused += len(batch) - len(texts)
+
+        rows = [
+            (
+                program_id,
+                index,
+                want.chunk.text,
+                want.chunk.char_start,
+                want.chunk.char_end,
+                want.chunk.content_sha256,
+                vectors[want.chunk.content_sha256],
+                model_id,
+                want.source_id,
+                want.load_run_id,
+            )
+            for (program_id, index), want in batch
+        ]
+
+        with conn.cursor() as cur:
             cur.executemany(
                 """
                 INSERT INTO public.program_description_chunk
@@ -231,8 +278,32 @@ def build_index(conn: Any, embedder: Embedder, *, allow_large_delete: bool = Fal
                     load_run_id    = EXCLUDED.load_run_id,
                     embedded_at    = now()
                 """,
-                upserts,
+                rows,
             )
+
+        if checkpoint:
+            checkpoint()
+
+        written += len(rows)
+        pending -= len(rows)
+        batches += 1
+
+    # ---- stale chunks go only once everything wanted has been written --------
+    complete = pending == 0
+
+    if complete and stale:
+        with conn.cursor() as cur:
+            cur.executemany(
+                "DELETE FROM public.program_description_chunk "
+                "WHERE program_id = %s AND chunk_index = %s AND embedding_model_id = %s",
+                [(program_id, index, model_id) for program_id, index in stale],
+            )
+
+        if checkpoint:
+            checkpoint()
+
+    if not complete:
+        LOG.warning("index incomplete: %d chunks still to embed", pending)
 
     conn.execute("ANALYZE public.program_description_chunk")
 
@@ -242,8 +313,11 @@ def build_index(conn: Any, embedder: Embedder, *, allow_large_delete: bool = Fal
         chunks_wanted=len(wanted),
         unchanged=unchanged,
         relocated=len(relocated),
-        written=len(upserts),
+        written=written,
         embedded_new=embedded_new,
         reused_vectors=reused,
-        deleted=len(stale),
+        deleted=len(stale) if complete else 0,
+        complete=complete,
+        pending=pending,
+        batches=batches,
     )

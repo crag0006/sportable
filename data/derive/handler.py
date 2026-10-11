@@ -41,20 +41,19 @@ from __future__ import annotations
 import json
 import logging
 import os
-from dataclasses import asdict
 from typing import Any
 
 import boto3
 import psycopg
 from psycopg.rows import dict_row
 
-from derive import chunk_index, run
-from derive.embedder import DEFAULT_MODEL_ID, TitanEmbedder
+from derive import run
+from derive.rag import build_rag_index, seconds_left
 
 LOG = logging.getLogger("sportable.derive")
 LOG.setLevel(logging.INFO)
 
-EMBEDDING_MODEL_ID = os.environ.get("EMBEDDING_MODEL_ID", DEFAULT_MODEL_ID)
+
 # Passed in by Terraform, read from SSM on the CI runner at apply time. NOT
 # read from SSM here: this function has no route to the SSM API from its
 # private subnet, and the call hangs rather than failing. Same trade, and the
@@ -100,30 +99,6 @@ def latest_load_run(conn) -> int:
     return row["load_run_id"]
 
 
-def build_rag_index(dsn: str, allow_large_delete: bool) -> dict[str, Any]:
-    """Chunk and embed programme text on its OWN connection.
-
-    Separate from run.derive_all on purpose: its statuses have already
-    committed, and a Bedrock failure here must not be able to roll it back.
-    """
-    log("RAG_INDEX_STARTED", model=EMBEDDING_MODEL_ID)
-
-    embedder = TitanEmbedder(model_id=EMBEDDING_MODEL_ID)
-
-    try:
-        with psycopg.connect(dsn, row_factory=dict_row) as conn:
-            outcome = chunk_index.build_index(conn, embedder, allow_large_delete=allow_large_delete)
-    except Exception as error:
-        # Error text only. Never log programme text.
-        log("RAG_INDEX_FAILED", error_type=type(error).__name__, error=str(error))
-        raise
-
-    result = asdict(outcome)
-    log("RAG_INDEX_COMPLETED", model=EMBEDDING_MODEL_ID, **result)
-
-    return result
-
-
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     dsn = database_url()
 
@@ -137,6 +112,10 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             result.update(run.derive_all(conn, load_run_id=load_run_id, log=log))
 
     if not event.get("skip_rag"):
-        result["rag"] = build_rag_index(dsn, allow_large_delete=bool(event.get("force_rag")))
+        result["rag"] = build_rag_index(
+            dsn,
+            allow_large_delete=bool(event.get("force_rag")),
+            time_left=seconds_left(context),
+        )
 
     return result

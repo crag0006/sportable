@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import random
+import threading
 import time
 from collections.abc import Callable
 from typing import Any
@@ -67,23 +68,28 @@ class TitanEmbedder:
         self.max_attempts = max_attempts
         self.base_delay = base_delay
         self._sleep = sleep
+        # Guards lazy creation of the boto3 client: embedding runs in a thread
+        # pool, and two threads must not both build one.
+        self._lock = threading.Lock()
 
     @property
     def client(self) -> Any:
         if self._client is None:
-            import boto3
-            from botocore.config import Config
+            with self._lock:
+                if self._client is None:
+                    import boto3
+                    from botocore.config import Config
 
-            # Retries are handled here, so botocore's own are switched off.
-            self._client = boto3.client(
-                "bedrock-runtime",
-                config=Config(
-                    retries={"max_attempts": 1, "mode": "standard"},
-                    connect_timeout=10,
-                    read_timeout=60,
-                ),
-                **bridge_credentials(),
-            )
+                    # Retries are handled here, so botocore's own are switched off.
+                    self._client = boto3.client(
+                        "bedrock-runtime",
+                        config=Config(
+                            retries={"max_attempts": 1, "mode": "standard"},
+                            connect_timeout=10,
+                            read_timeout=60,
+                        ),
+                        **bridge_credentials(),
+                    )
         return self._client
 
     def embed(self, text: str) -> list[float]:
