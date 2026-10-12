@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import "./Chatbot.css";
 import { askAssistant } from "../api/venues";
 
-// Icons used for accessibility facilities
+// Icons used to show accessibility facilities.
 const CHAT_FACILITY_ICON = {
   accessible_toilet: "🚻",
   accessible_parking: "🅿",
@@ -11,7 +11,7 @@ const CHAT_FACILITY_ICON = {
   accessible_change_facility: "♿",
 };
 
-// Names used for accessibility facilities
+// Names used for accessibility facilities.
 const CHAT_FACILITY_LABEL = {
   accessible_toilet: "Toilet",
   accessible_parking: "Parking",
@@ -19,7 +19,7 @@ const CHAT_FACILITY_LABEL = {
   accessible_change_facility: "Change facility",
 };
 
-// Returns a symbol based on the facility status
+// Returns a symbol for each facility status.
 function chatFacilityStatusSymbol(display) {
   if (display === "at_venue" || display === "within_limit") return "✓";
   if (display === "beyond_limit") return "!";
@@ -27,7 +27,7 @@ function chatFacilityStatusSymbol(display) {
   return "?";
 }
 
-// Displays accessibility facilities in the chatbot results
+// Displays accessibility facilities in chat results.
 function ChatFacilityChips({ facilities }) {
   if (!facilities || facilities.length === 0) return null;
 
@@ -56,7 +56,7 @@ function ChatFacilityChips({ facilities }) {
   );
 }
 
-// Displays a venue card in the chatbot results
+// Shows a venue with its location and facilities.
 function ChatVenueCard({ venue }) {
   return (
     <div className="chat-result-card">
@@ -85,15 +85,12 @@ function ChatVenueCard({ venue }) {
   );
 }
 
-// Displays an event card with its venue and event details
+// Shows event details and registration links.
 function ChatEventCard({ event }) {
   const title = event.title || event.name || "Event";
   const venueName = event.venue?.name || event.venue_name;
-
-  // Checks if the event venue could not be matched
   const venueUnmatched = event.venue && event.venue.matched === false;
 
-  // Combines the available venue, time and price information
   const subParts = [venueName, event.when, event.price].filter(Boolean);
 
   return (
@@ -112,7 +109,6 @@ function ChatEventCard({ event }) {
         <p className="chat-result-card-sub">{subParts.join(" · ")}</p>
       )}
 
-      {/* Shows a message if the event venue could not be matched */}
       {venueUnmatched && event.venue.message && (
         <p className="chat-result-card-sub chat-result-card-note">
           {event.venue.message}
@@ -121,7 +117,6 @@ function ChatEventCard({ event }) {
 
       <ChatFacilityChips facilities={event.facilities} />
 
-      {/* Links to event details, registration and publisher websites */}
       <div className="chat-result-card-actions">
         {(event.href || event.event_url) && (
           <a
@@ -148,7 +143,7 @@ function ChatEventCard({ event }) {
   );
 }
 
-// Displays venue and event cards returned by the assistant
+// Shows venue and event cards in the assistant's response.
 function ChatResults({ results }) {
   const venues = results?.venues || [];
   const events = results?.events || [];
@@ -168,7 +163,7 @@ function ChatResults({ results }) {
   );
 }
 
-// Displays general links without repeating event registration links
+// Displays general links without repeating event-specific links.
 function ChatLinks({ links }) {
   const visibleLinks = (links || []).filter(
     (link) => link.kind !== "registration" && link.kind !== "publisher"
@@ -187,7 +182,7 @@ function ChatLinks({ links }) {
   );
 }
 
-// Shows the data sources used for the assistant's response
+// Displays the data sources used in an answer.
 function ChatSources({ sources }) {
   if (!sources || sources.length === 0) return null;
 
@@ -198,7 +193,7 @@ function ChatSources({ sources }) {
   );
 }
 
-// Displays suggested questions that users can select
+// Displays suggested questions the user can select.
 function ChatSuggestedQuestions({ questions, onPick, disabled }) {
   if (!questions || questions.length === 0) return null;
 
@@ -219,19 +214,18 @@ function ChatSuggestedQuestions({ questions, onPick, disabled }) {
   );
 }
 
-// Creates a message with an ID, sender and text
 let nextId = 1;
 
+// Creates a chat message with its sender and a unique ID.
 function makeMessage(sender, text, extra = {}) {
   nextId += 1;
   return { id: nextId, sender, text, ...extra };
 }
 
-// Keys used to save chatbot settings during the browser session
 const GREETING_DISMISSED_KEY = "sportable-chat-greeting-dismissed";
 const SPEAK_ANSWERS_KEY = "sportable-chat-speak-answers";
 
-// Prepares previous conversation messages for the backend
+// Prepares conversation history without greeting or error messages.
 function buildHistory(messages) {
   return messages
     .filter((message) => !message.isGreeting && !message.isError)
@@ -241,18 +235,17 @@ function buildHistory(messages) {
     }));
 }
 
-// Checks whether the browser supports voice input and spoken answers
+// Checks whether the browser supports voice input.
 const SpeechRecognitionAPI =
   typeof window !== "undefined"
     ? window.SpeechRecognition || window.webkitSpeechRecognition
     : null;
 
 const SPEECH_RECOGNITION_SUPPORTED = Boolean(SpeechRecognitionAPI);
-
 const SPEECH_SYNTHESIS_SUPPORTED =
   typeof window !== "undefined" && "speechSynthesis" in window;
 
-// Displays the microphone icon
+// Displays the microphone icon.
 function MicIcon({ listening }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -264,8 +257,8 @@ function MicIcon({ listening }) {
   );
 }
 
+// Main chatbot component.
 export default function ChatBot() {
-  // Stores the chatbot's current state and conversation
   const [isOpen, setIsOpen] = useState(false);
   const [showGreeting, setShowGreeting] = useState(false);
 
@@ -280,7 +273,7 @@ export default function ChatBot() {
   const [inputValue, setInputValue] = useState("");
   const [isBotTyping, setIsBotTyping] = useState(false);
 
-  // Stores microphone and spoken-answer settings
+  // Tracks microphone and spoken-answer settings.
   const [isListening, setIsListening] = useState(false);
   const [voiceError, setVoiceError] = useState("");
   const [inputSource, setInputSource] = useState("text");
@@ -288,34 +281,33 @@ export default function ChatBot() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
 
-  // References to the message area, input and voice controls
+  // References to chat messages, input and voice controls.
   const messageListRef = useRef(null);
   const inputRef = useRef(null);
   const recognitionRef = useRef(null);
   const utteranceRef = useRef(null);
 
-  // Scrolls to the latest message automatically
+  // Scrolls automatically to the latest chat message.
   useEffect(() => {
     if (messageListRef.current) {
       messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
     }
   }, [messages, isBotTyping, isOpen]);
 
-  // Focuses the input field when the chatbot opens
+  // Focuses the input field when the chatbot opens.
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
     }
   }, [isOpen]);
 
-  // Shows the greeting if it has not been dismissed
+  // Shows a greeting unless it has already been dismissed.
   useEffect(() => {
     let dismissed = false;
 
     try {
       dismissed = sessionStorage.getItem(GREETING_DISMISSED_KEY) === "true";
     } catch {
-      // Continues if session storage is unavailable
     }
 
     if (dismissed || isOpen) return;
@@ -324,16 +316,15 @@ export default function ChatBot() {
     return () => clearTimeout(timer);
   }, [isOpen]);
 
-  // Restores the Speak Answers setting for this browser session
+  // Restores the spoken-answer setting for this browser session.
   useEffect(() => {
     try {
       setSpeakAnswers(sessionStorage.getItem(SPEAK_ANSWERS_KEY) === "true");
     } catch {
-      // Speak Answers remains off if storage is unavailable
     }
   }, []);
 
-  // Stops microphone and speech activity when the component is removed
+  // Stops microphone and speech activity when the component is removed.
   useEffect(() => {
     return () => {
       if (recognitionRef.current) recognitionRef.current.stop();
@@ -341,18 +332,17 @@ export default function ChatBot() {
     };
   }, []);
 
-  // Hides the greeting and saves the choice for this session
+  // Hides the greeting and saves the choice.
   function dismissGreeting() {
     setShowGreeting(false);
 
     try {
       sessionStorage.setItem(GREETING_DISMISSED_KEY, "true");
     } catch {
-      // Continues if session storage is unavailable
     }
   }
 
-  // Stops the assistant from reading an answer aloud
+  // Stops reading an answer aloud.
   function stopSpeaking() {
     if (SPEECH_SYNTHESIS_SUPPORTED) {
       window.speechSynthesis.cancel();
@@ -362,7 +352,7 @@ export default function ChatBot() {
     setIsPaused(false);
   }
 
-  // Reads the assistant's text answer aloud
+  // Reads the assistant's answer aloud when enabled.
   function speak(text) {
     if (!SPEECH_SYNTHESIS_SUPPORTED || !speakAnswers || !text) return;
 
@@ -371,13 +361,11 @@ export default function ChatBot() {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "en-AU";
 
-    // Uses an Australian English voice if one is available
     const voices = window.speechSynthesis.getVoices();
     const enAuVoice = voices.find((voice) => voice.lang === "en-AU");
 
     if (enAuVoice) utterance.voice = enAuVoice;
 
-    // Updates the speaking status when audio starts or finishes
     utterance.onstart = () => setIsSpeaking(true);
 
     utterance.onend = () => {
@@ -394,7 +382,7 @@ export default function ChatBot() {
     window.speechSynthesis.speak(utterance);
   }
 
-  // Pauses or resumes a spoken answer
+  // Pauses or resumes a spoken answer.
   function togglePauseSpeaking() {
     if (!SPEECH_SYNTHESIS_SUPPORTED || !isSpeaking) return;
 
@@ -407,7 +395,7 @@ export default function ChatBot() {
     }
   }
 
-  // Turns spoken answers on or off and saves the setting
+  // Turns spoken answers on or off.
   function toggleSpeakAnswers() {
     const next = !speakAnswers;
     setSpeakAnswers(next);
@@ -417,15 +405,13 @@ export default function ChatBot() {
     try {
       sessionStorage.setItem(SPEAK_ANSWERS_KEY, String(next));
     } catch {
-      // Continues if session storage is unavailable
     }
   }
 
-  // Starts listening to the user's voice
+  // Starts converting the user's speech into text.
   function startListening() {
     if (!SPEECH_RECOGNITION_SUPPORTED || isListening) return;
 
-    // Stops spoken answers before turning on the microphone
     stopSpeaking();
     setVoiceError("");
 
@@ -437,8 +423,7 @@ export default function ChatBot() {
 
     recognition.onstart = () => setIsListening(true);
 
-    // Converts recognised speech into text in the input field
-    function unused() {}
+    // Puts recognised words into the message field.
     recognition.onresult = (event) => {
       let transcript = "";
 
@@ -446,12 +431,11 @@ export default function ChatBot() {
         transcript += event.results[i][0].transcript;
       }
 
-      // Users can review the recognised text before sending it
       setInputValue(transcript);
       setInputSource("voice");
     };
 
-    // Shows an error message if voice recognition fails
+    // Shows an error message if voice input fails.
     recognition.onerror = (event) => {
       setIsListening(false);
 
@@ -474,11 +458,10 @@ export default function ChatBot() {
       if (inputRef.current) inputRef.current.focus();
     };
 
-    // Resets the microphone when listening ends
+    // Resets the microphone when listening stops.
     recognition.onend = () => {
       setIsListening(false);
       recognitionRef.current = null;
-
       if (inputRef.current) inputRef.current.focus();
     };
 
@@ -489,19 +472,18 @@ export default function ChatBot() {
     } catch {
       setIsListening(false);
       setVoiceError("Couldn't start voice input. Please type your question instead.");
-
       if (inputRef.current) inputRef.current.focus();
     }
   }
 
-  // Stops listening to the user's voice
+  // Stops microphone recording.
   function stopListening() {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
   }
 
-  // Starts or stops listening when the microphone button is clicked
+  // Starts or stops the microphone when clicked.
   function handleMicClick() {
     if (isListening) {
       stopListening();
@@ -510,7 +492,7 @@ export default function ChatBot() {
     }
   }
 
-  // Opens or closes the chat and stops active voice features
+  // Opens or closes chat and stops active voice features.
   function handleToggle() {
     setIsOpen((open) => {
       const next = !open;
@@ -526,7 +508,7 @@ export default function ChatBot() {
     dismissGreeting();
   }
 
-  // Sends typed or spoken questions to the backend
+  // Sends a question and conversation history to the assistant.
   async function sendQuestion(text, { mode } = {}) {
     if (!text || isBotTyping) return;
 
@@ -534,22 +516,18 @@ export default function ChatBot() {
     const history = buildHistory(messages);
 
     stopSpeaking();
-
-    // Adds the user's question to the conversation
     setMessages((prev) => [...prev, makeMessage("user", text)]);
     setInputValue("");
     setInputSource("text");
     setIsBotTyping(true);
 
     try {
-      // Sends the question, previous messages and input type
       const response = await askAssistant({
         question: text,
         history,
         mode: resolvedMode,
       });
 
-      // Adds the assistant's answer and related results
       setMessages((prev) => [
         ...prev,
         makeMessage("bot", response.answer, {
@@ -561,10 +539,8 @@ export default function ChatBot() {
         }),
       ]);
 
-      // Reads the answer aloud when Speak Answers is enabled
       speak(response.answer);
     } catch (error) {
-      // Shows an error message if the assistant request fails
       setMessages((prev) => [
         ...prev,
         makeMessage(
@@ -579,20 +555,20 @@ export default function ChatBot() {
     }
   }
 
-  // Sends the question entered in the input field
+  // Sends the typed message when the form is submitted.
   function handleSubmit(event) {
     event.preventDefault();
     sendQuestion(inputValue.trim());
   }
 
-  // Updates the message when the user types or edits the text
+  // Updates the input and stops any spoken reply.
   function handleInputChange(event) {
     setInputValue(event.target.value);
     setInputSource("text");
     stopSpeaking();
   }
 
-  // Uses Escape to stop voice activity or close the chatbot
+  // Uses Escape to stop voice activity or close the chatbot.
   function handleKeyDown(event) {
     if (event.key !== "Escape") return;
 
@@ -611,7 +587,7 @@ export default function ChatBot() {
 
   return (
     <div className="chat-widget">
-      {/* Chat window */}
+      {/* Main chat window */}
       {isOpen && (
         <div
           className="chat-panel"
@@ -620,7 +596,6 @@ export default function ChatBot() {
           aria-label="SportAble assistant chat"
           onKeyDown={handleKeyDown}
         >
-          {/* Chat heading and close button */}
           <div className="chat-panel-header">
             <div>
               <div className="chat-panel-title">SportAble Assistant</div>
@@ -639,7 +614,7 @@ export default function ChatBot() {
             </button>
           </div>
 
-          {/* Option to turn spoken answers on or off */}
+          {/* Option to enable spoken answers */}
           {SPEECH_SYNTHESIS_SUPPORTED && (
             <label className="chat-speak-toggle">
               <input
@@ -669,7 +644,6 @@ export default function ChatBot() {
                 >
                   <p className="chat-bubble-text">{message.text}</p>
 
-                  {/* Shows results, links and suggestions in bot replies */}
                   {message.sender === "bot" && (
                     <>
                       <ChatResults results={message.results} />
@@ -686,7 +660,6 @@ export default function ChatBot() {
               </div>
             ))}
 
-            {/* Shows typing dots while waiting for a response */}
             {isBotTyping && (
               <div className="chat-bubble-row chat-bubble-row--bot">
                 <div className="chat-bubble chat-bubble--bot chat-bubble--typing">
@@ -698,7 +671,7 @@ export default function ChatBot() {
             )}
           </div>
 
-          {/* Controls to pause, resume or stop spoken answers */}
+          {/* Controls for spoken answers */}
           {isSpeaking && (
             <div className="chat-speaking-bar" role="status">
               <span aria-hidden="true">🔊</span>
@@ -716,14 +689,13 @@ export default function ChatBot() {
             </div>
           )}
 
-          {/* Displays voice input errors */}
           {voiceError && (
             <p className="chat-voice-error" role="alert">
               {voiceError}
             </p>
           )}
 
-          {/* Microphone, message input and send button */}
+          {/* Message input, microphone and send button */}
           <form className="chat-panel-input-row" onSubmit={handleSubmit}>
             {SPEECH_RECOGNITION_SUPPORTED && (
               <button
@@ -758,7 +730,6 @@ export default function ChatBot() {
             </button>
           </form>
 
-          {/* Reminds users to verify important information */}
           <p className="chat-disclaimer">
             SportAble Assistant is an AI and can make mistakes. Please verify
             important information.
@@ -766,7 +737,7 @@ export default function ChatBot() {
         </div>
       )}
 
-      {/* Greeting shown when the chatbot is closed */}
+      {/* Greeting shown before the chat is opened */}
       {showGreeting && !isOpen && (
         <div className="chat-greeting">
           <button
@@ -784,7 +755,7 @@ export default function ChatBot() {
         </div>
       )}
 
-      {/* Floating button to open or close the chatbot */}
+      {/* Floating button used to open or close the chatbot */}
       <button
         type="button"
         className="chat-fab"
@@ -800,9 +771,14 @@ export default function ChatBot() {
             <line x1="18" y1="6" x2="6" y2="18" />
           </svg>
         ) : (
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-          </svg>
+          <>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+            </svg>
+
+            {/* Shows the assistant label on larger screens */}
+            <span className="chat-fab-label">Ask SportAble Assistant</span>
+          </>
         )}
       </button>
     </div>

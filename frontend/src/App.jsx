@@ -6,6 +6,8 @@ import VenueDetailPage from './pages/VenueDetailPage'
 import PasswordGate from './pages/Passwordgate'
 import Events from './pages/Events'
 import SavedEvents from './pages/SavedEvents'
+import Chatbot from './components/Chatbot'
+import './components/Chatbot.css'
 
 export default function App() {
   return (
@@ -19,7 +21,8 @@ export default function App() {
           <Route path="/events" element={<Events />} />
           <Route path="/saved-events" element={<SavedEvents />} />
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        </Routes>       
+        <Chatbot />
       </BrowserRouter>
     </PasswordGate>
   )

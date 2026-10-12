@@ -4,21 +4,22 @@ import VenueCard, { FACILITY_INFO } from "../components/SearchVenue";
 import ReadAloud from "../components/ReadAloud";
 import "./Home.css";
 import { getSports, getSuburbs, getConfig, searchVenues } from "../api/venues";
-import Chatbot from "../components/Chatbot";
-import "../components/Chatbot.css";
 
-// Gets the previous venue search from session storage
 function getSavedSearch() {
   try {
     const saved = sessionStorage.getItem("sportable-last-search");
+
     if (saved) {
       return JSON.parse(saved);
     }
-  } catch {}
+  } catch {
+    // Ignores invalid saved search data.
+  }
+
   return null;
 }
 
-// Matches API facility types with the search filter names
+// Matches accessibility filters from shared venue-search links.
 const FACILITY_TYPE_TO_KEY = {
   accessible_toilet: "toilet",
   accessible_parking: "parking",
@@ -26,57 +27,72 @@ const FACILITY_TYPE_TO_KEY = {
   accessible_change_facility: "change"
 };
 
-// Displays distances as metres or kilometres
+// Formats the distance as metres or kilometres.
 function formatDistanceLabel(meters) {
   if (meters >= 1000) {
     return meters / 1000 + "km";
   }
+
   return meters + "m";
 }
 
 function Home() {
-  // Stores sports and suburbs loaded from the API
+  // Sports and suburbs loaded from the API.
   const [sports, setSports] = useState([]);
   const [suburbs, setSuburbs] = useState([]);
 
-  // Available distance choices for accessibility facilities
+  // Available distance limits.
   const [distanceBands, setDistanceBands] = useState([250, 500, 1000]);
 
-  // Restores the previous search filters when available
+  // Values entered into the search form.
   const [sport, setSport] = useState(() => getSavedSearch()?.sport ?? "");
   const [suburb, setSuburb] = useState(() => getSavedSearch()?.suburb ?? "");
+
+  // Selected accessibility facilities.
   const [toilet, setToilet] = useState(() => getSavedSearch()?.toilet ?? false);
+
   const [parking, setParking] = useState(
     () => getSavedSearch()?.parking ?? false
   );
+
   const [stop, setStop] = useState(() => getSavedSearch()?.stop ?? false);
   const [change, setChange] = useState(() => getSavedSearch()?.change ?? false);
+
+  // Selected distance limit.
   const [limit, setLimit] = useState(() => getSavedSearch()?.limit ?? "");
 
-  // Controls when the suggestion lists are shown
+  // Controls when suggestions are shown.
   const [showSports, setShowSports] = useState(false);
   const [showSuburbs, setShowSuburbs] = useState(false);
 
-  // Tracks the option selected using arrow keys
+  // Tracks the option selected using the keyboard.
   const [sportHighlight, setSportHighlight] = useState(-1);
   const [suburbHighlight, setSuburbHighlight] = useState(-1);
 
-  // Stores the venue search results
+  // Stores the venue search results.
   const [results, setResults] = useState(
     () => getSavedSearch()?.results ?? null
   );
+
+  // Controls whether the search form is visible.
   const [showForm, setShowForm] = useState(() => !getSavedSearch()?.results);
+
+  // Shows missing or invalid search inputs.
   const [formError, setFormError] = useState("");
+
+  // Tracks loading and search errors.
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
+
+  // Controls the missing-information list.
   const [showMissing, setShowMissing] = useState(false);
 
-  // Number of venue cards currently displayed
+  // Number of results currently visible.
   const [visibleCount, setVisibleCount] = useState(
     () => getSavedSearch()?.visibleCount ?? 5
   );
 
-  // Loads sports, suburbs and distance choices from the API
+  // Loads sports, suburbs and distance choices from the API.
   useEffect(() => {
     getSports()
       .then((data) => setSports(data))
@@ -102,7 +118,7 @@ function Home() {
       .catch(() => setDistanceBands([250, 500, 1000]));
   }, []);
 
-  // Closes suggestion lists when clicking outside the search fields
+  // Closes suggestion lists when clicking outside a field.
   useEffect(() => {
     function handleDocumentMouseDown(event) {
       if (!event.target.closest?.(".field-inner")) {
@@ -114,11 +130,12 @@ function Home() {
     }
 
     document.addEventListener("mousedown", handleDocumentMouseDown);
+
     return () =>
       document.removeEventListener("mousedown", handleDocumentMouseDown);
   }, []);
 
-  // Finds suburb suggestions after three characters are entered
+  // Finds matching suburbs after three characters.
   function findMatches(list, typedText) {
     if (typedText.length < 3) {
       return [];
@@ -129,7 +146,7 @@ function Home() {
     );
   }
 
-  // Finds matching sports or shows all sports when the field is empty
+  // Shows all sports when the sport field is empty.
   function findSportMatches(list, typedText) {
     if (typedText.length === 0) {
       return list;
@@ -143,44 +160,56 @@ function Home() {
   const sportMatches = findSportMatches(sports, sport);
   const suburbMatches = findMatches(suburbs, suburb);
 
-  // Lets users navigate and select sports using the keyboard
+  // Lets users select a sport using the keyboard.
   function handleSportKeyDown(event) {
     if (!showSports || sportMatches.length === 0) {
       return;
     }
 
+    // Moves to the next option.
     if (event.key === "ArrowDown") {
       event.preventDefault();
+
       setSportHighlight((current) => {
         if (current < sportMatches.length - 1) {
           return current + 1;
         }
+
         return 0;
       });
+
       return;
     }
 
+    // Moves to the previous option.
     if (event.key === "ArrowUp") {
       event.preventDefault();
+
       setSportHighlight((current) => {
         if (current > 0) {
           return current - 1;
         }
+
         return sportMatches.length - 1;
       });
+
       return;
     }
 
+    // Selects the highlighted sport without submitting the form.
     if (event.key === "Enter") {
       event.preventDefault();
+
       if (sportHighlight >= 0) {
         setSport(sportMatches[sportHighlight]);
         setShowSports(false);
         setSportHighlight(-1);
       }
+
       return;
     }
 
+    // Closes the suggestions.
     if (event.key === "Escape") {
       event.preventDefault();
       setShowSports(false);
@@ -188,44 +217,56 @@ function Home() {
     }
   }
 
-  // Lets users navigate and select suburbs using the keyboard
+  // Lets users select a suburb using the keyboard.
   function handleSuburbKeyDown(event) {
     if (!showSuburbs || suburbMatches.length === 0) {
       return;
     }
 
+    // Moves to the next option.
     if (event.key === "ArrowDown") {
       event.preventDefault();
+
       setSuburbHighlight((current) => {
         if (current < suburbMatches.length - 1) {
           return current + 1;
         }
+
         return 0;
       });
+
       return;
     }
 
+    // Moves to the previous option.
     if (event.key === "ArrowUp") {
       event.preventDefault();
+
       setSuburbHighlight((current) => {
         if (current > 0) {
           return current - 1;
         }
+
         return suburbMatches.length - 1;
       });
+
       return;
     }
 
+    // Selects the highlighted suburb.
     if (event.key === "Enter") {
       event.preventDefault();
+
       if (suburbHighlight >= 0) {
         setSuburb(suburbMatches[suburbHighlight]);
         setShowSuburbs(false);
         setSuburbHighlight(-1);
       }
+
       return;
     }
 
+    // Closes the suggestions.
     if (event.key === "Escape") {
       event.preventDefault();
       setShowSuburbs(false);
@@ -233,7 +274,7 @@ function Home() {
     }
   }
 
-  // Runs a venue search using either form values or URL filters
+  // Searches venues using the selected filters and saves the results.
   async function runSearch({
     sport,
     suburb,
@@ -248,12 +289,15 @@ function Home() {
     if (toilet) {
       selectedAmenities.push("toilet");
     }
+
     if (parking) {
       selectedAmenities.push("parking");
     }
+
     if (stop) {
       selectedAmenities.push("stop");
     }
+
     if (change) {
       selectedAmenities.push("change");
     }
@@ -286,14 +330,17 @@ function Home() {
 
       setResults(newResults);
       setVisibleCount(5);
+
+      // Hides the form after a successful search.
       setShowForm(false);
 
-      // Remembers that the last results page was venue search
       try {
         sessionStorage.setItem("sportable-last-results-page", "/venues");
-      } catch {}
+      } catch {
+        // Continues if browser storage is unavailable.
+      }
 
-      // Saves the search so it can be restored later
+      // Remembers this search during the browser session.
       try {
         sessionStorage.setItem(
           "sportable-last-search",
@@ -309,7 +356,9 @@ function Home() {
             visibleCount: 5
           })
         );
-      } catch {}
+      } catch {
+        // Continues if browser storage is unavailable.
+      }
     } catch (error) {
       setSearchError(
         error.message ||
@@ -320,7 +369,7 @@ function Home() {
     }
   }
 
-  // Checks the required fields before running a search
+  // Checks the required fields and starts the search.
   async function handleSearch(event) {
     event.preventDefault();
 
@@ -348,10 +397,9 @@ function Home() {
     await runSearch({ sport, suburb, toilet, parking, stop, change, limit });
   }
 
-  // Reads filters from a shared link and runs the search automatically
+  // Applies filters from a shared link when the page opens.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-
     const hasUrlParams = params.has("sport") || params.has("suburb");
     if (!hasUrlParams) return;
 
@@ -377,7 +425,7 @@ function Home() {
     setChange(urlChange);
     setLimit(urlLimit);
 
-    // Only runs the search when both required fields are available
+    // Only searches automatically when sport and suburb are provided.
     if (urlSport && urlSuburb) {
       runSearch({
         sport: urlSport,
@@ -390,33 +438,42 @@ function Home() {
       });
     }
 
+    // Runs only when the page first loads.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Clears the filters and previous search results
+  // Clears filters and saved search results.
   function handleClear() {
     setSport("");
     setSuburb("");
+
     setToilet(false);
     setParking(false);
     setStop(false);
     setChange(false);
+
     setLimit("");
+
     setResults(null);
     setShowForm(true);
+
     setFormError("");
     setSearchError("");
+
     setShowSports(false);
     setShowSuburbs(false);
+
     setSportHighlight(-1);
     setSuburbHighlight(-1);
 
     try {
       sessionStorage.removeItem("sportable-last-search");
-    } catch {}
+    } catch {
+      // Continues if browser storage is unavailable.
+    }
   }
 
-  // Creates a short description of the selected search filters
+  // Builds a summary of the active search filters.
   function buildSummaryText() {
     if (!results) {
       return "";
@@ -439,7 +496,7 @@ function Home() {
     return text;
   }
 
-  // Prepares a short spoken summary of the venue results
+  // Prepares a short summary for Read Aloud.
   function buildReadAloudSummary() {
     if (!results) {
       return [];
@@ -473,7 +530,6 @@ function Home() {
 
   return (
     <div>
-      {/* Main navigation */}
       <TopBar
         links={[
           {
@@ -489,7 +545,6 @@ function Home() {
 
       <div className="search-page">
         <main className="search-content">
-          {/* Venue search page heading and banner */}
           <div className="search-banner-wrap">
             <h2 className="page-heading">
               Explore sports venues with access information
@@ -504,7 +559,7 @@ function Home() {
             </div>
           </div>
 
-          {/* Shows the active filters after a search */}
+          {/* Shows the filters used in the latest search */}
           {results !== null && !showForm && (
             <div className="search-summary-bar">
               <div>
@@ -534,14 +589,14 @@ function Home() {
             </div>
           )}
 
-          {/* Search form for sport, location and accessibility needs */}
+          {/* Venue search form */}
           {showForm && (
             <section className="search-card">
               <h1 className="search-title">Search for a venue</h1>
 
               <form onSubmit={handleSearch}>
                 <div className="search-row">
-                  {/* Sport search field */}
+                  {/* Sport search and suggestions */}
                   <div className="field">
                     <label htmlFor="sport">
                       Sport <span className="required">*</span>
@@ -577,7 +632,6 @@ function Home() {
                         onKeyDown={handleSportKeyDown}
                       />
 
-                      {/* Shows matching sports in a dropdown */}
                       {showSports && sportMatches.length > 0 && (
                         <ul
                           id="sport-suggestions"
@@ -627,7 +681,7 @@ function Home() {
                     </p>
                   </div>
 
-                  {/* Suburb or postcode search field */}
+                  {/* Suburb search and suggestions */}
                   <div className="field">
                     <label htmlFor="suburb">
                       Suburb or postcode <span className="required">*</span>
@@ -662,7 +716,6 @@ function Home() {
                         onKeyDown={handleSuburbKeyDown}
                       />
 
-                      {/* Shows matching suburbs in a dropdown */}
                       {showSuburbs && suburbMatches.length > 0 && (
                         <ul
                           id="suburb-suggestions"
@@ -713,7 +766,7 @@ function Home() {
                   </div>
                 </div>
 
-                {/* Accessibility facility filters */}
+                {/* Accessibility facilities and distance filters */}
                 <div className="search-row">
                   <fieldset className="search-group">
                     <legend className="section-title">
@@ -759,7 +812,6 @@ function Home() {
                     </div>
                   </fieldset>
 
-                  {/* Distance choices for accessibility facilities */}
                   <fieldset className="search-group">
                     <legend className="section-title">
                       Choose a distance limit:
@@ -775,7 +827,7 @@ function Home() {
                               : "distance-option"
                           }
                           onClick={(event) => {
-                            // Clicking the selected distance again clears it
+                            // Clicking an active distance option clears the selection.
                             if (limit === String(band)) {
                               event.preventDefault();
                               setLimit("");
@@ -797,21 +849,20 @@ function Home() {
                   </fieldset>
                 </div>
 
-                {/* Displays form validation errors */}
+                {/* Shows an error when required fields are missing */}
                 {formError !== "" && (
                   <p className="form-error" role="alert">
                     {formError}
                   </p>
                 )}
 
-                {/* Displays errors from the venue search */}
+                {/* Shows errors from the venue search */}
                 {searchError !== "" && (
                   <p className="form-error" role="alert">
                     {searchError}
                   </p>
                 )}
 
-                {/* Buttons to clear the filters or search for venues */}
                 <div className="buttons">
                   <button
                     type="button"
@@ -833,11 +884,12 @@ function Home() {
             </section>
           )}
 
-          {/* Search results and messages */}
+          {/* Venue search results */}
           <div aria-live="polite">
             {results === null ? (
               <section className="results-empty">
                 <h2>Nothing searched yet</h2>
+
                 <p>
                   Choose a sport and a location, tick the facilities you need,
                   then select Search venues.
@@ -845,10 +897,8 @@ function Home() {
               </section>
             ) : (
               <div className="results">
-                {/* Reads a summary of the search results aloud */}
                 <ReadAloud summary={buildReadAloudSummary()} />
 
-                {/* Shows the number of matching venues */}
                 <div className="results-heading">
                   <div>
                     <h2>
@@ -871,17 +921,16 @@ function Home() {
                   )}
                 </div>
 
-                {/* Message shown when no venues match the filters */}
                 {results.matched.length === 0 && (
                   <div className="empty-card">
                     <h3>No matching venues</h3>
+
                     <p>
                       Try removing an amenity or choosing a bigger distance.
                     </p>
                   </div>
                 )}
 
-                {/* Displays the matching venue cards */}
                 {results.matched.slice(0, visibleCount).map((venue) => (
                   <VenueCard
                     key={venue.id}
@@ -890,7 +939,6 @@ function Home() {
                   />
                 ))}
 
-                {/* Loads five more venues when selected */}
                 {visibleCount < results.matched.length && (
                   <button
                     type="button"
@@ -902,7 +950,7 @@ function Home() {
                   </button>
                 )}
 
-                {/* Explains the facility status colours */}
+                {/* Explains facility availability symbols */}
                 {results.matched.length > 0 && (
                   <div className="legend">
                     <div className="legend-item">
@@ -931,7 +979,7 @@ function Home() {
                   </div>
                 )}
 
-                {/* Shows venues with missing accessibility information */}
+                {/* Shows venues without published facility information */}
                 {results.undocumented.length > 0 && (
                   <div className="missing-section">
                     <button
@@ -949,6 +997,7 @@ function Home() {
                         const missingFacilities =
                           results.selectedAmenities.filter((key) => {
                             const item = venue.amenities[key];
+
                             return !item || item.state === "none";
                           });
 
@@ -973,9 +1022,6 @@ function Home() {
           </div>
         </main>
       </div>
-
-      {/* Chat assistant for venue and event questions */}
-      <Chatbot />
     </div>
   );
 }
