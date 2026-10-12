@@ -27,26 +27,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow:
-    0 12px 28px rgba(12, 28, 45, 0.4),
-    0 2px 6px rgba(12, 28, 45, 0.25);
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
+  box-shadow: 0 12px 28px rgba(12, 28, 45, 0.4), 0 2px 6px rgba(12, 28, 45, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .chat-fab:hover {
   transform: translateY(-3px) scale(1.04);
-  box-shadow:
-    0 16px 32px rgba(12, 28, 45, 0.45),
-    0 2px 6px rgba(12, 28, 45, 0.3);
+  box-shadow: 0 16px 32px rgba(12, 28, 45, 0.45), 0 2px 6px rgba(12, 28, 45, 0.3);
 }
 
 .chat-fab:active {
   transform: translateY(-1px) scale(0.98);
 }
 
-/* Shows an outline when the button is selected using a keyboard */
+/* Highlights the button when using a keyboard */
 .chat-fab:focus-visible {
   outline: 3px solid #2b8c69;
   outline-offset: 2px;
@@ -166,11 +160,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 14px 16px;
-  background: linear-gradient(
-    120deg,
-    rgba(12, 28, 45, 0.95),
-    rgba(12, 28, 45, 0.88)
-  );
+  background: linear-gradient(120deg, rgba(12, 28, 45, 0.95), rgba(12, 28, 45, 0.88));
   color: #fff;
   flex-shrink: 0;
 }
@@ -257,7 +247,7 @@
   border-bottom-right-radius: 4px;
 }
 
-/* Shows animated dots while waiting for a reply */
+/* Shows typing dots while waiting for a reply */
 .chat-bubble--typing {
   display: flex;
   align-items: center;
@@ -403,7 +393,7 @@
   color: #8a9699;
 }
 
-/* Suggested questions displayed below the chatbot response */
+/* Suggested questions shown below the chatbot response */
 .chat-suggested-questions {
   display: flex;
   flex-direction: column;
@@ -455,9 +445,7 @@
 
 /* Makes the typing dots move up and down */
 @keyframes chat-typing-bounce {
-  0%,
-  60%,
-  100% {
+  0%, 60%, 100% {
     transform: translateY(0);
     opacity: 0.6;
   }
@@ -489,7 +477,7 @@
   min-width: 0;
 }
 
-/* Highlights the message input when using a keyboard */
+/* Highlights the input field when using a keyboard */
 .chat-panel-input-row input:focus-visible {
   outline: 2px solid #2b8c69;
   outline-offset: 1px;
@@ -534,4 +522,135 @@
   .chat-panel {
     width: calc(100vw - 32px);
   }
+}
+
+/* Option to turn spoken answers on or off */
+.chat-speak-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 0.78rem;
+  color: #3f545e;
+  background: #f6f8f7;
+  border-bottom: 1px solid #dde5e3;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.chat-speak-toggle input {
+  cursor: pointer;
+}
+
+/* Microphone button used for voice input */
+.chat-mic-button {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid #dde5e3;
+  background: #fff;
+  color: #3f545e;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.chat-mic-button:hover {
+  background: #eef3f2;
+}
+
+/* Highlights the microphone button when using a keyboard */
+.chat-mic-button:focus-visible {
+  outline: 2px solid #2b8c69;
+  outline-offset: 2px;
+}
+
+/* Changes the microphone button when it is listening */
+.chat-mic-button--active {
+  background: #a6342a;
+  border-color: #a6342a;
+  color: #fff;
+  animation: chat-mic-pulse 1.4s ease-in-out infinite;
+}
+
+/* Adds a pulsing effect while the microphone is active */
+@keyframes chat-mic-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(166, 52, 42, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(166, 52, 42, 0);
+  }
+}
+
+/* Turns off the microphone animation for users who prefer less movement */
+@media (prefers-reduced-motion: reduce) {
+  .chat-mic-button--active {
+    animation: none;
+  }
+}
+
+/* Error message shown when voice input fails */
+.chat-voice-error {
+  margin: 0;
+  padding: 8px 16px;
+  background: #fdf3f1;
+  border-top: 1px solid #e3b8b2;
+  color: #7a2e22;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+/* Controls shown while the chatbot is reading an answer */
+.chat-speaking-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #eaf2f8;
+  border-top: 1px solid #c3d9ea;
+  font-size: 0.78rem;
+  color: #1a3c52;
+  flex-shrink: 0;
+}
+
+.chat-speaking-label {
+  flex: 1;
+  font-weight: 600;
+}
+
+/* Buttons to pause, resume or stop the spoken answer */
+.chat-speaking-bar button {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid #14507a;
+  background: #fff;
+  color: #14507a;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.chat-speaking-bar button:hover {
+  background: #eef5fa;
+}
+
+.chat-disclaimer {
+  margin: 0;
+  padding: 6px 16px 10px;
+  text-align: center;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: #8a9699;
+  flex-shrink: 0;
+  background: #fff;
 }
