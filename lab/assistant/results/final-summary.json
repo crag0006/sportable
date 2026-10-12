@@ -1,0 +1,510 @@
+{
+ "tool": [
+  {
+   "id": "A1",
+   "group": "discovery",
+   "ok": true,
+   "s": 18.0,
+   "rounds": 2,
+   "tools": [
+    "resolve_location",
+    "search_venues"
+   ]
+  },
+  {
+   "id": "A2",
+   "group": "discovery",
+   "ok": true,
+   "s": 22.5,
+   "rounds": 2,
+   "tools": [
+    "resolve_location",
+    "search_venues"
+   ]
+  },
+  {
+   "id": "A3",
+   "group": "discovery",
+   "ok": true,
+   "s": 9.1,
+   "rounds": 1,
+   "tools": [
+    "resolve_location"
+   ]
+  },
+  {
+   "id": "A4",
+   "group": "discovery",
+   "ok": true,
+   "s": 15.1,
+   "rounds": 2,
+   "tools": [
+    "resolve_location",
+    "search_events"
+   ]
+  },
+  {
+   "id": "A5",
+   "group": "discovery",
+   "ok": true,
+   "s": 20.1,
+   "rounds": 2,
+   "tools": [
+    "resolve_location",
+    "search_events"
+   ]
+  },
+  {
+   "id": "B1",
+   "group": "venue",
+   "ok": true,
+   "s": 13.6,
+   "rounds": 2,
+   "tools": [
+    "find_venue",
+    "get_venue"
+   ]
+  },
+  {
+   "id": "B2",
+   "group": "venue",
+   "ok": true,
+   "s": 11.3,
+   "rounds": 1,
+   "tools": [
+    "get_venue"
+   ]
+  },
+  {
+   "id": "B3",
+   "group": "venue",
+   "ok": true,
+   "s": 11.3,
+   "rounds": 1,
+   "tools": [
+    "get_venue"
+   ]
+  },
+  {
+   "id": "B4",
+   "group": "venue",
+   "ok": true,
+   "s": 10.2,
+   "rounds": 1,
+   "tools": [
+    "get_venue"
+   ]
+  },
+  {
+   "id": "C1",
+   "group": "retrieval",
+   "ok": true,
+   "s": 26.1,
+   "rounds": 1,
+   "tools": [
+    "search_events",
+    "search_program_descriptions"
+   ]
+  },
+  {
+   "id": "C2",
+   "group": "retrieval",
+   "ok": true,
+   "s": 22.1,
+   "rounds": 2,
+   "tools": [
+    "list_sports",
+    "search_program_descriptions"
+   ]
+  },
+  {
+   "id": "C6",
+   "group": "retrieval",
+   "ok": true,
+   "s": 11.8,
+   "rounds": 1,
+   "tools": [
+    "search_program_descriptions"
+   ]
+  },
+  {
+   "id": "C3",
+   "group": "retrieval",
+   "ok": true,
+   "s": 12.3,
+   "rounds": 1,
+   "tools": [
+    "search_program_descriptions"
+   ]
+  },
+  {
+   "id": "C4",
+   "group": "retrieval",
+   "ok": true,
+   "s": 13.3,
+   "rounds": 1,
+   "tools": [
+    "search_program_descriptions"
+   ]
+  },
+  {
+   "id": "C5",
+   "group": "retrieval",
+   "ok": true,
+   "s": 10.6,
+   "rounds": 1,
+   "tools": [
+    "search_program_descriptions"
+   ]
+  },
+  {
+   "id": "D1",
+   "group": "knowledge",
+   "ok": true,
+   "s": 11.8,
+   "rounds": 1,
+   "tools": [
+    "find_venue"
+   ]
+  },
+  {
+   "id": "D2",
+   "group": "knowledge",
+   "ok": true,
+   "s": 8.7,
+   "rounds": 0,
+   "tools": []
+  },
+  {
+   "id": "D3",
+   "group": "knowledge",
+   "ok": true,
+   "s": 11.1,
+   "rounds": 2,
+   "tools": [
+    "find_venue",
+    "get_venue"
+   ]
+  },
+  {
+   "id": "D4",
+   "group": "knowledge",
+   "ok": true,
+   "s": 17.2,
+   "rounds": 2,
+   "tools": [
+    "find_venue",
+    "get_venue"
+   ]
+  },
+  {
+   "id": "D5",
+   "group": "knowledge",
+   "ok": true,
+   "s": 20.6,
+   "rounds": 2,
+   "tools": [
+    "find_venue",
+    "get_venue"
+   ]
+  },
+  {
+   "id": "D6",
+   "group": "knowledge",
+   "ok": true,
+   "s": 22.4,
+   "rounds": 2,
+   "tools": [
+    "search_events",
+    "search_program_descriptions"
+   ]
+  },
+  {
+   "id": "E1",
+   "group": "scope",
+   "ok": true,
+   "s": 6.5,
+   "rounds": 0,
+   "tools": []
+  },
+  {
+   "id": "E2",
+   "group": "scope",
+   "ok": true,
+   "s": 3.5,
+   "rounds": 0,
+   "tools": []
+  },
+  {
+   "id": "E3",
+   "group": "scope",
+   "ok": true,
+   "s": 12.1,
+   "rounds": 2,
+   "tools": [
+    "resolve_location",
+    "search_events"
+   ]
+  },
+  {
+   "id": "E4",
+   "group": "scope",
+   "ok": true,
+   "s": 8.6,
+   "rounds": 1,
+   "tools": [
+    "get_venue"
+   ]
+  }
+ ],
+ "always": [
+  {
+   "id": "A1",
+   "group": "discovery",
+   "ok": true,
+   "s": 17.2,
+   "rounds": 2,
+   "tools": [
+    "resolve_location",
+    "search_venues"
+   ]
+  },
+  {
+   "id": "A2",
+   "group": "discovery",
+   "ok": true,
+   "s": 21.7,
+   "rounds": 2,
+   "tools": [
+    "resolve_location",
+    "search_venues"
+   ]
+  },
+  {
+   "id": "A3",
+   "group": "discovery",
+   "ok": true,
+   "s": 7.1,
+   "rounds": 1,
+   "tools": [
+    "resolve_location"
+   ]
+  },
+  {
+   "id": "A4",
+   "group": "discovery",
+   "ok": true,
+   "s": 15.3,
+   "rounds": 2,
+   "tools": [
+    "resolve_location",
+    "search_events"
+   ]
+  },
+  {
+   "id": "A5",
+   "group": "discovery",
+   "ok": true,
+   "s": 27.3,
+   "rounds": 2,
+   "tools": [
+    "resolve_location",
+    "search_events"
+   ]
+  },
+  {
+   "id": "B1",
+   "group": "venue",
+   "ok": true,
+   "s": 13.3,
+   "rounds": 2,
+   "tools": [
+    "find_venue",
+    "get_venue"
+   ]
+  },
+  {
+   "id": "B2",
+   "group": "venue",
+   "ok": true,
+   "s": 12.4,
+   "rounds": 1,
+   "tools": [
+    "get_venue"
+   ]
+  },
+  {
+   "id": "B3",
+   "group": "venue",
+   "ok": true,
+   "s": 10.0,
+   "rounds": 1,
+   "tools": [
+    "get_venue"
+   ]
+  },
+  {
+   "id": "B4",
+   "group": "venue",
+   "ok": true,
+   "s": 13.3,
+   "rounds": 1,
+   "tools": [
+    "get_venue"
+   ]
+  },
+  {
+   "id": "C1",
+   "group": "retrieval",
+   "ok": true,
+   "s": 16.6,
+   "rounds": 0,
+   "tools": [
+    "search_program_descriptions"
+   ]
+  },
+  {
+   "id": "C2",
+   "group": "retrieval",
+   "ok": true,
+   "s": 12.7,
+   "rounds": 0,
+   "tools": [
+    "search_program_descriptions"
+   ]
+  },
+  {
+   "id": "C6",
+   "group": "retrieval",
+   "ok": true,
+   "s": 9.4,
+   "rounds": 0,
+   "tools": [
+    "search_program_descriptions"
+   ]
+  },
+  {
+   "id": "C3",
+   "group": "retrieval",
+   "ok": true,
+   "s": 8.3,
+   "rounds": 0,
+   "tools": [
+    "search_program_descriptions"
+   ]
+  },
+  {
+   "id": "C4",
+   "group": "retrieval",
+   "ok": true,
+   "s": 17.1,
+   "rounds": 0,
+   "tools": [
+    "search_program_descriptions"
+   ]
+  },
+  {
+   "id": "C5",
+   "group": "retrieval",
+   "ok": true,
+   "s": 8.9,
+   "rounds": 0,
+   "tools": [
+    "search_program_descriptions"
+   ]
+  },
+  {
+   "id": "D1",
+   "group": "knowledge",
+   "ok": true,
+   "s": 6.6,
+   "rounds": 0,
+   "tools": []
+  },
+  {
+   "id": "D2",
+   "group": "knowledge",
+   "ok": true,
+   "s": 6.6,
+   "rounds": 0,
+   "tools": []
+  },
+  {
+   "id": "D3",
+   "group": "knowledge",
+   "ok": true,
+   "s": 12.2,
+   "rounds": 2,
+   "tools": [
+    "find_venue",
+    "get_venue"
+   ]
+  },
+  {
+   "id": "D4",
+   "group": "knowledge",
+   "ok": true,
+   "s": 16.2,
+   "rounds": 2,
+   "tools": [
+    "find_venue",
+    "get_venue"
+   ]
+  },
+  {
+   "id": "D5",
+   "group": "knowledge",
+   "ok": true,
+   "s": 6.3,
+   "rounds": 0,
+   "tools": []
+  },
+  {
+   "id": "D6",
+   "group": "knowledge",
+   "ok": true,
+   "s": 13.2,
+   "rounds": 2,
+   "tools": [
+    "list_sports",
+    "search_events"
+   ]
+  },
+  {
+   "id": "E1",
+   "group": "scope",
+   "ok": true,
+   "s": 5.2,
+   "rounds": 0,
+   "tools": []
+  },
+  {
+   "id": "E2",
+   "group": "scope",
+   "ok": true,
+   "s": 3.1,
+   "rounds": 0,
+   "tools": []
+  },
+  {
+   "id": "E3",
+   "group": "scope",
+   "ok": true,
+   "s": 8.7,
+   "rounds": 1,
+   "tools": [
+    "resolve_location"
+   ]
+  },
+  {
+   "id": "E4",
+   "group": "scope",
+   "ok": true,
+   "s": 8.3,
+   "rounds": 1,
+   "tools": [
+    "get_venue"
+   ]
+  }
+ ]
+}

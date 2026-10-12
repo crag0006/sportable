@@ -25,7 +25,8 @@ class SourceOut(BaseModel):
     feeds: list[str] = Field(default_factory=list)
     status: SourceStatus
     row_count: int | None = None
-    mode: Literal["live", "sample"] | None = None
+    # Only ever ``sample`` (DS-09 before a live load); absent otherwise.
+    mode: Literal["sample"] | None = None
     note: str | None = None
 
 

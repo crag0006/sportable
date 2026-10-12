@@ -1,6 +1,6 @@
 """The event SQL against the crosswalk migration, read by name.
 
-NO DATABASE. tests/integration is empty and the unit tests run against the
+NO DATABASE. The unit tests run against the
 in-memory FakeRepository, so nothing in this suite executes the SQL in
 repositories/postgres.py. That is how the API came to resolve event sports
 through a seven-entry dict while migration 012 held eighty-four reviewed rows
@@ -20,10 +20,12 @@ import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-POSTGRES_PY = REPO_ROOT / "backend" / "app" / "repositories" / "postgres.py"
+REPOSITORIES = REPO_ROOT / "backend" / "app" / "repositories"
+EVENTS_PY = REPOSITORIES / "postgres_events.py"
+REFERENCE_PY = REPOSITORIES / "postgres_reference.py"
 MIGRATION = REPO_ROOT / "data" / "sql" / "012_sport_crosswalk.sql"
 
-SQL = POSTGRES_PY.read_text(encoding="utf-8")
+SQL = EVENTS_PY.read_text(encoding="utf-8") + REFERENCE_PY.read_text(encoding="utf-8")
 CROSSWALK_SQL = MIGRATION.read_text(encoding="utf-8")
 
 # The columns the view publishes, from the CREATE VIEW in 012.
@@ -108,5 +110,5 @@ def test_the_events_filter_matches_every_vocabulary_sport_not_just_one() -> None
 def _named_query(name: str) -> str:
     """The text of one module-level SQL constant."""
     match = re.search(rf'^{name} = f?"""(.*?)"""', SQL, re.DOTALL | re.MULTILINE)
-    assert match, f"{name} not found in {POSTGRES_PY.name}"
+    assert match, f"{name} not found in {EVENTS_PY.name} or {REFERENCE_PY.name}"
     return match.group(1)

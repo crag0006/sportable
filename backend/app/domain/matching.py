@@ -14,6 +14,7 @@ STRONG_SIMILARITY = 0.6
 
 
 def match_basis(distance_m: float | None, similarity: float | None) -> str:
+    """name_and_distance / distance_only / name_only / none, from the stored evidence."""
     if distance_m is None or similarity is None:
         return "none"
     if distance_m <= NAME_AND_DISTANCE_M and similarity > MIN_SIMILARITY:

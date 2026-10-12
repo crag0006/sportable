@@ -8,10 +8,17 @@ edge cases the Data team called out: a facility confirmed at the venue itself
 
 from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
+from typing import ClassVar
 from zoneinfo import ZoneInfo
 
 import pytest
-from app.api.deps import get_now, get_repository
+from app.api.deps import (
+    get_event_repository,
+    get_now,
+    get_reference_repository,
+    get_usage_repository,
+    get_venue_repository,
+)
 from app.main import app
 from app.repositories.protocols import (
     ChainRow,
@@ -29,6 +36,7 @@ from app.repositories.protocols import (
     SportEntry,
     SportRow,
     UpcomingRow,
+    VenueMatch,
     VenueRow,
 )
 from fastapi.testclient import TestClient
@@ -341,6 +349,10 @@ EVENTS: list[EventRow] = [
         sport="Basketball",
         sport_raw="Basketball",
         organisation="PlayOn Victoria",
+        description=(
+            "Social basketball for adults of all abilities. Sessions run on Wednesday evenings "
+            "from 6:30 pm to 8:00 pm during school terms. Juniors 5:30 pm to 6:30 pm. Bring water."
+        ),
         weekdays=("wednesday",),
         time_of_day=("evening",),
         price="free",
@@ -393,9 +405,13 @@ def _listable(e: EventRow, f: EventFilters) -> bool:
     )
 
 
-class FakeRepository:
+class FakeEventRepository:
+    """``EventRepository`` over the module-level EVENTS."""
+
     def list_events(self, f: EventFilters) -> list[EventRow]:
         out: list[EventRow] = []
+        if f.ids:
+            return [e for e in EVENTS if e.event_id in f.ids]
         for e in EVENTS:
             if not _listable(e, f):
                 continue
@@ -431,6 +447,10 @@ class FakeRepository:
         nxt = min((e.starts_at for e in rows if e.starts_at is not None), default=None)
         return UpcomingRow(len(rows), nxt)
 
+
+class FakeReferenceRepository:
+    """``ReferenceRepository`` over fixed sports, places, sources and one suburb."""
+
     def list_sports(self, q: str | None = None) -> list[SportRow]:
         rows = [SportRow("Basketball", 3), SportRow("Netball", 1), SportRow("Swimming", 1)]
         if q:
@@ -465,14 +485,28 @@ class FakeRepository:
             )
         return LocationMatch("unresolved")
 
+    def point_in_scope(self, latitude: float, longitude: float) -> bool:
+        # Greater Melbourne, roughly: anything far east (Sydney) is out.
+        return -39.0 < latitude < -37.0 and 144.0 < longitude < 146.0
+
+    def find_venues(self, name: str, suburb: str | None, limit: int = 5) -> list[VenueMatch]:
+        needle = name.lower()
+        return [
+            VenueMatch(v.venue_id, v.name, v.suburb, v.postcode, 0.9)
+            for v in VENUES
+            if needle in v.name.lower()
+            and (not suburb or (v.suburb or "").lower() == suburb.lower())
+        ][:limit]
+
     def list_sources(self) -> list[SourceRow]:
         return SOURCES
 
     def list_places(self) -> list[PlaceRow]:
         return [PlaceRow("Northcote", "3070", 1), PlaceRow("Preston", "3072", 1)]
 
-    def resolve_reference(self, suburb: str | None, postcode: str | None) -> ReferencePoint | None:
-        return self.resolve_location(suburb, postcode).reference
+
+class FakeVenueRepository:
+    """``VenueRepository`` over the module-level VENUES and corridor rows."""
 
     def search(self, sport: str, reference: ReferencePoint, radius_m: int) -> list[VenueRow]:
         return [v for v in VENUES if any(s.sport.lower() == sport.lower() for s in v.sports)]
@@ -498,9 +532,23 @@ def venues() -> list[VenueRow]:
     return VENUES
 
 
+class FakeUsageRepository:
+    """``UsageRepository`` counting in memory, reset by the client fixture."""
+
+    calls: ClassVar[dict[date, int]] = {}
+
+    def record_call(self, day: date) -> int | None:
+        FakeUsageRepository.calls[day] = FakeUsageRepository.calls.get(day, 0) + 1
+        return FakeUsageRepository.calls[day]
+
+
 @pytest.fixture
 def client() -> Iterator[TestClient]:
-    app.dependency_overrides[get_repository] = FakeRepository
+    app.dependency_overrides[get_reference_repository] = FakeReferenceRepository
+    app.dependency_overrides[get_venue_repository] = FakeVenueRepository
+    app.dependency_overrides[get_event_repository] = FakeEventRepository
+    app.dependency_overrides[get_usage_repository] = FakeUsageRepository
+    FakeUsageRepository.calls = {}
     app.dependency_overrides[get_now] = lambda: NOW.astimezone(ZoneInfo("Australia/Melbourne"))
     try:
         yield TestClient(app)

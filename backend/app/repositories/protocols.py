@@ -48,8 +48,10 @@ class SourceRow:
     publisher_scope: str | None
     publisher_last_updated: date | None
     stale_after_days: int | None = None
+    # The latest SUCCESSFUL load: what the site is actually serving.
     retrieved_at: datetime | None = None
     rows_loaded: int | None = None
+    # The latest load of any outcome, so a failure after a good load is visible.
     outcome: str | None = None
 
 
@@ -133,6 +135,7 @@ class FacilityRow:
     detail_source_id: str | None = None
     detail_source_name: str | None = None
     detail_source_updated: date | None = None
+    detail_stale_after_days: int | None = None
     detail_distance_m: float | None = None
     # The nearby public alternative to a published absence (migration 007).
     alternative_amenity_id: str | None = None
@@ -145,6 +148,7 @@ class FacilityRow:
     alternative_source_id: str | None = None
     alternative_source_name: str | None = None
     alternative_source_updated: date | None = None
+    alternative_stale_after_days: int | None = None
 
 
 @dataclass(frozen=True)
@@ -160,8 +164,10 @@ class CorridorFacilityRow:
     fraction: float  # 0..1 along the line - the travel order
     opening_hours: str | None = None
     key_required: bool | None = None
+    source_id: str | None = None
     source_name: str | None = None
     source_updated: date | None = None
+    stale_after_days: int | None = None
     retrieved_at: datetime | None = None
 
 
@@ -274,6 +280,9 @@ class EventFilters:
     weekdays: tuple[str, ...] = ()
     time_of_day: tuple[str, ...] = ()
     price: str | None = None
+    # A fixed set of ids (contract v0.3 section 7.7.3): the other filters and
+    # the date window do not apply, and ``status`` is ``all``.
+    ids: tuple[str, ...] = ()
     limit: int = 1000
 
 
@@ -289,33 +298,112 @@ class UpcomingRow:
     next_starts_at: datetime | None
 
 
+@dataclass(frozen=True)
+class VenueMatch:
+    """A venue found by name (the assistant's ``find_venue`` tool, contract v0.3 §4.3)."""
+
+    venue_id: str
+    name: str
+    suburb: str | None
+    postcode: str | None
+    score: float
+
+
+@dataclass(frozen=True)
+class ChunkRow:
+    """One retrieved passage of a program description (contract v0.3 §8.7)."""
+
+    program_id: str
+    chunk_index: int
+    text: str
+    source_id: str
+    similarity: float
+    lexical_hit: bool
+
+
+class ChunkRepository(Protocol):
+    """The retrieval index over program descriptions: cosine plus BM25, fused."""
+
+    def search(
+        self, embedding: list[float], question: str, model_id: str, limit: int
+    ) -> list[ChunkRow]:
+        """Fused candidates, best first, before the acceptance rule (``limit`` candidates)."""
+        ...
+
+    def titles(self, program_ids: list[str]) -> dict[str, tuple[str, str | None]]:
+        """Program name and publisher page by id, for the passages the service keeps."""
+        ...
+
+
+class ReferenceRepository(Protocol):
+    """Reference data: sports, places, the gazetteer and the source register."""
+
+    def find_venues(self, name: str, suburb: str | None, limit: int = 5) -> list[VenueMatch]:
+        """Venues whose name resembles ``name``, optionally narrowed by suburb."""
+        ...
+
+    def list_sports(self, q: str | None = None) -> list[SportRow]:
+        """Sports that exist in loaded venues or programmes, optionally filtered."""
+        ...
+
+    def list_places(self) -> list[PlaceRow]:
+        """Suburb and postcode pairs the venues carry, for the dropdown."""
+        ...
+
+    def resolve_location(self, suburb: str | None, postcode: str | None) -> LocationMatch:
+        """A typed place to a named point: resolved, outside_coverage or unresolved."""
+        ...
+
+    def point_in_scope(self, latitude: float, longitude: float) -> bool:
+        """Whether a coordinate pair falls inside the area SportAble covers."""
+        ...
+
+    def list_sources(self) -> list[SourceRow]:
+        """The source register with each source's latest load run."""
+        ...
+
+
 class VenueRepository(Protocol):
-    def list_sports(self, q: str | None = None) -> list[SportRow]: ...
+    """Venues and the per-request corridor over the amenity table."""
 
-    def list_places(self) -> list[PlaceRow]: ...
+    def search(self, sport: str, reference: ReferencePoint, radius_m: int) -> list[VenueRow]:
+        """Venues for a sport within the radius, nearest first, with their tiles."""
+        ...
 
-    def resolve_reference(
-        self, suburb: str | None, postcode: str | None
-    ) -> ReferencePoint | None: ...
-
-    def resolve_location(self, suburb: str | None, postcode: str | None) -> LocationMatch: ...
-
-    def list_sources(self) -> list[SourceRow]: ...
-
-    def list_events(self, filters: EventFilters) -> list[EventRow]: ...
-
-    def get_event(self, event_id: str) -> EventRow | None: ...
-
-    def event_sports(
-        self, date_from: date, date_to: date, now: datetime
-    ) -> list[EventSportRow]: ...
-
-    def upcoming_events(self, venue_id: str, now: datetime) -> UpcomingRow: ...
-
-    def search(self, sport: str, reference: ReferencePoint, radius_m: int) -> list[VenueRow]: ...
-
-    def get_venue(self, venue_id: str) -> VenueRow | None: ...
+    def get_venue(self, venue_id: str) -> VenueRow | None:
+        """One venue with tiles and access chain, or None."""
+        ...
 
     def corridor(
         self, origin: ReferencePoint, venue: VenueRow, within_m: int, kinds: list[str]
-    ) -> CorridorResult: ...
+    ) -> CorridorResult:
+        """Amenities within ``within_m`` of the straight line origin to venue."""
+        ...
+
+
+class UsageRepository(Protocol):
+    """The daily assistant counter behind ``daily_invocation_cap`` (contract 8.7)."""
+
+    def record_call(self, day: date) -> int | None:
+        """Count one turn on ``day`` and return the day's total; None when nothing counts."""
+        ...
+
+
+class EventRepository(Protocol):
+    """Fixtures and weekly programmes (DS-09), each joined to its matched venue."""
+
+    def list_events(self, filters: EventFilters) -> list[EventRow]:
+        """Listable events matching the filters, fixtures first."""
+        ...
+
+    def get_event(self, event_id: str) -> EventRow | None:
+        """One event, whatever its status, or None."""
+        ...
+
+    def event_sports(self, date_from: date, date_to: date, now: datetime) -> list[EventSportRow]:
+        """Sports with at least one listable event in the window."""
+        ...
+
+    def upcoming_events(self, venue_id: str, now: datetime) -> UpcomingRow:
+        """How many listable events a venue has, and the next fixture start."""
+        ...

@@ -137,6 +137,28 @@ resource "aws_apigatewayv2_stage" "default" {
     throttling_burst_limit = var.throttle_burst_limit
   }
 
+  # --------------------------------------------------------- I7, cost control
+  # THE DEFAULT THROTTLE IS WRONG FOR THIS ROUTE, AND NOT BY A LITTLE.
+  #
+  # Until the assistant, an extra request cost nothing: it read Postgres and
+  # went away. Every assistant request can invoke a model, and the endpoint is
+  # public and unauthenticated. At the stage default of 50 rps, an hour of
+  # sustained traffic is on the order of 180,000 model invocations — against
+  # finite credits, with no human in the loop. It does not take an attacker;
+  # one looping client or a crawler does it by accident.
+  #
+  # This is the control that actually caps the bill. The Lambda concurrency
+  # limit of 10 helps, but caps concurrency, not rate.
+  dynamic "route_settings" {
+    for_each = var.enable_assistant ? [1] : []
+
+    content {
+      route_key              = "POST ${var.assistant_route_path}"
+      throttling_rate_limit  = var.assistant_throttle_rate_limit
+      throttling_burst_limit = var.assistant_throttle_burst_limit
+    }
+  }
+
   tags = { Name = "${var.name_prefix}-api-stage" }
 }
 

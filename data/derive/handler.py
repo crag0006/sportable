@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
-"""Lambda entry point for stage 3: derive statuses and refresh the read model.
+"""Lambda entry point for stage 3: derive statuses, refresh the read model,
+then (Iteration 3) chunk and embed DS-09 programme descriptions.
 
     data/derive/handler.py
+
+EVENT
+    {"load_run_id": 12}          derive, then RAG
+    {"rag_only": true}           RAG only, for a backfill or rebuild
+    {"skip_rag": true}           derive only
+    {"force_rag": true}          RAG may delete a large share of the index
 
 INVOKED BY THE LOADER, NOT BY S3 AND NOT BY A SCHEDULE
     The spatial join that decides a venue's toilet status depends on every
@@ -41,9 +48,11 @@ import psycopg
 from psycopg.rows import dict_row
 
 from derive import run
+from derive.rag import build_rag_index, seconds_left
 
 LOG = logging.getLogger("sportable.derive")
 LOG.setLevel(logging.INFO)
+
 
 # Passed in by Terraform, read from SSM on the CI runner at apply time. NOT
 # read from SSM here: this function has no route to the SSM API from its
@@ -91,7 +100,22 @@ def latest_load_run(conn) -> int:
 
 
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
-    with psycopg.connect(database_url(), row_factory=dict_row) as conn:
-        load_run_id = event.get("load_run_id") or latest_load_run(conn)
+    dsn = database_url()
 
-        return run.derive_all(conn, load_run_id=load_run_id, log=log)
+    result: dict[str, Any] = {}
+
+    if not event.get("rag_only"):
+        # Commits the statuses and read model itself before the place stage.
+        with psycopg.connect(dsn, row_factory=dict_row) as conn:
+            load_run_id = event.get("load_run_id") or latest_load_run(conn)
+
+            result.update(run.derive_all(conn, load_run_id=load_run_id, log=log))
+
+    if not event.get("skip_rag"):
+        result["rag"] = build_rag_index(
+            dsn,
+            allow_large_delete=bool(event.get("force_rag")),
+            time_left=seconds_left(context),
+        )
+
+    return result

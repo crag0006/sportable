@@ -70,6 +70,7 @@ class LegendEntry:
 
     @property
     def display_label(self) -> str:
+        """The tile label for this kind, from the one shared dictionary."""
         return KIND_LABELS[self.kind]
 
 

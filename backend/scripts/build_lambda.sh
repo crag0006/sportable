@@ -34,6 +34,11 @@ uv pip install \
 cp -r app build/package/app
 cp handlers/api.py build/package/api.py
 
+# The Access Assistant is a SECOND function pointed at THIS SAME archive, with a
+# different handler entry point. It needs app/ and the same dependencies, so a
+# separate package would be the same bytes twice. See infra/modules/api/assistant.tf.
+cp handlers/assistant.py build/package/assistant.py
+
 find build/package -name '__pycache__' -type d -prune -exec rm -rf {} +
 
 (cd build/package && zip -qr ../sportable-api.zip .)

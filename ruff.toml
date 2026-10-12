@@ -37,11 +37,23 @@ select = [
   "B",    # flake8-bugbear — likely bugs, not style
   "SIM",  # flake8-simplify
   "RUF",  # ruff's own rules, including unused `# noqa` detection
+  # Every function and method carries a docstring (tutor feedback, Iteration 2
+  # review). Function-level rules only: module and class docstrings are not
+  # required. Private functions are covered by backend/scripts/check_functions.py.
+  "D102", # public method
+  "D103", # public function
+  "D105", # magic method
+  "D107", # __init__
 ]
 
 [lint.per-file-ignores]
-# Test files legitimately re-import and shadow; assertions are the point.
-"**/tests/**" = ["S101"]
+# Test files legitimately re-import and shadow; assertions are the point. A
+# test's name is its documentation.
+"**/tests/**" = ["S101", "D102", "D103", "D105", "D107"]
+
+# The data package adopts the docstring rules in its own pass; until then the
+# rule would fail its CI job for code the backend refactor did not touch.
+"data/**" = ["D102", "D103", "D105", "D107"]
 
 # LocalS3 in this script is a drop-in stand-in for the boto3 S3 client, used to
 # run the fetch handler against a folder instead of AWS. Its method signatures

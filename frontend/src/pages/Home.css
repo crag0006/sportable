@@ -1,3 +1,4 @@
+
 .search-page {
   min-height: 100vh;
   background: linear-gradient(180deg, #eaf4f2 0%, #f6f8f7 45%, #eef5f4 100%);
@@ -60,8 +61,7 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
-/* Marks which page you are on. A border as well as a colour, so it is
-   not the colour alone doing the work. */
+/* Highlights the current navigation page. */
 .site-nav-link[aria-current="page"] {
   border-color: #ffbf47;
 }
@@ -74,7 +74,7 @@
   gap: 18px;
 }
 
-/* Photo banner */
+/* Banner image for the search pages. */
 .search-banner {
   position: relative;
   height: 150px;
@@ -103,10 +103,7 @@
   font-size: 1.1rem;
 }
 
-/* --------------------------------------------------------------------------
-   Search form card
-   -------------------------------------------------------------------------- */
-
+/* Search form container. */
 .search-card {
   padding: 22px;
   background: #fff;
@@ -123,7 +120,7 @@
   color: #0c1c2d;
 }
 
-/* Two things side by side. Stacked would push the results off screen. */
+/* Displays the search fields in two columns. */
 .search-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -137,7 +134,7 @@
   border: none;
 }
 
-/* Relative, so the suggestion list can sit directly under the box */
+/* Positions the suggestion list below the input. */
 .field {
   position: relative;
 }
@@ -163,7 +160,7 @@
   color: #1a2733;
 }
 
-/* Small grey helper text under a search box */
+/* Help text shown below a search field. */
 .field-hint {
   margin: 4px 0 0 0;
   font-size: 0.78rem;
@@ -186,15 +183,12 @@
   border-color: #14507a;
 }
 
-/* The red star next to a required field label */
+/* Marks required fields. */
 .required {
   color: #96231f;
 }
 
-/* --------------------------------------------------------------------------
-   Type-ahead suggestions
-   -------------------------------------------------------------------------- */
-
+/* Dropdown suggestions for sports and suburbs. */
 .suggestions {
   position: absolute;
   top: calc(100% + 4px);
@@ -212,8 +206,7 @@
   box-shadow: 0 10px 24px rgba(12, 28, 45, 0.08);
 }
 
-/* Each suggestion is a real button, so it works with a keyboard and a
-   screen reader announces it properly */
+/* Clickable options in the suggestion list. */
 .suggestions button {
   width: 100%;
   padding: 10px 12px;
@@ -229,17 +222,14 @@
   background-color: #eef4f9;
 }
 
-/* Shown when nothing in our list matches what was typed */
+/* Message shown when there are no matching suggestions. */
 .no-match {
   margin: 6px 0 0 0;
   color: #96231f;
   font-size: 0.8rem;
 }
 
-/* --------------------------------------------------------------------------
-   Amenity checkboxes
-   -------------------------------------------------------------------------- */
-
+/* Accessibility facility checkboxes. */
 .checks {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -266,10 +256,7 @@
   cursor: pointer;
 }
 
-/* --------------------------------------------------------------------------
-   Distance choices
-   -------------------------------------------------------------------------- */
-
+/* Distance filter options. */
 .distance-options {
   display: flex;
   gap: 8px;
@@ -289,9 +276,7 @@
   cursor: pointer;
 }
 
-/* The radio is hidden from view but NOT from the browser. Using
-   "display: none" here would take it out of the tab order, so nobody
-   using a keyboard could choose a distance. */
+/* Hides the radio input visually while keeping it accessible. */
 .distance-option input {
   position: absolute;
   opacity: 0;
@@ -300,8 +285,7 @@
   margin: 0;
 }
 
-/* Puts the focus ring on the visible button when the hidden radio
-   has keyboard focus */
+/* Shows keyboard focus on the selected distance option. */
 .distance-option:has(input:focus-visible) {
   outline: 3px solid #2b8c69;
   outline-offset: 2px;
@@ -319,10 +303,7 @@
   margin-left: 6px;
 }
 
-/* --------------------------------------------------------------------------
-   Errors and buttons
-   -------------------------------------------------------------------------- */
-
+/* Search errors and action buttons. */
 .form-error {
   margin: 1rem 0 0 0;
   padding: 10px 12px;
@@ -377,10 +358,7 @@
   background-color: #eef5fa;
 }
 
-/* --------------------------------------------------------------------------
-   Summary bar, shown in place of the form once a search has run
-   -------------------------------------------------------------------------- */
-
+/* Summary of the filters used in the search. */
 .search-summary-bar {
   display: flex;
   align-items: center;
@@ -426,11 +404,9 @@
   background-color: #0f3d5e;
 }
 
-/* --------------------------------------------------------------------------
-   Results
-   -------------------------------------------------------------------------- */
+/* Search results and empty states. */
 
-/* Shown before anyone has searched */
+/* Message shown before the user searches. */
 .results-empty {
   padding: 2rem 22px;
   background: #fff;
@@ -475,7 +451,7 @@
   color: #63717a;
 }
 
-/* Shows which distance limit the search used */
+/* Shows the selected distance limit. */
 .filter-badge {
   padding: 7px 12px;
   font-size: 0.8rem;
@@ -486,7 +462,7 @@
   white-space: nowrap;
 }
 
-/* Shown when the search found nothing */
+/* Message shown when no results are found. */
 .empty-card {
   padding: 1.5rem;
   background-color: #fff;
@@ -503,7 +479,7 @@
   color: #66777a;
 }
 
-/* Reveals the next few venues */
+/* Button to display more venues or events. */
 .view-more-button {
   display: block;
   width: 100%;
@@ -523,12 +499,7 @@
   background-color: #eef5fa;
 }
 
-/* --------------------------------------------------------------------------
-   Colour guide under the results.
-   Every status also carries a symbol on the card itself, because colour on
-   its own is no use to someone who cannot tell the colours apart.
-   -------------------------------------------------------------------------- */
-
+/* Guide to accessibility facility status colours. */
 .legend {
   display: flex;
   flex-wrap: wrap;
@@ -552,30 +523,25 @@
   border-radius: 3px;
 }
 
-/* Green — within the chosen distance */
+/* Green shows facilities within the selected distance. */
 .available-box {
   background-color: #e2f5ec;
   border: 1px solid #9bd6bb;
 }
 
-/* Red — too far away, or recorded as not there */
+/* Red shows unavailable facilities or those beyond the limit. */
 .problem-box {
   background-color: #fde9e8;
   border: 1px solid #e0aaa6;
 }
 
-/* Grey and dashed — nobody has published anything */
+/* Grey shows facilities with no published information. */
 .unknown-box {
   background-color: #ecefef;
   border: 1px dashed #a8b1b3;
 }
 
-/* --------------------------------------------------------------------------
-   Venues we do not have enough information about.
-   These are grouped and counted, never dropped from the results, because
-   missing data is not the same as a facility being unavailable.
-   -------------------------------------------------------------------------- */
-
+/* Groups venues with missing accessibility information. */
 .missing-section {
   margin-top: 1.5rem;
   padding: 1.2rem;
@@ -584,7 +550,7 @@
   border-radius: 8px;
 }
 
-/* Clickable heading that shows or hides the list */
+/* Button to expand or collapse venues with missing information. */
 .missing-toggle {
   width: 100%;
   margin: 0 0 10px 0;
@@ -619,13 +585,7 @@
   line-height: 1.5;
 }
 
-/* --------------------------------------------------------------------------
-   Event cards (Events page results)
-   Reuses the same white-card/pill/chip language as the rest of the app —
-   see .chip and .distance-pill in main.css — rather than inventing a new
-   visual style just for this page.
-   -------------------------------------------------------------------------- */
-
+/* Cards showing event and venue details. */
 .event-card {
   margin-top: 14px;
   padding: 18px 20px;
@@ -646,8 +606,14 @@
   flex-wrap: wrap;
 }
 
+/* Adds space below the sport label on event cards. */
+.event-top .chip {
+  display: inline-block;
+  margin-bottom: 6px;
+}
+
 .event-teams {
-  margin: 0.5rem 0 0 0;
+  margin: 10px 0 0 0;
   font-size: 1.1rem;
   font-weight: 700;
   color: #0c1c2d;
@@ -698,6 +664,11 @@
   line-height: 1.5;
 }
 
+/* Adds space above accessibility facility tiles on event cards. */
+.event-card .amenity-grid {
+  margin-top: 14px;
+}
+
 .event-actions {
   display: flex;
   gap: 8px;
@@ -734,10 +705,7 @@
   background-color: #eef5fa;
 }
 
-/* --------------------------------------------------------------------------
-   Smaller screens
-   -------------------------------------------------------------------------- */
-
+/* Adjusts the layout for smaller screens. */
 @media (max-width: 900px) {
   .search-row {
     grid-template-columns: 1fr;
@@ -787,5 +755,111 @@
   .clear-button,
   .edit-search-button {
     width: 100%;
+  }
+}
+
+/* Centred save confirmation popup that stays open until closed. */
+.save-toast-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(12, 28, 45, 0.32);
+  animation: save-toast-backdrop-in 0.15s ease-out;
+}
+
+.save-toast {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(380px, 100%);
+  background: #fff;
+  color: #1a2733;
+  padding: 28px 24px 24px;
+  border-radius: 14px;
+  box-shadow: 0 20px 48px rgba(12, 28, 45, 0.3);
+  text-align: center;
+  animation: save-toast-in 0.2s ease-out;
+}
+
+.save-toast-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: #e6f4ed;
+  color: #2b8c69;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.save-toast-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #3f545e;
+}
+
+.save-toast-link {
+  color: #14507a;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.save-toast-link:hover {
+  color: #0c3a5c;
+}
+
+.save-toast-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background: transparent;
+  color: #8a9699;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.save-toast-close:hover {
+  color: #1a2733;
+}
+
+@keyframes save-toast-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes save-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .save-toast-backdrop,
+  .save-toast {
+    animation: none;
   }
 }

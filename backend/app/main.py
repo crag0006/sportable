@@ -20,12 +20,17 @@ from app.core.errors import install_error_handlers
 
 
 def create_app() -> FastAPI:
+    """Build the FastAPI application: routes, error handlers, logging."""
     settings = get_settings()
+    # Lambda pre-installs a root handler, which makes basicConfig a no-op and
+    # would leave the root logger at WARNING: the assistant's INFO counts
+    # (AC6.3.5) never reached CloudWatch on staging. Set the level explicitly.
     logging.basicConfig(level=settings.log_level.upper())
+    logging.getLogger().setLevel(settings.log_level.upper())
 
     app = FastAPI(
         title="SportAble Melbourne API",
-        version="0.2.0",
+        version="0.3.0",
         docs_url="/api/v1/docs",
         openapi_url="/api/v1/openapi.json",
         redoc_url=None,
@@ -35,6 +40,7 @@ def create_app() -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     def root() -> JSONResponse:
+        """A plain liveness answer at the site root."""
         return JSONResponse({"status": "ok", "service": "sportable-api"})
 
     return app

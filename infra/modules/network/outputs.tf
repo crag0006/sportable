@@ -42,3 +42,13 @@ output "private_route_table_id" {
   description = "Private route table. Assert in tests that it has no 0.0.0.0/0 route."
   value       = aws_route_table.private.id
 }
+
+output "bedrock_endpoint_id" {
+  description = "Bedrock interface endpoint, or null when disabled."
+  value       = var.enable_bedrock_endpoint ? aws_vpc_endpoint.bedrock_runtime[0].id : null
+}
+
+output "bedrock_endpoint_security_group_id" {
+  description = "Security group on the Bedrock endpoint ENI, or null when disabled."
+  value       = var.enable_bedrock_endpoint ? aws_security_group.bedrock_endpoint[0].id : null
+}

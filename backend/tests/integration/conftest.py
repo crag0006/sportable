@@ -85,8 +85,8 @@ def seeded_database(database_url: str) -> str:
 
 
 @pytest.fixture(scope="session")
-def repo(seeded_database: str):
-    """The real repository, pointed at the seeded database.
+def repositories(seeded_database: str):
+    """The real repositories, pointed at the seeded database.
 
     Setting DATABASE_URL is not enough. Settings are read through an
     lru_cache and the connection pool is a module global, so by the time these
@@ -95,7 +95,8 @@ def repo(seeded_database: str):
     """
     from app.core import db
     from app.core.config import get_settings
-    from app.repositories.postgres import PostgresVenueRepository
+    from app.repositories.postgres_events import PostgresEventRepository
+    from app.repositories.postgres_reference import PostgresReferenceRepository
 
     os.environ["DATABASE_URL"] = seeded_database
     get_settings.cache_clear()
@@ -104,4 +105,4 @@ def repo(seeded_database: str):
         db._pool.close()
         db._pool = None
 
-    return PostgresVenueRepository()
+    return PostgresEventRepository(), PostgresReferenceRepository()

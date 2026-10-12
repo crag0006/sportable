@@ -1,0 +1,273 @@
+[
+  {
+    "case": {
+      "id": "C1",
+      "group": "retrieval",
+      "question": "Is there a tennis program for people who are blind or have low vision?",
+      "context": null,
+      "tools_expected": [
+        "search_program_descriptions",
+        "search_events"
+      ],
+      "must_contain": [
+        "Blind Tennis"
+      ],
+      "must_not_contain": [],
+      "note": ""
+    },
+    "result": {
+      "answer": "Yes. The publisher, AAA Play, writes that the Blind Tennis Program is run by Blind Sports & Recreation Victoria, Tennis Victoria and Tennis Seniors Victoria.\n\nFor adults, it runs as a six-week program during school terms on Friday nights on indoor courts at the National Tennis Centre. Players use various balls, including audible tennis balls and different sized and coloured balls, with help from volunteers. A junior version is open to kids aged 5 to 15 who are blind or have vision problems, with junior programs also at Lalor, Keilor, Williamstown and Cheltenham.\n\nThe publisher lists $80 per year, $5 per occasional session, and $20 per term for juniors. Details: https://aaaplay.org.au/activity/blind-tennis-program/",
+      "rounds": 1,
+      "tools": [
+        "search_program_descriptions({\"question\":\"Which tennis programs are for people who are blind or have low vision?\"})"
+      ],
+      "tool_payloads": [
+        "{\"available\": true, \"passages\": [{\"program_id\": \"DS-09:activity:20905\", \"title\": \"Blind Tennis Program\", \"text\": \"balls, including audible tennis balls and different sized and coloured balls. Before this program, people with total blindness could not play tennis. Now, people of all ages and backgrounds can join. You can play for fun or improve your skills to play at a higher level. Everyone is welcome! Juniors Blind Sports & Recreation Victoria and Tennis Victoria are happy to offer the Junior Blind Tennis program. Kids aged 5 to 15 who are blind or have vision problems can join.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/blind-tennis-program/\", \"similarity\": 0.69, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20905\"}, {\"program_id\": \"DS-09:activity:20905\", \"title\": \"Blind Tennis Program\", \"text\": \"Adults During school terms, we have a six-week blind tennis program. It is held on Friday nights at the National Tennis Centre on indoor courts. This program is run by Blind Sports & Recreation Victoria, Tennis Victoria, and Tennis Seniors Victoria. People with different levels of vision join the program. They do different tennis exercises with the help of volunteers. We use various types of balls, including audible tennis balls and different sized and coloured balls.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/blind-tennis-program/\", \"similarity\": 0.679, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20905\"}, {\"program_id\": \"DS-09:activity:20614\", \"title\": \"Doncaster Tennis Club\", \"text\": \"Slamin Tennis has fun activities for everyone. We have special coaches and programs for: Wheelchair users, People who are deaf or hard of hearing, People with intellectual disabilities, Blind or low vision players, Kids with autism (our award-winning Au-Tastic Tennis program). Our coaches are trained to help all players. They know sign language and understand deaf needs. Everyone is welcome here. You’ll feel like you’re among friends right away. Try a FREE session by booking on our website.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/doncaster-tennis-club/\", \"similarity\": 0.665, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20614\"}, {\"program_id\": \"DS-09:activity:20905\", \"title\": \"Blind Tennis Program\", \"text\": \"$80 per year. Occasional participants: $5 per session. Juniors: $20 per term. Other Locations: Blind Tennis Junior programs are also available at Lalor, Keilor, Williamstown, and Cheltenham. For more details, call or email Blind Sports and Recreation Victoria.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/blind-tennis-program/\", \"similarity\": 0.625, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20905\"}], \"floor\": 0.58, \"note\": \"Passages are the publisher's own words about a program; quote them as such.\"}"
+      ],
+      "elapsed_s": 13.1,
+      "model": "qwen3.8-flash-next-local",
+      "retrieval_mode": "tool"
+    },
+    "checks": {
+      "grounded_hrefs": true,
+      "ungrounded_hrefs": [],
+      "grounded_numbers": true,
+      "ungrounded_numbers": [],
+      "must_contain": true,
+      "missing": [],
+      "must_not_contain": true,
+      "leaked": [],
+      "tools_expected": true,
+      "tools_called": [
+        "search_program_descriptions"
+      ]
+    },
+    "pass": true
+  },
+  {
+    "case": {
+      "id": "C2",
+      "group": "retrieval",
+      "question": "Is there a playground with Braille and Auslan signs that kids in wheelchairs can use?",
+      "context": null,
+      "tools_expected": [
+        "search_program_descriptions"
+      ],
+      "must_contain": [
+        "Brimbank Park"
+      ],
+      "must_not_contain": [],
+      "note": ""
+    },
+    "result": {
+      "answer": "Yes — one match in the published programs here.\n\nThe publisher, AAA Play, writes that Brimbank Park Playscape \"is a fun place for kids and families to enjoy nature. All kids can play here, even those in wheelchairs. You can find Braille and Auslan signs, fun wall paintings, a build-your-own playhouse, and more.\" They suggest checking the Maribyrnong Valley Parklands page for news before you go.\n\nDetails: https://aaaplay.org.au/activity/brimbank-park-playscape/ (page: /events/DS-09:activity:20854)\n\nThat is the publisher's own description, not a checked access audit — nothing else is published here about it.",
+      "rounds": 1,
+      "tools": [
+        "search_program_descriptions({\"question\":\"Which playgrounds have Braille and Auslan signs and are usable by children in wheelchairs?\"})"
+      ],
+      "tool_payloads": [
+        "{\"available\": true, \"passages\": [{\"program_id\": \"DS-09:activity:20854\", \"title\": \"Brimbank Park Playscape\", \"text\": \"Brimbank Park Playscape Brimbank Park Playscape is a fun place for kids and families to enjoy nature. All kids can play here, even those in wheelchairs. You can find Braille and Auslan signs, fun wall paintings, a build-your-own playhouse, and more. For more details, visit the Brimbank Park playscape page on the Parks Victoria website. Tip: Check the Maribyrnong Valley Parklands page for any news before you go. Have a great time at the playscape!\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/brimbank-park-playscape/\", \"similarity\": 0.6, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20854\"}], \"floor\": 0.58, \"note\": \"Passages are the publisher's own words about a program; quote them as such.\"}"
+      ],
+      "elapsed_s": 14.3,
+      "model": "qwen3.8-flash-next-local",
+      "retrieval_mode": "tool"
+    },
+    "checks": {
+      "grounded_hrefs": true,
+      "ungrounded_hrefs": [],
+      "grounded_numbers": true,
+      "ungrounded_numbers": [],
+      "must_contain": true,
+      "missing": [],
+      "must_not_contain": true,
+      "leaked": [],
+      "tools_expected": true,
+      "tools_called": [
+        "search_program_descriptions"
+      ]
+    },
+    "pass": true
+  },
+  {
+    "case": {
+      "id": "C6",
+      "group": "retrieval",
+      "question": "Do any of the Reclink footy programs provide transport?",
+      "context": null,
+      "tools_expected": [
+        "search_program_descriptions"
+      ],
+      "must_contain": [
+        "Reclink Footy"
+      ],
+      "must_not_contain": [
+        "bus route",
+        "train line"
+      ],
+      "note": ""
+    },
+    "result": {
+      "answer": "Yes — the publisher, AAA Play, writes for each Reclink Footy team that \"transport provided for away games\", along with lunch and equipment.\n\nThree of them, with their home grounds as written:\n- Sunbury Phoenix — home games in Sunbury (/events/DS-09:activity:22538)\n- Salvo Hawks — home games in Hawthorn (/events/DS-09:activity:22472)\n- Southern Peninsula Swans — home games at Olympic Park Recreational Reserve, 90 Besgrove St, Rosebud (/events/DS-09:activity:22503)\n\nOne more, the Cardinia Tigers (Bunyip), is in the same list. The publisher does not describe transport to home games, so check that with the Reclink Footy manager.",
+      "rounds": 1,
+      "tools": [
+        "search_program_descriptions({\"question\":\"Do the Reclink football programs provide transport to the session?\"})"
+      ],
+      "tool_payloads": [
+        "{\"available\": true, \"passages\": [{\"program_id\": \"DS-09:activity:22538\", \"title\": \"Reclink Footy – Sunbury Phoenix\", \"text\": \"The Reclink Football League is an all abilities and all gender league with games play fortnightly during the football season. The Sunbury Phoenix are welcoming all players to register for the 2026 season. Home games played in Sunbury and transport provided for away games. Lunch and equipment provided. Register and enrol now! Please contact us for session locations as each round will be a different location. Contact your local team or reach out to Reclink Footy manager Rhan Harris at 0415541889 or rhan.harris@reclink.org\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/reclink-footy-sunbury-phoenix/\", \"similarity\": 0.644, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:22538\"}, {\"program_id\": \"DS-09:activity:22472\", \"title\": \"Reclink Footy – Salvo Hawks\", \"text\": \"The Reclink Football League is an all abilities and all gender league with games play fortnightly during the football season. The Salvo Hawks are welcoming all players to register for the 2026 season. Home games played in Hawthorn and transport provided for away games. Lunch and equipment provided. Register and enroll now! Contact your local team or reach out to Reclink Footy manager Rhan Harris at 0415541889 or rhan.harris@reclink.org.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/reclink-footy-salvo-hawks/\", \"similarity\": 0.639, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:22472\"}, {\"program_id\": \"DS-09:activity:22503\", \"title\": \"Reclink Footy – Southern Peninsula Swans\", \"text\": \"The Reclink Football League is an all abilities and all gender league with games play fortnightly during the football season. The Southern Peninsula Swan are welcoming all players to register for the 2026 season. Home games played at Olympic Park Recreational Reserve, 90 Besgrove St, Rosebud and transport provided for away games. Lunch and equipment provided. Register and enroll now! Contact your local team or reach out to Reclink Footy manager Rhan Harris at 0415541889 or rhan.harris@reclink.org.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/southern-peninsula-swans/\", \"similarity\": 0.644, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:22503\"}, {\"program_id\": \"DS-09:activity:22515\", \"title\": \"Reclink Footy – Cardinia Tigers\", \"text\": \"The Reclink Football League is an all abilities and all gender league with games play fortnightly during the football season. The Cardinia Tigers are welcoming all players to register for the 2026 season. Home games played in Bunyip and transport provided for away games. Lunch and equipment provided. Register and enroll now! Contact your local team or reach out to Reclink Footy manager Rhan Harris at 0415541889 or rhan.harris@reclink.org.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/reclink-footy-cardinia-tigers/\", \"similarity\": 0.642, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:22515\"}], \"floor\": 0.58, \"note\": \"Passages are the publisher's own words about a program; quote them as such.\"}"
+      ],
+      "elapsed_s": 15.7,
+      "model": "qwen3.8-flash-next-local",
+      "retrieval_mode": "tool"
+    },
+    "checks": {
+      "grounded_hrefs": true,
+      "ungrounded_hrefs": [],
+      "grounded_numbers": true,
+      "ungrounded_numbers": [],
+      "must_contain": true,
+      "missing": [],
+      "must_not_contain": true,
+      "leaked": [],
+      "tools_expected": true,
+      "tools_called": [
+        "search_program_descriptions"
+      ]
+    },
+    "pass": true
+  },
+  {
+    "case": {
+      "id": "C3",
+      "group": "retrieval",
+      "question": "Which programs mention audible tennis balls?",
+      "context": null,
+      "tools_expected": [
+        "search_program_descriptions"
+      ],
+      "must_contain": [
+        "Blind Tennis"
+      ],
+      "must_not_contain": [],
+      "note": ""
+    },
+    "result": {
+      "answer": "One program in the site's published descriptions mentions audible tennis balls: the Blind Tennis Program (page: /events/DS-09:activity:20905).\n\nThe publishers (Blind Sports & Recreation Victoria, Tennis Victoria and Tennis Seniors Victoria) write that the six-week adult program runs during school terms on Friday nights on indoor courts at the National Tennis Centre, and that they \"use various types of balls, including audible tennis balls and different sized and coloured balls.\"\n\nNo other program description here mentions audible balls, so I cannot say whether they are used elsewhere.",
+      "rounds": 1,
+      "tools": [
+        "search_program_descriptions({\"question\":\"Which programs mention audible tennis balls?\"})"
+      ],
+      "tool_payloads": [
+        "{\"available\": true, \"passages\": [{\"program_id\": \"DS-09:activity:20905\", \"title\": \"Blind Tennis Program\", \"text\": \"Adults During school terms, we have a six-week blind tennis program. It is held on Friday nights at the National Tennis Centre on indoor courts. This program is run by Blind Sports & Recreation Victoria, Tennis Victoria, and Tennis Seniors Victoria. People with different levels of vision join the program. They do different tennis exercises with the help of volunteers. We use various types of balls, including audible tennis balls and different sized and coloured balls.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/blind-tennis-program/\", \"similarity\": 0.533, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20905\"}, {\"program_id\": \"DS-09:activity:20905\", \"title\": \"Blind Tennis Program\", \"text\": \"balls, including audible tennis balls and different sized and coloured balls. Before this program, people with total blindness could not play tennis. Now, people of all ages and backgrounds can join. You can play for fun or improve your skills to play at a higher level. Everyone is welcome! Juniors Blind Sports & Recreation Victoria and Tennis Victoria are happy to offer the Junior Blind Tennis program. Kids aged 5 to 15 who are blind or have vision problems can join.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/blind-tennis-program/\", \"similarity\": 0.52, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20905\"}], \"floor\": 0.58, \"note\": \"Passages are the publisher's own words about a program; quote them as such.\"}"
+      ],
+      "elapsed_s": 11.7,
+      "model": "qwen3.8-flash-next-local",
+      "retrieval_mode": "tool"
+    },
+    "checks": {
+      "grounded_hrefs": true,
+      "ungrounded_hrefs": [],
+      "grounded_numbers": true,
+      "ungrounded_numbers": [],
+      "must_contain": true,
+      "missing": [],
+      "must_not_contain": true,
+      "leaked": [],
+      "tools_expected": true,
+      "tools_called": [
+        "search_program_descriptions"
+      ]
+    },
+    "pass": true
+  },
+  {
+    "case": {
+      "id": "C4",
+      "group": "retrieval",
+      "question": "Is there a unified football program for young people with disability run with Melbourne Victory?",
+      "context": null,
+      "tools_expected": [
+        "search_program_descriptions",
+        "search_events"
+      ],
+      "must_contain": [
+        "Melbourne Victory"
+      ],
+      "must_not_contain": [],
+      "note": ""
+    },
+    "result": {
+      "answer": "Yes. The publisher, AAA Play, writes that the \"Melbourne Victory All Abilities Unified Football Program\" is \"for young people with disability or additional support needs\", offering \"a fun, safe, and welcoming place to play football, learn new skills, make friends, and have fun.\"\n\nThey list four sessions:\n- Ages 16+, 11:00am–12:00pm, bi-weekly, 14 October – 16 December (/events/DS-09:activity:25160)\n- Ages 6–16 and 12–18, 10:30am–11:20am, 17 October – 5 December (/events/DS-09:activity:25162)\n- Ages 6–16 and 16+, 5:00pm–5:50pm, 16 October – 4 December (/events/DS-09:activity:25161)\n- A Melbourne Victory All Abilities Football Centre in Fawkner (/events/DS-09:activity:25033)",
+      "rounds": 1,
+      "tools": [
+        "search_program_descriptions({\"question\":\"Is there a unified football program for young people with disability run with Melbourne Victory?\"})"
+      ],
+      "tool_payloads": [
+        "{\"available\": true, \"passages\": [{\"program_id\": \"DS-09:activity:25160\", \"title\": \"Unified Football Program\", \"text\": \"We are excited to invite young people to join our Melbourne Victory All Abilities Unified Football Program This program is for young people with disability or additional support needs. It offers a fun, safe, and welcoming place to play football, learn new skills, make friends, and have fun. Dates: 14 October – 16th December – Bi-weekly Time: 11:00am-12:00pm Age Groups: 16+ years. The program gives young people with disability the chance to enjoy football in a safe and supportive environment.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/unified-football-program/\", \"similarity\": 0.805, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:25160\"}, {\"program_id\": \"DS-09:activity:25162\", \"title\": \"Unified Football Program\", \"text\": \"We are excited to invite young people to join our Melbourne Victory All Abilities Unified Football Program This program is for young people with disability or additional support needs. It offers a fun, safe, and welcoming place to play football, learn new skills, make friends, and have fun. Dates: 17 October – 5 December Time: 10:30am-11:20am Age Groups: 6-16 years and 12-18 years The program gives young people with disability the chance to enjoy football in a safe and supportive environment.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/unified-football-program-3/\", \"similarity\": 0.806, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:25162\"}, {\"program_id\": \"DS-09:activity:25161\", \"title\": \"Unified Football Program\", \"text\": \"We are excited to invite young people to join our Melbourne Victory All Abilities Unified Football Program This program is for young people with disability or additional support needs. It offers a fun, safe, and welcoming place to play football, learn new skills, make friends, and have fun. Dates: 16 October – 4 December Time: 5:00pm- 5:50pm Age Groups: 6-16 years and 16+ years. The program gives young people with disability the chance to enjoy football in a safe and supportive environment.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/unified-football-program-2/\", \"similarity\": 0.805, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:25161\"}, {\"program_id\": \"DS-09:activity:25033\", \"title\": \"Unified Football Program\", \"text\": \"We are excited to invite young people to join our Melbourne Victory All Abilities Football Centre in Fawkner. This program is for young people with disability or additional support needs. It offers a fun, safe, and welcoming place to play football, learn new skills, make friends, and have fun.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/https-aaaplay-org-au-activity-melbourne-victoria-all-abilities-football-centre/\", \"similarity\": 0.747, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:25033\"}], \"floor\": 0.58, \"note\": \"Passages are the publisher's own words about a program; quote them as such.\"}"
+      ],
+      "elapsed_s": 13.1,
+      "model": "qwen3.8-flash-next-local",
+      "retrieval_mode": "tool"
+    },
+    "checks": {
+      "grounded_hrefs": true,
+      "ungrounded_hrefs": [],
+      "grounded_numbers": true,
+      "ungrounded_numbers": [],
+      "must_contain": true,
+      "missing": [],
+      "must_not_contain": true,
+      "leaked": [],
+      "tools_expected": true,
+      "tools_called": [
+        "search_program_descriptions"
+      ]
+    },
+    "pass": true
+  },
+  {
+    "case": {
+      "id": "C5",
+      "group": "retrieval",
+      "question": "Does any program description say the exact start time of the Blind Tennis Program?",
+      "context": null,
+      "tools_expected": [
+        "search_program_descriptions"
+      ],
+      "must_contain": [
+        "Friday",
+        "6:30",
+        "publisher"
+      ],
+      "must_not_contain": [],
+      "note": "The description does state 6:30 pm; the answer must attribute it to the publisher."
+    },
+    "result": {
+      "answer": "Yes. The publisher, AAA Play, writes that the adults program runs \"Friday evenings from 6:30 pm to 8:00 pm\", and the juniors program \"Friday evenings from 5:30 pm to 6:30 pm\", during school terms.\n\nThey also note the last program for the year runs from October 11th to December 13th, at the National Tennis Centre on indoor courts.\n\nSource: https://aaaplay.org.au/activity/blind-tennis-program/ (page: /events/DS-09:activity:20905)",
+      "rounds": 1,
+      "tools": [
+        "search_program_descriptions({\"question\":\"What time does the Blind Tennis Program start?\"})"
+      ],
+      "tool_payloads": [
+        "{\"available\": true, \"passages\": [{\"program_id\": \"DS-09:activity:20905\", \"title\": \"Blind Tennis Program\", \"text\": \"Adults During school terms, we have a six-week blind tennis program. It is held on Friday nights at the National Tennis Centre on indoor courts. This program is run by Blind Sports & Recreation Victoria, Tennis Victoria, and Tennis Seniors Victoria. People with different levels of vision join the program. They do different tennis exercises with the help of volunteers. We use various types of balls, including audible tennis balls and different sized and coloured balls.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/blind-tennis-program/\", \"similarity\": 0.697, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20905\"}, {\"program_id\": \"DS-09:activity:20905\", \"title\": \"Blind Tennis Program\", \"text\": \"balls, including audible tennis balls and different sized and coloured balls. Before this program, people with total blindness could not play tennis. Now, people of all ages and backgrounds can join. You can play for fun or improve your skills to play at a higher level. Everyone is welcome! Juniors Blind Sports & Recreation Victoria and Tennis Victoria are happy to offer the Junior Blind Tennis program. Kids aged 5 to 15 who are blind or have vision problems can join.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/blind-tennis-program/\", \"similarity\": 0.653, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20905\"}, {\"program_id\": \"DS-09:activity:20905\", \"title\": \"Blind Tennis Program\", \"text\": \"program. Kids aged 5 to 15 who are blind or have vision problems can join. Qualified coaches teach the kids, and all equipment is provided. Parents can park for free at Melbourne Park Tennis Centre. When: Adults: Friday evenings from 6:30 pm to 8:00 pm. Juniors: Friday evenings from 5:30 pm to 6:30 pm. This program runs during school terms. The last program for the year is from October 11th to December 13th.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/blind-tennis-program/\", \"similarity\": 0.685, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20905\"}, {\"program_id\": \"DS-09:activity:20905\", \"title\": \"Blind Tennis Program\", \"text\": \"$80 per year. Occasional participants: $5 per session. Juniors: $20 per term. Other Locations: Blind Tennis Junior programs are also available at Lalor, Keilor, Williamstown, and Cheltenham. For more details, call or email Blind Sports and Recreation Victoria.\", \"source_id\": \"DS-09\", \"publisher_page\": \"https://aaaplay.org.au/activity/blind-tennis-program/\", \"similarity\": 0.64, \"lexical_hit\": true, \"href\": \"/events/DS-09:activity:20905\"}], \"floor\": 0.58, \"note\": \"Passages are the publisher's own words about a program; quote them as such.\"}"
+      ],
+      "elapsed_s": 10.7,
+      "model": "qwen3.8-flash-next-local",
+      "retrieval_mode": "tool"
+    },
+    "checks": {
+      "grounded_hrefs": true,
+      "ungrounded_hrefs": [],
+      "grounded_numbers": true,
+      "ungrounded_numbers": [],
+      "must_contain": true,
+      "missing": [],
+      "must_not_contain": true,
+      "leaked": [],
+      "tools_expected": true,
+      "tools_called": [
+        "search_program_descriptions"
+      ]
+    },
+    "pass": true
+  }
+]

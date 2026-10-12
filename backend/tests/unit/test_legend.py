@@ -77,7 +77,7 @@ def _without_comments(sql: str) -> str:
 
 
 def _enum_values(name: str) -> list[str]:
-    sql = _without_comments(SCHEMA_SQL.read_text())
+    sql = _without_comments(SCHEMA_SQL.read_text(encoding="utf-8"))
     match = re.search(rf"CREATE TYPE (?:public\.)?{name} AS ENUM\s*\((.*?)\);", sql, re.S)
     assert match is not None, f"{name} is no longer declared in {SCHEMA_SQL.name}"
     return re.findall(r"'([^']+)'", match.group(1))
@@ -85,7 +85,7 @@ def _enum_values(name: str) -> list[str]:
 
 def _legend_view_rows() -> list[dict[str, str]]:
     """The literal rows of the ``facility_legend`` view, as dictionaries."""
-    sql = _without_comments(LEGEND_SQL.read_text())
+    sql = _without_comments(LEGEND_SQL.read_text(encoding="utf-8"))
     match = re.search(r"LEFT JOIN \(\s*VALUES(.*?)\) AS v \(", sql, re.S)
     assert match is not None, "the facility_legend VALUES block has moved or been renamed"
     literals = re.findall(r"'((?:[^']|'')*)'", match.group(1))
@@ -130,7 +130,7 @@ def test_legend_view_is_driven_by_the_enum():
     not to the VALUES block shows up in the view as a row with a NULL label,
     loudly, instead of quietly not existing.
     """
-    sql = LEGEND_SQL.read_text()
+    sql = LEGEND_SQL.read_text(encoding="utf-8")
     assert "unnest(enum_range(NULL::public.amenity_kind))" in sql
     assert "LEFT JOIN" in sql
 

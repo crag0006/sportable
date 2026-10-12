@@ -81,3 +81,19 @@ variable "allowed_ssh_cidrs" {
     error_message = "0.0.0.0/0 exposes the bastion to the entire internet. Add specific /32 addresses instead."
   }
 }
+
+variable "enable_bedrock_endpoint" {
+  description = <<-EOT
+    Create the Bedrock interface endpoint (I2).
+
+    Off by default because it is the only resource in this module with an
+    hourly charge — roughly USD $7.30/month per availability zone — and only
+    the environment running the Access Assistant needs it. prod and
+    iteration-1 call this module and neither does.
+
+    Without it, a Bedrock call from an in-VPC Lambda does not fail, it hangs
+    until the function times out. See bedrock_endpoint.tf.
+  EOT
+  type        = bool
+  default     = false
+}

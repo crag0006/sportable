@@ -18,6 +18,20 @@ data "aws_ssm_parameter" "db_url" {
   name = var.ssm_db_url_parameter
 }
 
+# TEMPORARY Bedrock credentials from another account. See the variable.
+data "aws_ssm_parameter" "bedrock_bridge" {
+  for_each = var.bedrock_bridge_ssm_prefix == "" ? toset([]) : toset(["access_key_id", "secret_access_key"])
+
+  name = "${var.bedrock_bridge_ssm_prefix}/${each.key}"
+}
+
+locals {
+  bedrock_bridge_env = var.bedrock_bridge_ssm_prefix == "" ? {} : {
+    BEDROCK_ACCESS_KEY_ID     = data.aws_ssm_parameter.bedrock_bridge["access_key_id"].value
+    BEDROCK_SECRET_ACCESS_KEY = data.aws_ssm_parameter.bedrock_bridge["secret_access_key"].value
+  }
+}
+
 data "archive_file" "load" {
   type        = "zip"
   source_dir  = var.load_source_dir
@@ -222,11 +236,14 @@ resource "aws_lambda_function" "derive" {
   }
 
   environment {
-    variables = {
-      # As above: resolved at apply time, because this function cannot reach
-      # the SSM API from its subnet either.
-      DATABASE_URL = data.aws_ssm_parameter.db_url.value
-    }
+    variables = merge(
+      {
+        # As above: resolved at apply time, because this function cannot reach
+        # the SSM API from its subnet either.
+        DATABASE_URL = data.aws_ssm_parameter.db_url.value
+      },
+      local.bedrock_bridge_env,
+    )
   }
 
   tags = merge(var.tags, { Name = "${var.name_prefix}-status-builder" })

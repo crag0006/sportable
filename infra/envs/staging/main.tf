@@ -28,6 +28,11 @@ module "network" {
   # instance. An empty subnet costs nothing.
   private_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
 
+  # Epic 6. The assistant runs inside the VPC and Bedrock is an AWS API like
+  # any other, so without this endpoint its calls hang until the function
+  # times out rather than failing. ~USD $7.30/month, one AZ only.
+  enable_bedrock_endpoint = true
+
   allowed_ssh_cidrs = var.allowed_ssh_cidrs
 }
 
@@ -95,6 +100,36 @@ module "api" {
   # parameters from it at APPLY time, so they must exist first — Terraform
   # cannot infer that from a path string.
   ssm_prefix = "/sportable/staging"
+
+  # ------------------------------------------------------------- Epic 6
+  # The assistant is a second function on the same archive, with its own
+  # route and its own — much lower — throttle.
+  #
+  # Set together with module.network.enable_bedrock_endpoint. Enabling this
+  # without the endpoint deploys a function whose Bedrock calls hang until the
+  # timeout, which looks like a slow bug rather than a missing route.
+  enable_assistant = true
+
+  # TEMPORARY, until this account is allowlisted for Bedrock (AWS case
+  # 179145572300703). Remove from both modules, apply, then delete the
+  # sportable-bedrock-bridge access key in the account that issued it.
+  bedrock_bridge_ssm_prefix = "/sportable/staging/bedrock"
+
+  # Measured on staging, 12 Oct 2026, against the 31-question golden set:
+  # Titan v2 separates relevant chunks from noise at 0.58, not the 0.35 the
+  # module was first written with. 2048 output tokens is what the structured
+  # answer needs; 500 and 900 truncated it.
+  assistant_config = {
+    retrieval_top_k      = "4"
+    relevance_floor      = "0.58"
+    max_input_tokens     = "2000"
+    max_output_tokens    = "2048"
+    daily_invocation_cap = "2000"
+  }
+
+  # The public product's address. Every site calls this one API, so share and
+  # calendar links from staging and the iteration sites point here too.
+  public_base_url = "https://sportablemelbourne.me"
 
   depends_on = [module.app_config]
 }
@@ -168,6 +203,11 @@ module "observability" {
   function_timeout_seconds = module.api.function_timeout_seconds
   api_id                   = module.api.api_id
   db_instance_identifier   = module.database.instance_identifier
+
+  assistant_function_name   = module.api.assistant_function_name
+  assistant_timeout_seconds = module.api.assistant_timeout_seconds
+  # Three quarters of the 2000 daily cap.
+  assistant_daily_invocation_threshold = 1500
 }
 
 module "ingestion" {
@@ -182,6 +222,9 @@ module "ingestion" {
   security_group_id = module.network.lambda_security_group_id
 
   ssm_db_url_parameter = module.database.ssm_url_parameter
+
+  # TEMPORARY. See the same setting on module.api.
+  bedrock_bridge_ssm_prefix = "/sportable/staging/bedrock"
 
   fetch_source_dir  = "${path.root}/../../../data/build/fetch"
   load_source_dir   = "${path.root}/../../../data/build/load"

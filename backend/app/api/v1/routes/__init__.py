@@ -7,13 +7,16 @@ the Iteration 2 freeze is one block, not a hunt.
 
 from fastapi import APIRouter
 
-from app.api.v1.routes import events, meta, venues
+from app.api.v1.routes import assistant, events, meta, venues
 from app.schemas.venues import SearchOut, SportsOut, SuburbsOut
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(meta.router)
 router.include_router(events.router)
 router.include_router(venues.router)
+# Served by the second Lambda in AWS (API Gateway routes the path there); in
+# the same application so local runs and tests see one API.
+router.include_router(assistant.router)
 
 # ---------------------------------------------------------- v0.1 aliases
 router.add_api_route(

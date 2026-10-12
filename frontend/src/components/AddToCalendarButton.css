@@ -1,0 +1,346 @@
+/* Message shown when an event cannot be added to the calendar */
+.calendar-unavailable-note {
+  margin: 0;
+  align-self: center;
+  color: #6b7a7d;
+  font-size: 0.85rem;
+}
+
+/* Background overlay for the calendar popup */
+.calendar-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(12, 28, 45, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+/* Calendar popup */
+.calendar-modal {
+  width: min(440px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 24px 56px rgba(12, 28, 45, 0.35);
+  padding: 22px 24px;
+}
+
+.calendar-modal-title {
+  margin: 0 0 4px 0;
+  font-size: 1.1rem;
+  color: #1a2b2e;
+}
+
+.calendar-modal-subtitle {
+  margin: 0 0 16px 0;
+  color: #6b7a7d;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+/* Input fields in the calendar popup */
+.calendar-field {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.calendar-field span {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #3f545e;
+  margin-bottom: 4px;
+}
+
+.calendar-field input[type="text"],
+.calendar-field input[type="time"],
+.calendar-field input[type="date"] {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 1px solid #dde5e3;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+/* Displays event details that cannot be edited */
+.calendar-field--readonly p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #1a2b2e;
+}
+
+/* Places calendar fields next to each other */
+.calendar-field-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.calendar-field-row .calendar-field {
+  flex: 1;
+  min-width: 110px;
+}
+
+/* List of accessibility facilities */
+.calendar-facility-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+  color: #1a2b2e;
+}
+
+.calendar-facility-list li {
+  margin-bottom: 2px;
+}
+
+/* Message shown when the event time is not published */
+.calendar-recurrence-note {
+  margin: 0 0 14px 0;
+  padding: 10px 12px;
+  background: #fdf6e8;
+  border: 1px solid #f0dfb0;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #6b5a28;
+}
+
+.calendar-recurrence-note a {
+  color: #14507a;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.calendar-recurrence-note a:hover {
+  text-decoration: underline;
+}
+
+/* Shows time information found in the event description */
+.calendar-quote-block {
+  margin: 0 0 14px 0;
+  padding: 10px 12px;
+  background: #eaf2f8;
+  border: 1px solid #c3d9ea;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #1a3c52;
+}
+
+.calendar-quote-block em {
+  font-style: normal;
+  font-weight: 700;
+}
+
+.calendar-quote-block a {
+  color: #14507a;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.calendar-quote-block a:hover {
+  text-decoration: underline;
+}
+
+/* Google Calendar links and download options */
+.calendar-quick-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.calendar-secondary-link {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  color: #6b7a7d;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.calendar-secondary-link:hover {
+  color: #3f545e;
+}
+
+/* Message shown after clicking the calendar link */
+.calendar-added-note {
+  margin: 0;
+  text-align: left;
+  color: #1a7a4c;
+  font-weight: 700;
+}
+
+/* Dropdown for events with multiple time options */
+.calendar-add-dropdown {
+  position: relative;
+}
+
+.calendar-add-dropdown > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+/* Hides the default dropdown arrow */
+.calendar-add-dropdown > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Shows an arrow when the dropdown is closed */
+.calendar-add-dropdown > summary::after {
+  content: "▾";
+  margin-left: 6px;
+  font-size: 0.75em;
+}
+
+/* Changes the arrow when the dropdown is open */
+.calendar-add-dropdown[open] > summary::after {
+  content: "▴";
+}
+
+/* List of available calendar time options */
+.calendar-add-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 10;
+  min-width: 220px;
+  background: #fff;
+  border: 1px solid #dde5e3;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(12, 28, 45, 0.18);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.calendar-add-dropdown-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #1a2b2e;
+  font-size: 0.88rem;
+}
+
+.calendar-add-dropdown-item:hover,
+.calendar-add-dropdown-item:focus {
+  background: #eef3f2;
+}
+
+.calendar-add-dropdown-day {
+  font-weight: 700;
+}
+
+.calendar-add-dropdown-time {
+  color: #6b7a7d;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+/* Buttons at the bottom of the calendar popup */
+.calendar-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.calendar-btn-primary,
+.calendar-btn-secondary {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Primary button for confirming the calendar event */
+.calendar-btn-primary {
+  background: #14507a;
+  color: #fff;
+}
+
+.calendar-btn-primary:hover {
+  background: #0c3a5c;
+}
+
+/* Secondary button for cancelling or closing */
+.calendar-btn-secondary {
+  background: #f0f3f2;
+  color: #3f545e;
+}
+
+.calendar-btn-secondary:hover {
+  background: #e3e9e7;
+}
+
+/* Shows the loading, success or error status */
+.calendar-status {
+  text-align: center;
+  padding: 12px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.calendar-status-heading {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #1a2b2e;
+  margin: 0;
+}
+
+/* Error message heading */
+.calendar-status-heading--error {
+  color: #a6342a;
+}
+
+.calendar-status-note {
+  color: #6b7a7d;
+  font-size: 0.82rem;
+}
+
+.calendar-open-link {
+  margin-top: 4px;
+}
+
+/* Loading spinner shown while the event is being added */
+.calendar-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 3px solid #dde5e3;
+  border-top-color: #14507a;
+  animation: calendar-spin 0.8s linear infinite;
+}
+
+/* Rotates the loading spinner */
+@keyframes calendar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

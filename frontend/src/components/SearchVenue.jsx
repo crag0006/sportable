@@ -1,56 +1,56 @@
 import "./SearchVenue.css";
 
+// Names and icons used for each accessibility facility
 export const FACILITY_INFO = {
   toilet: {
     name: "Toilet",
     fullName: "Accessible toilet",
-    icon: "🚻",
+    icon: "🚻"
   },
 
   parking: {
     name: "Parking",
     fullName: "Accessible parking",
-    icon: "🅿",
+    icon: "🅿"
   },
 
   stop: {
     name: "Transport",
     fullName: "Step-free transport stop",
-    icon: "🚋",
+    icon: "🚋"
   },
 
   change: {
     name: "Change facility",
     fullName: "Accessible change facility",
-    icon: "♿",
-  },
+    icon: "♿"
+  }
 };
 
-// Builds a Google Maps "directions to" link. Leaving the origin out means
-// Google Maps uses the visitor's current location automatically (it will
-// ask for location permission if needed) — travelmode=walking because
-// that's how people using this app are getting around.
+// Joins facility names into one sentence using commas and "and"
+function joinWithAnd(items) {
+  if (items.length <= 1) return items[0] || "";
+  if (items.length === 2) return items[0] + " and " + items[1];
+  return items.slice(0, -1).join(", ") + " and " + items[items.length - 1];
+}
+
+// Creates a Google Maps link using the venue's location
 function buildMapsUrl(lat, lon) {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=walking`;
 }
 
 function VenueCard({ venue, limit }) {
-  const facilityKeys = Object.keys(
-    venue.amenities
-  );
+  // Gets the list of accessibility facilities for the venue
+  const facilityKeys = Object.keys(venue.amenities);
 
+  // Checks whether the venue has latitude and longitude values
   const hasVenueCoordinates =
     venue.latitude !== undefined &&
     venue.latitude !== null &&
     venue.longitude !== undefined &&
     venue.longitude !== null;
 
-  // Works out what to show for one amenity, like the toilet or parking.
-  // The backend sends one of these states for each amenity:
-  //   - "recorded" with a distance = we know how far away it is
-  //   - "confirmed" with no distance = it's at the venue itself
-  //   - "absent" = someone already checked and it isn't there
-  //   - "none" = nothing published, we just don't know
+  // Checks the facility status and whether it is within the selected distance
   function getState(item) {
     if (!item || item.state === "none") {
       return "unknown";
@@ -64,6 +64,7 @@ function VenueCard({ venue, limit }) {
       return "at-venue";
     }
 
+    // Converts the distances into numbers before comparing them
     const facilityDistance = Number(item.distance);
     const selectedLimit = Number(limit);
 
@@ -74,7 +75,7 @@ function VenueCard({ venue, limit }) {
     return "beyond";
   }
 
-  // The message shown under each amenity, based on the status above.
+  // Returns the message to display for each facility status
   function getText(item, state) {
     if (state === "at-venue") {
       return "At the venue";
@@ -85,10 +86,7 @@ function VenueCard({ venue, limit }) {
     }
 
     if (state === "beyond") {
-      return (
-        item.distance +
-        " m away — beyond your limit"
-      );
+      return item.distance + " m away — beyond your limit";
     }
 
     if (state === "absent") {
@@ -98,7 +96,7 @@ function VenueCard({ venue, limit }) {
     return "No published information — check with the venue";
   }
 
-  // The little tick/cross/question-mark icon shown next to each amenity.
+  // Returns a symbol based on the facility status
   function getStatusSymbol(state) {
     if (state === "at-venue") {
       return "✓";
@@ -119,59 +117,49 @@ function VenueCard({ venue, limit }) {
     return "?";
   }
 
-  // Find missing and unavailable facilities
- const unavailableFacilities = [];
+  // Collects the facilities that are recorded as unavailable
+  const unavailableFacilities = [];
 
-facilityKeys.forEach((key) => {
-  const item = venue.amenities[key];
-  const state = getState(item);
+  facilityKeys.forEach((key) => {
+    const item = venue.amenities[key];
+    const state = getState(item);
 
-  if (state === "absent") {
-    unavailableFacilities.push(key);
-  }
-});
+    if (state === "absent") {
+      unavailableFacilities.push(key);
+    }
+  });
 
-  // View venue page
+  // Opens the selected venue's details page
   function viewVenue() {
-    window.location.href =
-      "/venues/" + venue.id;
+    window.location.href = "/venues/" + venue.id;
   }
 
-  // Directions page
+  // Opens the directions page for the selected venue
   function getDirections() {
-    window.location.href =
-      "/venues/" +
-      venue.id +
-      "/directions";
+    window.location.href = "/venues/" + venue.id + "/directions";
   }
 
   return (
     <div className="venue-card">
-      {/* Venue name and distance */}
+      {/* Venue name, suburb and map link */}
       <div
         className="venue-top"
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-start",
-          gap: "12px",
+          gap: "12px"
         }}
       >
         <div>
-          <h2 className="venue-name">
-            {venue.name}
-          </h2>
+          <h2 className="venue-name">{venue.name}</h2>
 
           <p className="venue-location">
             {venue.suburb} {venue.postcode}
           </p>
         </div>
 
-        {/* Opens Google Maps directions to the venue itself. This is
-            accurate for facilities recorded "at the venue" — it is not a
-            substitute for a link to an off-site facility, since the API
-            doesn't currently return that facility's own location, only
-            its distance. */}
+        {/* Shows the map link only when venue coordinates are available */}
         {hasVenueCoordinates && (
           <a
             href={buildMapsUrl(venue.latitude, venue.longitude)}
@@ -193,7 +181,7 @@ facilityKeys.forEach((key) => {
               borderRadius: "999px",
               textDecoration: "none",
               whiteSpace: "nowrap",
-              flexShrink: 0,
+              flexShrink: 0
             }}
           >
             <span aria-hidden="true">🧭</span> Map
@@ -201,66 +189,44 @@ facilityKeys.forEach((key) => {
         )}
       </div>
 
-      {/* Sports */}
+      {/* Lists the sports available at the venue */}
       <p className="sports-heading">Other sports offered here:</p>
       <div className="sport-chips">
         {venue.sports.map((venueSport) => (
-          <span
-            className="sport-chip"
-            key={venueSport}
-          >
+          <span className="sport-chip" key={venueSport}>
             {venueSport}
           </span>
         ))}
       </div>
 
+      {/* Shows the venue's surface information */}
       <p className="surface-text">
-        <strong>Surface:</strong>{" "}
-        {venue.surface || "Information Not available"}
+        <strong>Surface:</strong> {venue.surface || "Information Not available"}
       </p>
 
-      <div className="access-heading">
-        Accessibility
-      </div>
+      <div className="access-heading">Accessibility</div>
 
-      {/* Facility cards */}
+      {/* Displays each facility with its icon, distance and status */}
       <div className="amenity-grid">
         {facilityKeys.map((key) => {
-          const item =
-            venue.amenities[key];
+          const item = venue.amenities[key];
 
           const state = getState(item);
 
           return (
-            <div
-              key={key}
-              className={
-                "amenity-box amenity-" +
-                state
-              }
-            >
-              <span
-                className="facility-icon"
-                aria-hidden="true"
-              >
+            <div key={key} className={"amenity-box amenity-" + state}>
+              <span className="facility-icon" aria-hidden="true">
                 {FACILITY_INFO[key].icon}
               </span>
 
               <div className="amenity-content">
-                <strong>
-                  {FACILITY_INFO[key].name}
-                </strong>
+                <strong>{FACILITY_INFO[key].name}</strong>
 
-                <p>
-                  {getText(item, state)}
-                </p>
+                <p>{getText(item, state)}</p>
               </div>
 
               <span
-                className={
-                  "status-symbol status-" +
-                  state
-                }
+                className={"status-symbol status-" + state}
                 aria-label={state}
               >
                 {getStatusSymbol(state)}
@@ -270,26 +236,20 @@ facilityKeys.forEach((key) => {
         })}
       </div>
 
-      {/* Facility unavailable */}
-      {unavailableFacilities.map((key) => (
-        <p
-          className="facility-message unavailable-message"
-          key={key}
-        >
-          {FACILITY_INFO[key].fullName} is
-          recorded as not available. Please
-          contact the venue to confirm before
-          visiting.
+      {/* Shows a message when one or more facilities are unavailable */}
+      {unavailableFacilities.length > 0 && (
+        <p className="facility-message unavailable-message">
+          {joinWithAnd(
+            unavailableFacilities.map((key) => FACILITY_INFO[key].fullName)
+          )}{" "}
+          {unavailableFacilities.length > 1 ? "are" : "is"} recorded as not
+          available. Please contact the venue to confirm before visiting.
         </p>
-      ))}
+      )}
 
-      {/* Buttons */}
+      {/* Buttons to view venue details or get directions */}
       <div className="card-buttons">
-        <button
-          type="button"
-          className="view-button"
-          onClick={viewVenue}
-        >
+        <button type="button" className="view-button" onClick={viewVenue}>
           View venue
         </button>
 

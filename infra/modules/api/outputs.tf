@@ -74,3 +74,13 @@ output "api_domain" {
 output "access_log_group" {
   value = aws_cloudwatch_log_group.gateway.name
 }
+
+output "assistant_function_name" {
+  description = "The assistant function, or empty when enable_assistant is false."
+  value       = var.enable_assistant ? aws_lambda_function.assistant[0].function_name : ""
+}
+
+output "assistant_timeout_seconds" {
+  description = "The assistant's configured timeout, so its duration alarm can be set relative to it."
+  value       = var.assistant_timeout_seconds
+}

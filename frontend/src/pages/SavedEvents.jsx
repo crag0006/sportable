@@ -7,6 +7,7 @@ import {
   removeSavedEvent,
   buildSavedEventsExportText,
 } from "../components/savedEvents";
+import AddToCalendarButton from "../components/AddToCalendarButton";
 
 function downloadTextFile(filename, text) {
   const blob = new Blob([text], { type: "text/plain" });
@@ -66,8 +67,7 @@ function SavedEvents() {
           <section className="results-empty">
             <h2>No saved events yet</h2>
             <p>
-              Find an event and select "Save" on its card to add it here.
-              Saved events are only kept for this visit.
+              Find an event and select "Save" on its card to add it here.              
             </p>
             <Link
               to="/events"
@@ -124,6 +124,8 @@ function SavedEvents() {
                   >
                     Unsave
                   </button>
+
+                  <AddToCalendarButton event={item} />
                 </div>
               </article>
             ))}
