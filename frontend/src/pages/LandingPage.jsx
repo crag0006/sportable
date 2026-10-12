@@ -2,13 +2,11 @@ import TopBar from "../components/TopBar";
 import { Link } from "react-router-dom";
 import "./LandingPage.css";
 import Footer from "../components/Footer";
-import Chatbot from '../components/Chatbot'   
-import '../components/Chatbot.css' 
 
 function Landing() {
   return (
     <div className="landing-page">
-      
+
       <TopBar links={[]} />
 
       <div className="landing">
@@ -35,9 +33,7 @@ function Landing() {
       </div>
 
       <Footer/>
-       <Chatbot />
     </div>
-   
   );
 }
 
