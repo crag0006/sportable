@@ -1,24 +1,24 @@
+
 import { useEffect, useRef, useState } from "react";
 import "./AddToCalendarButton.css";
-
 import {
   buildCalendarEventPayload,
   buildWeeklyRecurrenceRule,
   createGoogleCalendarEvent,
   hasAddedToCalendarThisSession,
-  markAddedToCalendarThisSession
+  markAddedToCalendarThisSession,
 } from "./googleCalendar";
-
 import {
   extractPublishedTimeQuote,
   formatWeekday,
   suggestedStartTimeFromActivityWhen,
-  todayCheckedLabel
+  todayCheckedLabel,
 } from "./activityTime";
 
-// Default event duration is two hours
+// Default duration when an event has no published end time.
 const DEFAULT_DURATION_MINUTES = 120;
 
+// Weekday names used for recurring events.
 const WEEKDAY_NAMES = [
   "sunday",
   "monday",
@@ -26,101 +26,86 @@ const WEEKDAY_NAMES = [
   "wednesday",
   "thursday",
   "friday",
-  "saturday"
+  "saturday",
 ];
 
-// Converts 24-hour time into a readable format
+// Converts 24-hour time into a readable format.
 function formatLocalTimeOfDay(hhmm) {
   if (!hhmm) return null;
-
   const [hours, minutes] = hhmm.split(":").map(Number);
   const date = new Date(2000, 0, 1, hours, minutes);
-
   return date
-    .toLocaleTimeString("en-AU", {
-      hour: "numeric",
-      minute: "2-digit"
-    })
+    .toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })
     .toLowerCase();
 }
 
-// Converts a date object's time into HH:MM format
+// Converts a date into the format used by time inputs.
 function toTimeInputValue(date) {
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
-
   return `${hours}:${minutes}`;
 }
 
-// Converts a date into YYYY-MM-DD format
+// Converts a date into the format used by date inputs.
 function toDateInputValue(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 }
 
-// Combines the selected date and time
+// Combines the selected date and time.
 function combineDateAndTime(dateString, timeString) {
   return new Date(`${dateString}T${timeString}:00`);
 }
 
-// Adds the given number of minutes to a time
+// Calculates an end time using the event duration.
 function addMinutesToTimeString(timeString, minutes) {
   const [hours, mins] = timeString.split(":").map(Number);
   const date = new Date(2000, 0, 1, hours, mins);
-
   date.setMinutes(date.getMinutes() + minutes);
-
   return toTimeInputValue(date);
 }
 
-// Finds the next date for the selected weekday
+// Finds the next date for a weekly activity.
 function nextDateForWeekday(weekdayName) {
   const targetIndex = WEEKDAY_NAMES.indexOf(weekdayName);
-
   if (targetIndex === -1) return new Date();
 
   const today = new Date();
   const diff = (targetIndex - today.getDay() + 7) % 7;
   const result = new Date(today);
-
   result.setDate(today.getDate() + diff);
-
   return result;
 }
 
-// Converts a date string into a date object
+// Converts a saved date string into a Date.
 function parseLocalDate(dateString) {
   if (!dateString) return null;
-
   return new Date(`${dateString}T00:00:00`);
 }
 
-// Facility names displayed in the calendar preview
+// Names of accessibility facilities shown in the preview.
 const FACILITY_LABELS = {
   accessible_toilet: "Accessible toilet",
   accessible_parking: "Accessible parking",
   accessible_transport_stop: "Accessible transport",
-  accessible_change_facility: "Accessible change facility"
+  accessible_change_facility: "Accessible change facility",
 };
 
+// Handles adding saved events to Google Calendar.
 export default function AddToCalendarButton({ event }) {
-  // Checks whether calendar details are provided by the backend
   const calendarBlock = event.calendarBlock || null;
   const hasCalendarBlock = Boolean(calendarBlock);
 
-  // Checks if the event has a fixed date or repeats weekly
   const hasFixedDateTime = Boolean(event.dateLocal && event.timeLocal);
   const hasLegacyRecurrence = Boolean(event.weekday);
 
-  // Checks whether the event can be added to a calendar
   const canAdd = hasCalendarBlock
     ? calendarBlock.exportable
     : hasFixedDateTime || hasLegacyRecurrence;
 
-  // Stores the current calendar form details and status
+  // Tracks the current calendar dialog screen.
   const [step, setStep] = useState("closed");
   const [title, setTitle] = useState(event.title);
   const [endTime, setEndTime] = useState("");
@@ -129,32 +114,21 @@ export default function AddToCalendarButton({ event }) {
   const [errorMessage, setErrorMessage] = useState("");
   const [resultLink, setResultLink] = useState("");
 
-  // Checks whether the calendar link was already used in this session
-  const [templateClicked, setTemplateClicked] = useState(() =>
-    hasCalendarBlock && calendarBlock.dedupe_key
-      ? hasAddedToCalendarThisSession(calendarBlock.dedupe_key)
-      : false
-  );
-
-  // Closes the calendar dropdown when clicking outside it
+  // Closes the time-slot dropdown when clicking outside it.
   const dropdownRef = useRef(null);
 
   useEffect(() => {
     function handleOutsideClick(domEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(domEvent.target)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(domEvent.target)) {
         dropdownRef.current.open = false;
       }
     }
 
     document.addEventListener("mousedown", handleOutsideClick);
-
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
-  // Shows a message if the event cannot be added
+  // Shows a message when an event cannot be added.
   if (!canAdd) {
     const message = hasCalendarBlock
       ? calendarBlock.message
@@ -169,10 +143,8 @@ export default function AddToCalendarButton({ event }) {
 
   const isRecurring = !hasFixedDateTime;
 
-  // Gets the event organiser's website or registration link
   const contactLink = event.registrationLink || event.externalLink || null;
 
-  // Gets any published time information for older event records
   const publishedTimeQuote =
     !hasCalendarBlock && isRecurring
       ? extractPublishedTimeQuote(event.description)
@@ -180,28 +152,26 @@ export default function AddToCalendarButton({ event }) {
 
   const checkedDateLabel = todayCheckedLabel();
 
-  // Gets a suitable label for a recurring event time
+  // Gets a session name or weekday from the published time details.
   function labelForTimeHint(hint) {
     if (!hint) return null;
 
     if (hint.slot && hint.slot !== "main") return hint.slot;
 
-    if (hint.weekdays && hint.weekdays.length > 0) {
+    if (hint.weekdays && hint.weekdays.length > 0)
       return formatWeekday(hint.weekdays[0]);
-    }
 
     return null;
   }
 
-  // Creates calendar links when the backend uses the older format
+  // Prepares calendar links when the API has no labelled links.
   function buildLegacyTemplateLinks() {
     const urls =
-      calendarBlock.google_template_urls &&
-      calendarBlock.google_template_urls.length > 0
+      calendarBlock.google_template_urls && calendarBlock.google_template_urls.length > 0
         ? calendarBlock.google_template_urls
         : calendarBlock.google_template_url
-          ? [calendarBlock.google_template_url]
-          : [];
+        ? [calendarBlock.google_template_url]
+        : [];
 
     if (urls.length <= 1) {
       return urls.map((url) => ({ url, label: null }));
@@ -227,10 +197,8 @@ export default function AddToCalendarButton({ event }) {
     });
   }
 
-  // Uses the calendar links provided by the backend when available
   const templateLinks = hasCalendarBlock
-    ? calendarBlock.google_template_links &&
-      calendarBlock.google_template_links.length > 0
+    ? calendarBlock.google_template_links && calendarBlock.google_template_links.length > 0
       ? calendarBlock.google_template_links.map((link) => ({
           url: link.url,
           label: link.label
@@ -238,15 +206,14 @@ export default function AddToCalendarButton({ event }) {
       : buildLegacyTemplateLinks()
     : [];
 
-  // Records that the user clicked a Google Calendar link
+  // Records when a Google Calendar link has been selected.
   function handleTemplateLinkClick() {
     if (hasCalendarBlock && calendarBlock.dedupe_key) {
       markAddedToCalendarThisSession(calendarBlock.dedupe_key);
-      setTemplateClicked(true);
     }
   }
 
-  // Opens the calendar preview with the available event details
+  // Prepares the event details for the calendar preview.
   function openPreview() {
     setErrorMessage("");
 
@@ -272,14 +239,11 @@ export default function AddToCalendarButton({ event }) {
         : nextDateForWeekday(firstWeekday);
 
       const suggestedTime =
-        hint?.start_local ||
-        suggestedStartTimeFromActivityWhen(event.activityWhen);
+        hint?.start_local || suggestedStartTimeFromActivityWhen(event.activityWhen);
 
-      const duration =
-        calendarBlock.default_duration_minutes || DEFAULT_DURATION_MINUTES;
+      const duration = calendarBlock.default_duration_minutes || DEFAULT_DURATION_MINUTES;
 
-      const suggestedEnd =
-        hint?.end_local || addMinutesToTimeString(suggestedTime, duration);
+      const suggestedEnd = hint?.end_local || addMinutesToTimeString(suggestedTime, duration);
 
       setRecurStartDate(toDateInputValue(defaultDate));
       setRecurStartTime(suggestedTime);
@@ -287,33 +251,24 @@ export default function AddToCalendarButton({ event }) {
     } else {
       setTitle(event.title);
 
-      const defaultDate = nextDateForWeekday(
-        event.weekday.trim().toLowerCase()
-      );
-
-      const suggestedTime = suggestedStartTimeFromActivityWhen(
-        event.activityWhen
-      );
+      const defaultDate = nextDateForWeekday(event.weekday.trim().toLowerCase());
+      const suggestedTime = suggestedStartTimeFromActivityWhen(event.activityWhen);
 
       setRecurStartDate(toDateInputValue(defaultDate));
       setRecurStartTime(suggestedTime);
-
-      setEndTime(
-        addMinutesToTimeString(suggestedTime, DEFAULT_DURATION_MINUTES)
-      );
+      setEndTime(addMinutesToTimeString(suggestedTime, DEFAULT_DURATION_MINUTES));
     }
 
     setStep("preview");
   }
 
-  // Closes the calendar popup unless an event is being saved
+  // Closes the dialog unless an event is being added.
   function closeModal() {
     if (step === "sending") return;
-
     setStep("closed");
   }
 
-  // Checks for duplicate entries before adding the event
+  // Checks whether the event may already have been added.
   function handleConfirm() {
     const dedupeId = (hasCalendarBlock && calendarBlock.dedupe_key) || event.id;
 
@@ -325,7 +280,7 @@ export default function AddToCalendarButton({ event }) {
     submit();
   }
 
-  // Sends the event details to Google Calendar
+  // Sends the confirmed event details to Google Calendar.
   async function submit() {
     setStep("sending");
     setErrorMessage("");
@@ -338,12 +293,11 @@ export default function AddToCalendarButton({ event }) {
       ? combineDateAndTime(event.dateLocal, endTime)
       : combineDateAndTime(recurStartDate, endTime);
 
-    // Adds a weekly repeat rule for recurring activities
     const recurrenceRule = hasFixedDateTime
       ? null
       : hasCalendarBlock && calendarBlock.rrule
-        ? `RRULE:${calendarBlock.rrule}`
-        : buildWeeklyRecurrenceRule(event.weekday);
+      ? `RRULE:${calendarBlock.rrule}`
+      : buildWeeklyRecurrenceRule(event.weekday);
 
     const descriptionOverride =
       hasCalendarBlock && calendarBlock.description_lines
@@ -353,7 +307,6 @@ export default function AddToCalendarButton({ event }) {
     const dedupeId = (hasCalendarBlock && calendarBlock.dedupe_key) || event.id;
 
     try {
-      // Prepares the event information for Google Calendar
       const payload = buildCalendarEventPayload({
         title: title.trim() || event.title,
         startDate,
@@ -367,34 +320,29 @@ export default function AddToCalendarButton({ event }) {
         publishedTimeQuote,
         checkedDateLabel,
         sourceLink: contactLink,
-        contactLink
+        contactLink,
       });
 
       const created = await createGoogleCalendarEvent(payload);
 
-      // Stores the result after the event is added successfully
       markAddedToCalendarThisSession(dedupeId);
       setResultLink(created.htmlLink || "");
       setStep("success");
     } catch (error) {
-      // Shows an error message if the calendar request fails
       setErrorMessage(
         error.message || "Something went wrong adding this to your calendar."
       );
-
       setStep("error");
     }
   }
 
   const repeatsLabel = hasCalendarBlock
-    ? formatWeekday(
-        (calendarBlock.weekdays && calendarBlock.weekdays[0]) || event.weekday
-      )
+    ? formatWeekday((calendarBlock.weekdays && calendarBlock.weekdays[0]) || event.weekday)
     : formatWeekday(event.weekday);
 
   return (
     <>
-      {/* Shows the Google Calendar link when it is available */}
+      {/* Shows Google Calendar links or the preview button */}
       {hasCalendarBlock && templateLinks.length > 0 ? (
         <div className="calendar-quick-add">
           {templateLinks.length === 1 ? (
@@ -408,7 +356,6 @@ export default function AddToCalendarButton({ event }) {
               <span aria-hidden="true">📅</span> Add to Google Calendar
             </a>
           ) : (
-            // Shows a dropdown when there are several event times
             <details className="calendar-add-dropdown" ref={dropdownRef}>
               <summary className="event-action-link event-action-link--primary calendar-add-button">
                 <span aria-hidden="true">📅</span> Add to Google Calendar
@@ -425,10 +372,7 @@ export default function AddToCalendarButton({ event }) {
                     className="calendar-add-dropdown-item"
                     onClick={() => {
                       handleTemplateLinkClick();
-
-                      if (dropdownRef.current) {
-                        dropdownRef.current.open = false;
-                      }
+                      if (dropdownRef.current) dropdownRef.current.open = false;
                     }}
                   >
                     <span className="calendar-add-dropdown-day">
@@ -440,7 +384,6 @@ export default function AddToCalendarButton({ event }) {
             </details>
           )}
 
-          {/* Allows users to download the calendar event file */}
           {calendarBlock.ics_url && (
             <a
               href={calendarBlock.ics_url}
@@ -449,16 +392,8 @@ export default function AddToCalendarButton({ event }) {
               Download .ics
             </a>
           )}
-
-          {/* Shows a message after a calendar link has been clicked */}
-          {templateClicked && (
-            <p className="calendar-status-note calendar-added-note">
-              ✓ Added to your calendar
-            </p>
-          )}
         </div>
       ) : (
-        // Opens the calendar preview when no direct link is available
         <button
           type="button"
           className="event-action-link event-action-link--secondary calendar-add-button"
@@ -471,21 +406,19 @@ export default function AddToCalendarButton({ event }) {
             lineHeight: "inherit",
             boxSizing: "border-box",
             cursor: "pointer",
-            alignSelf: "center"
+            alignSelf: "center",
           }}
         >
           <span aria-hidden="true">📅</span> Add to Google Calendar
         </button>
       )}
 
-      {/* Calendar popup */}
+      {/* Calendar preview and confirmation dialog */}
       {step !== "closed" && (
         <div
           className="calendar-modal-overlay"
           onClick={(domEvent) => {
-            if (domEvent.target === domEvent.currentTarget) {
-              closeModal();
-            }
+            if (domEvent.target === domEvent.currentTarget) closeModal();
           }}
         >
           <div
@@ -497,18 +430,15 @@ export default function AddToCalendarButton({ event }) {
               if (domEvent.key === "Escape") closeModal();
             }}
           >
-            {/* Shows the event details before adding to the calendar */}
             {step === "preview" && (
               <>
                 <h3 className="calendar-modal-title">Add to Google Calendar</h3>
-
                 <p className="calendar-modal-subtitle">
                   {hasFixedDateTime
                     ? "Check the details below, then confirm — nothing is sent to Google until you do."
                     : "This activity repeats weekly. Confirm the day and time below — nothing is sent to Google until you do."}
                 </p>
 
-                {/* Event title */}
                 <label className="calendar-field">
                   <span>Title</span>
                   <input
@@ -518,7 +448,6 @@ export default function AddToCalendarButton({ event }) {
                   />
                 </label>
 
-                {/* Date and time fields for a fixed event */}
                 {hasFixedDateTime ? (
                   <div className="calendar-field-row">
                     <div className="calendar-field calendar-field--readonly">
@@ -528,7 +457,7 @@ export default function AddToCalendarButton({ event }) {
                           weekday: "short",
                           day: "numeric",
                           month: "short",
-                          year: "numeric"
+                          year: "numeric",
                         })}
                       </p>
                     </div>
@@ -538,7 +467,7 @@ export default function AddToCalendarButton({ event }) {
                       <p>
                         {fixedStartDate.toLocaleTimeString("en-AU", {
                           hour: "numeric",
-                          minute: "2-digit"
+                          minute: "2-digit",
                         })}
                       </p>
                     </div>
@@ -548,15 +477,12 @@ export default function AddToCalendarButton({ event }) {
                       <input
                         type="time"
                         value={endTime}
-                        onChange={(domEvent) =>
-                          setEndTime(domEvent.target.value)
-                        }
+                        onChange={(domEvent) => setEndTime(domEvent.target.value)}
                       />
                     </label>
                   </div>
                 ) : (
                   <>
-                    {/* Weekly repeat details */}
                     <div className="calendar-field calendar-field--readonly">
                       <span>Repeats</span>
                       <p>
@@ -567,7 +493,6 @@ export default function AddToCalendarButton({ event }) {
                       </p>
                     </div>
 
-                    {/* Shows the published time when available */}
                     {hasCalendarBlock && calendarBlock.time_hint ? (
                       <p className="calendar-quote-block">
                         The publisher's description says:{" "}
@@ -576,38 +501,27 @@ export default function AddToCalendarButton({ event }) {
                       </p>
                     ) : !hasCalendarBlock && publishedTimeQuote ? (
                       <p className="calendar-quote-block">
-                        As published by the organiser (checked{" "}
-                        {checkedDateLabel}): <em>"{publishedTimeQuote}"</em> —
-                        not confirmed by SportAble. Check it, then set the time
-                        below.
+                        As published by the organiser (checked {checkedDateLabel}):{" "}
+                        <em>"{publishedTimeQuote}"</em> — not confirmed by
+                        SportAble. Check it, then set the time below.
                         {contactLink && (
                           <>
                             {" "}
-                            <a
-                              href={contactLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
+                            <a href={contactLink} target="_blank" rel="noopener noreferrer">
                               View source ↗
                             </a>
                           </>
                         )}
                       </p>
                     ) : (
-                      // Asks users to confirm the time if it is not published
                       <p className="calendar-recurrence-note">
                         {hasCalendarBlock
                           ? "SportAble could not find a published time for this activity."
                           : "SportAble could not find a published time for this activity. Please confirm it before adding."}
-
                         {contactLink && (
                           <>
                             {" "}
-                            <a
-                              href={contactLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
+                            <a href={contactLink} target="_blank" rel="noopener noreferrer">
                               Contact the organiser ↗
                             </a>
                           </>
@@ -615,7 +529,6 @@ export default function AddToCalendarButton({ event }) {
                       </p>
                     )}
 
-                    {/* Date and time inputs for recurring activities */}
                     <div className="calendar-field-row">
                       <label className="calendar-field">
                         <span>Starts from</span>
@@ -623,9 +536,7 @@ export default function AddToCalendarButton({ event }) {
                           type="date"
                           value={recurStartDate}
                           min={toDateInputValue(new Date())}
-                          onChange={(domEvent) =>
-                            setRecurStartDate(domEvent.target.value)
-                          }
+                          onChange={(domEvent) => setRecurStartDate(domEvent.target.value)}
                         />
                       </label>
 
@@ -634,9 +545,7 @@ export default function AddToCalendarButton({ event }) {
                         <input
                           type="time"
                           value={recurStartTime}
-                          onChange={(domEvent) =>
-                            setRecurStartTime(domEvent.target.value)
-                          }
+                          onChange={(domEvent) => setRecurStartTime(domEvent.target.value)}
                         />
                       </label>
 
@@ -645,34 +554,25 @@ export default function AddToCalendarButton({ event }) {
                         <input
                           type="time"
                           value={endTime}
-                          onChange={(domEvent) =>
-                            setEndTime(domEvent.target.value)
-                          }
+                          onChange={(domEvent) => setEndTime(domEvent.target.value)}
                         />
                       </label>
                     </div>
                   </>
                 )}
 
-                {/* Venue location */}
                 <div className="calendar-field calendar-field--readonly">
                   <span>Venue</span>
                   <p>
                     {hasCalendarBlock
                       ? calendarBlock.location
-                      : `${event.venueName}${
-                          event.venueAddress ? `, ${event.venueAddress}` : ""
-                        }`}
+                      : `${event.venueName}${event.venueAddress ? `, ${event.venueAddress}` : ""}`}
                   </p>
                 </div>
 
-                {/* Accessibility facilities included in the event */}
                 {event.facilities && event.facilities.length > 0 && (
                   <div className="calendar-field calendar-field--readonly">
-                    <span>
-                      Accessibility (included in the event description)
-                    </span>
-
+                    <span>Accessibility (included in the event description)</span>
                     <ul className="calendar-facility-list">
                       {event.facilities.map((facility) => (
                         <li key={facility.type}>
@@ -683,7 +583,6 @@ export default function AddToCalendarButton({ event }) {
                   </div>
                 )}
 
-                {/* Cancel or confirm the calendar event */}
                 <div className="calendar-modal-actions">
                   <button
                     type="button"
@@ -692,7 +591,6 @@ export default function AddToCalendarButton({ event }) {
                   >
                     Cancel
                   </button>
-
                   <button
                     type="button"
                     className="calendar-btn-primary"
@@ -704,11 +602,10 @@ export default function AddToCalendarButton({ event }) {
               </>
             )}
 
-            {/* Warns the user if the event was already added */}
+            {/* Warns the user before adding a possible duplicate */}
             {step === "duplicate" && (
               <>
                 <h3 className="calendar-modal-title">Already added</h3>
-
                 <p className="calendar-modal-subtitle">
                   You've already added "{event.title}" to your Google Calendar
                   during this visit. Adding it again will create a second,
@@ -723,7 +620,6 @@ export default function AddToCalendarButton({ event }) {
                   >
                     Cancel
                   </button>
-
                   <button
                     type="button"
                     className="calendar-btn-primary"
@@ -735,7 +631,7 @@ export default function AddToCalendarButton({ event }) {
               </>
             )}
 
-            {/* Loading message while adding the event */}
+            {/* Shows progress while adding the event */}
             {step === "sending" && (
               <div className="calendar-status">
                 <div className="calendar-spinner" aria-hidden="true" />
@@ -743,29 +639,24 @@ export default function AddToCalendarButton({ event }) {
               </div>
             )}
 
-            {/* Confirmation shown after the event is added */}
+            {/* Shows a confirmation after the event is added */}
             {step === "success" && (
               <div className="calendar-status">
                 <p className="calendar-status-heading">
                   ✓ Added "{title}" to your calendar
                 </p>
-
                 <p>
                   {hasFixedDateTime
                     ? fixedStartDate.toLocaleDateString("en-AU", {
                         weekday: "long",
                         day: "numeric",
-                        month: "long"
+                        month: "long",
                       })
                     : `Every ${repeatsLabel}, starting ${new Date(
                         recurStartDate
-                      ).toLocaleDateString("en-AU", {
-                        day: "numeric",
-                        month: "long"
-                      })}`}
+                      ).toLocaleDateString("en-AU", { day: "numeric", month: "long" })}`}
                 </p>
 
-                {/* Link to open the newly created calendar event */}
                 {resultLink && (
                   <a
                     href={resultLink}
@@ -787,15 +678,13 @@ export default function AddToCalendarButton({ event }) {
               </div>
             )}
 
-            {/* Shows an error if the event could not be added */}
+            {/* Shows an error message if adding the event fails */}
             {step === "error" && (
               <div className="calendar-status">
                 <p className="calendar-status-heading calendar-status-heading--error">
                   Couldn't add this to your calendar
                 </p>
-
                 <p>{errorMessage}</p>
-
                 <p className="calendar-status-note">
                   Your saved event hasn't changed — you can try again any time.
                 </p>
@@ -808,7 +697,6 @@ export default function AddToCalendarButton({ event }) {
                   >
                     Close
                   </button>
-
                   <button
                     type="button"
                     className="calendar-btn-primary"
