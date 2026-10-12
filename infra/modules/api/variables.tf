@@ -257,9 +257,9 @@ variable "assistant_config" {
   type        = map(string)
   default = {
     retrieval_top_k      = "4"
-    relevance_floor      = "0.35"
+    relevance_floor      = "0.58"
     max_input_tokens     = "2000"
-    max_output_tokens    = "500"
+    max_output_tokens    = "2048"
     daily_invocation_cap = "2000"
   }
 }
@@ -272,6 +272,18 @@ variable "bedrock_bridge_ssm_prefix" {
     BEDROCK_SECRET_ACCESS_KEY and sign their Bedrock calls with them. Empty
     (the default) means they use the execution role, the permanent
     arrangement. Clear this, apply, then delete the key in the other account.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "public_base_url" {
+  description = <<-EOT
+    Absolute origin of the site, for the share and calendar links the API
+    returns (PUBLIC_BASE_URL). Empty means relative links.
+
+    ONE value for every site: staging, the iteration sites and prod all call
+    this same API, so the links point at whichever origin is set here.
   EOT
   type        = string
   default     = ""

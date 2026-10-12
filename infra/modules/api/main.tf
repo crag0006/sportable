@@ -170,6 +170,8 @@ resource "aws_lambda_function" "api" {
       ENVIRONMENT  = "staging"
       LOG_LEVEL    = "INFO"
 
+      PUBLIC_BASE_URL = var.public_base_url
+
       # The live parameter values, resolved at apply time and passed as one JSON
       # blob. The handler parses it and never makes a network call of its own.
       # See the data source above for why it is not read at runtime.

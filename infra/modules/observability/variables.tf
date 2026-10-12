@@ -72,3 +72,27 @@ variable "db_free_storage_threshold_gb" {
   type        = number
   default     = 2
 }
+
+# ------------------------------------------------------------- Access Assistant
+
+variable "assistant_function_name" {
+  description = "The assistant function. Empty creates no assistant alarms, for environments without one."
+  type        = string
+  default     = ""
+}
+
+variable "assistant_timeout_seconds" {
+  description = "The assistant's timeout, for its duration alarm."
+  type        = number
+  default     = 30
+}
+
+variable "assistant_daily_invocation_threshold" {
+  description = <<-EOT
+    Alarm when the assistant runs more than this many times in a day. Set
+    below the server-side daily_invocation_cap so the mail arrives while the
+    assistant is still answering, not after it has started refusing.
+  EOT
+  type        = number
+  default     = 1500
+}
