@@ -11,7 +11,7 @@ import {
   removeSavedEvent
 } from "../components/savedEvents";
 
-// Key used to save the last event search
+// Key used to remember the last event search
 const STORAGE_KEY = "sportable-last-event-search";
 
 // Matches API facility types with the names used in the app
@@ -22,7 +22,18 @@ const EVENT_FACILITY_TYPE_TO_KEY = {
   accessible_change_facility: "change"
 };
 
-// Gets the previous event search from session storage
+// Days shown in the weekday filter
+const WEEKDAYS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday"
+];
+
+// Restores the previous event search from session storage
 function getSavedSearch() {
   try {
     const saved = sessionStorage.getItem(STORAGE_KEY);
@@ -39,7 +50,7 @@ function findSportMatches(list, typedText) {
   );
 }
 
-// Finds matching suburbs when at least three characters are entered
+// Finds matching suburbs after three characters are entered
 function findSuburbMatches(list, typedText) {
   if (typedText.length < 3) return [];
   return list.filter((item) =>
@@ -47,12 +58,12 @@ function findSuburbMatches(list, typedText) {
   );
 }
 
-// Creates a Google Maps directions link to the venue
+// Creates a Google Maps directions link to the event venue
 function buildMapsUrl(lat, lon) {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=walking`;
 }
 
-// Formats the event date and time for display
+// Formats the published date, time or recurring schedule
 function formatEventDateTime(event) {
   if (event.date_local) {
     const date = new Date(`${event.date_local}T${event.time_local || "00:00"}`);
@@ -61,59 +72,47 @@ function formatEventDateTime(event) {
       day: "numeric",
       month: "short"
     });
-
     if (!event.time_local) return dateText;
-
     const timeText = date
       .toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })
       .toLowerCase();
-
     return `${dateText} · ${timeText}`;
   }
-
-  // Shows the repeat schedule for recurring activities
   if (event.recurrence?.summary) {
     return event.status_label
       ? `${event.status_label} · ${event.recurrence.summary}`
       : event.recurrence.summary;
   }
 
-  // Shows the weekday when an exact time is not published
+  // Shows the published weekday when an exact event time is unavailable
   if (event.weekday) {
     const label = `Every ${event.weekday}`;
     return event.activity_when ? `${label} · ${event.activity_when}` : label;
   }
-
   if (event.status_label) return event.status_label;
-
   return "Date to be confirmed";
 }
 
-// Checks the availability status of an event facility
+// Checks the availability status of an accessibility facility
 export function getEventFacilityState(facility) {
   if (!facility) return "unknown";
-
   if (facility.display === "at_venue") return "at-venue";
   if (facility.display === "beyond_limit") return "beyond";
   if (facility.display === "within_limit") return "within";
-
   if (facility.status === "not_available" || facility.status === "absent") {
     return "absent";
   }
-
   return "unknown";
 }
 
-// Returns the message shown for each facility status
+// Creates the message shown for each facility status
 function getEventFacilityText(facility, state) {
   if (state === "at-venue") return "At the venue";
-
   if (state === "within") {
     return facility.distance_m !== undefined && facility.distance_m !== null
       ? facility.distance_m + " m away"
       : "Distance unknown";
   }
-
   if (state === "beyond") {
     const distanceText =
       facility.distance_m !== undefined && facility.distance_m !== null
@@ -123,13 +122,11 @@ function getEventFacilityText(facility, state) {
       ? `${distanceText} (beyond ${facility.distance_limit_m} m)`
       : distanceText;
   }
-
   if (state === "absent") return "Not available";
-
   return "No published information — check with the venue";
 }
 
-// Returns a symbol for the facility status
+// Returns a symbol for each facility status
 function getEventFacilityStatusSymbol(state) {
   if (state === "at-venue" || state === "within") return "✓";
   if (state === "beyond") return "!";
@@ -137,30 +134,23 @@ function getEventFacilityStatusSymbol(state) {
   return "?";
 }
 
+// Displays an event with venue details and accessibility facilities
 function EventCard({ event }) {
-  // Gets the event's venue, links and accessibility details
   const venue = event.venue || {};
   const links = event.links || {};
   const access = event.access || {};
   const facilities = access.facilities || [];
-
   const venueHref = venue.href;
   const directionsHref = links.directions;
-
-  // Checks whether the venue's map coordinates are available
   const hasVenueCoordinates =
     venue.latitude !== undefined &&
     venue.latitude !== null &&
     venue.longitude !== undefined &&
     venue.longitude !== null;
-
-  // Uses team names or the event title
   const eventTitle =
     event.home_team && event.away_team
       ? `${event.home_team} v ${event.away_team}`
       : event.title || event.sport;
-
-  // Checks whether this event is already saved
   const [isSaved, setIsSaved] = useState(() => isEventSaved(event.id));
 
   // Saves or removes the selected event
@@ -170,8 +160,6 @@ function EventCard({ event }) {
       setIsSaved(false);
       return;
     }
-
-    // Saves the event details for the Saved Events page
     addSavedEvent({
       id: event.id,
       title: eventTitle,
@@ -180,47 +168,39 @@ function EventCard({ event }) {
       suburb: venue.suburb || venue.address || "",
       venueName: venue.name || "Venue to be confirmed",
 
-      // Keeps the original date and time for Google Calendar
+      // Keeps the original date and venue details for Google Calendar
       dateLocal: event.date_local || null,
       timeLocal: event.time_local || null,
       venueAddress: venue.address || "",
       venueHref: venue.href || null,
       facilities: facilities,
 
-      // Keeps details needed for weekly recurring activities
+      // Keeps the details needed for recurring events
       weekday: event.weekday || null,
       activityWhen: event.activity_when || null,
       description: event.description || "",
       externalLink: event.links?.external || null,
       registrationLink: event.links?.registration || null,
 
-      // Keeps the calendar details provided by the API
+      // Keeps calendar information provided by the API, when available
       calendarBlock: event.calendar || null
     });
-
     setIsSaved(true);
   }
-
   return (
     <article className="event-card">
-      {/* Event name, sport and date */}
       <div className="event-top">
         <div>
           <span className="chip">{event.sport}</span>
-
           <h3 className="event-teams">{eventTitle}</h3>
-
           <p className="event-meta">
             {[event.competition, event.grade, event.round]
               .filter(Boolean)
               .join(" · ")}
           </p>
         </div>
-
         <div className="event-top-right">
           <span className="event-datetime">{formatEventDateTime(event)}</span>
-
-          {/* Shows the map link when venue coordinates are available */}
           {hasVenueCoordinates && (
             <a
               className="event-map-button"
@@ -236,8 +216,6 @@ function EventCard({ event }) {
           )}
         </div>
       </div>
-
-      {/* Venue name and address */}
       <div className="event-venue">
         <div>
           <p className="event-venue-name">
@@ -248,16 +226,12 @@ function EventCard({ event }) {
           )}
         </div>
       </div>
-
-      {/* Displays the accessibility facilities for the event venue */}
       {facilities.length > 0 && (
         <div className="amenity-grid">
           {facilities.map((facility) => {
             const key = EVENT_FACILITY_TYPE_TO_KEY[facility.type];
             if (!key || !FACILITY_INFO[key]) return null;
-
             const state = getEventFacilityState(facility);
-
             return (
               <div
                 key={facility.type}
@@ -266,12 +240,10 @@ function EventCard({ event }) {
                 <span className="facility-icon" aria-hidden="true">
                   {FACILITY_INFO[key].icon}
                 </span>
-
                 <div className="amenity-content">
                   <strong>{FACILITY_INFO[key].name}</strong>
                   <p>{getEventFacilityText(facility, state)}</p>
                 </div>
-
                 <span
                   className={"status-symbol status-" + state}
                   aria-label={state}
@@ -283,8 +255,6 @@ function EventCard({ event }) {
           })}
         </div>
       )}
-
-      {/* Buttons to save the event or view venue details */}
       <div className="event-actions">
         <button
           type="button"
@@ -306,7 +276,6 @@ function EventCard({ event }) {
           <span aria-hidden="true">{isSaved ? "★" : "☆"}</span>{" "}
           {isSaved ? "Saved" : "Save"}
         </button>
-
         {venueHref && (
           <a
             className="event-action-link event-action-link--secondary"
@@ -315,7 +284,6 @@ function EventCard({ event }) {
             View venue
           </a>
         )}
-
         {directionsHref && (
           <a
             className="event-action-link event-action-link--primary"
@@ -324,8 +292,6 @@ function EventCard({ event }) {
             Get directions
           </a>
         )}
-
-        {/* Message shown when venue details are unavailable */}
         {!venueHref && !directionsHref && (
           <p
             className="venue-unavailable-note"
@@ -339,35 +305,29 @@ function EventCard({ event }) {
   );
 }
 
+// Main event search page
 function Events() {
-  // Stores the sports and suburbs received from the API
   const [sports, setSports] = useState([]);
   const [suburbs, setSuburbs] = useState([]);
-
-  // Restores the previous search filters if available
   const [sport, setSport] = useState(() => getSavedSearch()?.sport ?? "");
   const [suburb, setSuburb] = useState(() => getSavedSearch()?.suburb ?? "");
   const [dateFrom, setDateFrom] = useState(
     () => getSavedSearch()?.dateFrom ?? ""
   );
   const [dateTo, setDateTo] = useState(() => getSavedSearch()?.dateTo ?? "");
+  const [weekday, setWeekday] = useState(() => getSavedSearch()?.weekday ?? "");
 
-  // Controls the sport and suburb suggestion lists
+  // Tracks events opened from a venue page or a direct event link
+  const [lookupInfo, setLookupInfo] = useState(null);
   const [showSports, setShowSports] = useState(false);
   const [showSuburbs, setShowSuburbs] = useState(false);
-
-  // Stores the search results and controls the search form
   const [results, setResults] = useState(
     () => getSavedSearch()?.results ?? null
   );
   const [showForm, setShowForm] = useState(() => !getSavedSearch()?.results);
-
-  // Stores form errors and loading status
   const [formError, setFormError] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
-
-  // Number of event cards currently displayed
   const [visibleCount, setVisibleCount] = useState(
     () => getSavedSearch()?.visibleCount ?? 5
   );
@@ -379,7 +339,6 @@ function Events() {
       .catch(() =>
         setSports(["Badminton", "Basketball", "Netball", "Swimming", "Tennis"])
       );
-
     getSuburbs()
       .then((data) => setSuburbs(data))
       .catch(() =>
@@ -394,10 +353,94 @@ function Events() {
       );
   }, []);
 
-  // Checks the search details and fetches matching events
+  // Searches for events using the selected filters
+  async function runSearch({ sport, suburb, dateFrom, dateTo, weekday }) {
+    setIsSearching(true);
+    setSearchError("");
+    try {
+      const data = await getEvents({
+        sport,
+        suburb,
+        dateFrom,
+        dateTo,
+        weekday
+      });
+      const newResults = {
+        events: data.events || [],
+        window: data.window,
+        referenceLabel: data.reference_point?.label,
+        emptyMessage: data.empty_message,
+        searchedSport: sport,
+        searchedPlace: suburb,
+        searchedDateFrom: dateFrom,
+        searchedDateTo: dateTo,
+        searchedWeekday: weekday
+      };
+      setLookupInfo(null);
+      setResults(newResults);
+      setVisibleCount(5);
+      setShowForm(false);
+      try {
+        sessionStorage.setItem("sportable-last-results-page", "/events");
+      } catch {
+        // Continues if session storage is unavailable
+      }
+      try {
+        sessionStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({
+            sport,
+            suburb,
+            dateFrom,
+            dateTo,
+            weekday,
+            results: newResults,
+            visibleCount: 5
+          })
+        );
+      } catch {}
+    } catch (error) {
+      setSearchError(
+        error.message ||
+          "Something went wrong loading events. Please try again."
+      );
+    } finally {
+      setIsSearching(false);
+    }
+  }
+
+  // Gets events for a specific venue or list of event IDs
+  async function runLookup({ venueId, ids }) {
+    setIsSearching(true);
+    setSearchError("");
+    try {
+      const data = await getEvents({ venueId, ids });
+      const events = data.events || [];
+      setResults({
+        events,
+        window: data.window,
+        referenceLabel: data.reference_point?.label,
+        emptyMessage: data.empty_message
+      });
+      setVisibleCount(5);
+      setShowForm(false);
+      setLookupInfo({
+        kind: venueId ? "venue" : "ids",
+        venueName: events[0]?.venue?.name || null
+      });
+    } catch (error) {
+      setSearchError(
+        error.message ||
+          "Something went wrong loading these events. Please try again."
+      );
+    } finally {
+      setIsSearching(false);
+    }
+  }
+
+  // Checks the required fields before searching
   async function handleSearch(event) {
     event.preventDefault();
-
     if (sport === "" && suburb === "") {
       setFormError("Choose a sport and a suburb or postcode.");
       return;
@@ -414,87 +457,66 @@ function Events() {
       setFormError("The 'from' date must be before the 'to' date.");
       return;
     }
-
     setFormError("");
     setShowSports(false);
     setShowSuburbs(false);
-    setIsSearching(true);
-    setSearchError("");
-
-    try {
-      const data = await getEvents({ sport, suburb, dateFrom, dateTo });
-
-      // Stores the results along with the selected filters
-      const newResults = {
-        events: data.events || [],
-        window: data.window,
-        referenceLabel: data.reference_point?.label,
-        emptyMessage: data.empty_message,
-        searchedSport: sport,
-        searchedPlace: suburb,
-        searchedDateFrom: dateFrom,
-        searchedDateTo: dateTo
-      };
-
-      setResults(newResults);
-      setVisibleCount(5);
-      setShowForm(false);
-
-      // Remembers that the last results page was Events
-      try {
-        sessionStorage.setItem("sportable-last-results-page", "/events");
-      } catch {
-        // Continues if session storage is unavailable
-      }
-
-      // Saves the search so it can be restored later
-      try {
-        sessionStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({
-            sport,
-            suburb,
-            dateFrom,
-            dateTo,
-            results: newResults,
-            visibleCount: 5
-          })
-        );
-      } catch {}
-    } catch (error) {
-      // Displays an error if the event search fails
-      setSearchError(
-        error.message ||
-          "Something went wrong loading events. Please try again."
-      );
-    } finally {
-      setIsSearching(false);
-    }
+    await runSearch({ sport, suburb, dateFrom, dateTo, weekday });
   }
 
-  // Clears all search filters and previous results
+  // Reads search details from the URL when the page opens
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlVenueId = params.get("venue_id") || "";
+    const urlIds = params.get("ids") || "";
+    if (urlVenueId || urlIds) {
+      runLookup({ venueId: urlVenueId || undefined, ids: urlIds || undefined });
+      return;
+    }
+    const hasSearchParams =
+      params.has("sport") || params.has("suburb") || params.has("weekday");
+    if (!hasSearchParams) return;
+    const urlSport = params.get("sport") || "";
+    const urlSuburb = params.get("suburb") || "";
+    const urlWeekday = params.get("weekday") || "";
+    setSport(urlSport);
+    setSuburb(urlSuburb);
+    setWeekday(urlWeekday);
+    if (urlSport && urlSuburb) {
+      runSearch({
+        sport: urlSport,
+        suburb: urlSuburb,
+        dateFrom: "",
+        dateTo: "",
+        weekday: urlWeekday
+      });
+    }
+
+    // Runs once when the page first opens
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Clears the filters and search results
   function handleClear() {
     setSport("");
     setSuburb("");
     setDateFrom("");
     setDateTo("");
+    setWeekday("");
     setResults(null);
+    setLookupInfo(null);
     setShowForm(true);
     setFormError("");
     setSearchError("");
     setShowSports(false);
     setShowSuburbs(false);
-
     try {
       sessionStorage.removeItem(STORAGE_KEY);
     } catch {}
   }
-
-  // Gets matching suggestions for the entered sport and suburb
   const sportMatches = findSportMatches(sports, sport);
   const suburbMatches = findSuburbMatches(suburbs, suburb);
 
-  // Creates the selected date range text
+  // Formats the selected date range
   function buildDateRangeText() {
     if (!results) return "";
     if (results.searchedDateFrom && results.searchedDateTo) {
@@ -503,10 +525,13 @@ function Events() {
     return "";
   }
 
-  // Creates a summary of the current search
+  // Creates a short description of the active filters
   function buildSummaryText() {
     if (!results) return "";
     let text = results.searchedSport + " near " + results.searchedPlace;
+    if (results.searchedWeekday) {
+      text = text + " · " + results.searchedWeekday + "s";
+    }
     const dateRangeText = buildDateRangeText();
     if (dateRangeText) {
       text = text + " · " + dateRangeText;
@@ -514,48 +539,54 @@ function Events() {
     return text;
   }
 
-  // Creates a message when no matching events are found
+  // Creates a message when no events match the search
   function buildEmptyMessage() {
     if (!results) return "";
-
     let message = `No ${results.searchedSport} events found near ${results.searchedPlace}`;
-
+    if (results.searchedWeekday) {
+      message += ` on a ${results.searchedWeekday}`;
+    }
     const dateRangeText = buildDateRangeText();
     if (dateRangeText) {
       message += ` between ${results.searchedDateFrom} and ${results.searchedDateTo}`;
     }
-
     message +=
       ". Try a wider date range, remove a filter, or try a nearby suburb.";
-
     return message;
   }
 
-  // Prepares a short summary of the search results for Read Aloud
+  // Prepares a short summary of the results for Read Aloud
   function buildReadAloudSummary() {
     if (!results) return [];
-
-    const sentences = [`${buildSummaryText()}.`];
-
+    const sentences = lookupInfo
+      ? [
+          lookupInfo.kind === "venue"
+            ? `Upcoming events at ${lookupInfo.venueName || "this venue"}.`
+            : "Selected events."
+        ]
+      : [`${buildSummaryText()}.`];
     if (results.events.length === 0) {
-      sentences.push(buildEmptyMessage());
+      sentences.push(
+        lookupInfo
+          ? lookupInfo.kind === "venue"
+            ? "No upcoming events are currently published for this venue."
+            : "These events couldn't be found."
+          : buildEmptyMessage()
+      );
       return sentences;
     }
-
     sentences.push(
       `${results.events.length} event${results.events.length === 1 ? "" : "s"} found.`
     );
-
     const firstEvent = results.events[0];
     const firstVenueName = firstEvent.venue?.name || "a venue to be confirmed";
     sentences.push(`Next up: ${firstEvent.sport} at ${firstVenueName}.`);
-
     return sentences;
   }
 
   return (
     <div className="search-page">
-      {/* Top navigation bar */}
+      {/* Main navigation */}
       <TopBar
         links={[
           { to: "/", label: "Home" },
@@ -563,12 +594,10 @@ function Events() {
           { to: "/saved-events", label: "Saved events" }
         ]}
       />
-
       <main className="search-content">
-        {/* Events page banner */}
+        {/* Page heading and banner */}
         <div className="search-banner-wrap">
           <div className="page-kicker">Explore sports events</div>
-
           <div className="search-banner">
             <div className="search-banner-overlay">
               <p className="search-banner-text">
@@ -578,8 +607,33 @@ function Events() {
           </div>
         </div>
 
-        {/* Shows the search details after results are loaded */}
-        {results !== null && !showForm && (
+        {/* Summary for events opened from a venue or direct link */}
+        {results !== null && !showForm && lookupInfo && (
+          <div className="search-summary-bar">
+            <div>
+              <span className="search-summary-label">
+                {lookupInfo.kind === "venue" ? "Venue" : "Events"}
+              </span>
+              <strong className="search-summary-text">
+                {lookupInfo.kind === "venue"
+                  ? lookupInfo.venueName || "This venue"
+                  : "Selected events"}
+              </strong>
+            </div>
+            <div className="search-summary-actions">
+              <button
+                type="button"
+                className="clear-button"
+                onClick={handleClear}
+              >
+                Search for other events
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Summary of the current search filters */}
+        {results !== null && !showForm && !lookupInfo && (
           <div className="search-summary-bar">
             <div>
               <span className="search-summary-label">Your search</span>
@@ -587,7 +641,6 @@ function Events() {
                 {buildSummaryText()}
               </strong>
             </div>
-
             <div className="search-summary-actions">
               <button
                 type="button"
@@ -596,7 +649,6 @@ function Events() {
               >
                 Update filters
               </button>
-
               <button
                 type="button"
                 className="clear-button"
@@ -608,19 +660,17 @@ function Events() {
           </div>
         )}
 
-        {/* Event search form */}
+        {/* Search form with sport, location, date and weekday filters */}
         {showForm && (
           <section className="search-card">
             <h1 className="search-title">Search for an event</h1>
-
             <form onSubmit={handleSearch}>
+              {/* Sport and suburb search fields */}
               <div className="search-row">
-                {/* Sport search field */}
                 <div className="field">
                   <label htmlFor="event-sport">
                     Sport <span className="required">*</span>
                   </label>
-
                   <div className="field-inner">
                     <input
                       id="event-sport"
@@ -638,8 +688,6 @@ function Events() {
                         setShowSports(true);
                       }}
                     />
-
-                    {/* Shows matching sport suggestions */}
                     {showSports && sportMatches.length > 0 && (
                       <ul className="suggestions">
                         {sportMatches.map((item) => (
@@ -660,25 +708,20 @@ function Events() {
                       </ul>
                     )}
                   </div>
-
                   {showSports &&
                     sport.length > 0 &&
                     sportMatches.length === 0 && (
                       <p className="no-match">No sport found with that name.</p>
                     )}
-
                   <p className="field-hint">
                     Select sports from the drop down or type min 3 characters to
                     search.
                   </p>
                 </div>
-
-                {/* Suburb or postcode search field */}
                 <div className="field">
                   <label htmlFor="event-suburb">
                     Suburb or postcode <span className="required">*</span>
                   </label>
-
                   <div className="field-inner">
                     <input
                       id="event-suburb"
@@ -692,8 +735,6 @@ function Events() {
                         setShowSuburbs(true);
                       }}
                     />
-
-                    {/* Shows matching suburb suggestions */}
                     {showSuburbs && suburbMatches.length > 0 && (
                       <ul className="suggestions">
                         {suburbMatches.map((item) => (
@@ -713,7 +754,6 @@ function Events() {
                       </ul>
                     )}
                   </div>
-
                   {showSuburbs &&
                     suburb.length >= 3 &&
                     suburbMatches.length === 0 &&
@@ -722,13 +762,11 @@ function Events() {
                         Try a Greater Melbourne suburb or postcode.
                       </p>
                     )}
-
                   <p className="field-hint">
                     Enter minimum 3 letters or numbers to search.
                   </p>
                 </div>
               </div>
-
               {/* Optional date filters */}
               <div className="date-section">
                 <p className="date-section-title">Choose your dates</p>
@@ -743,7 +781,6 @@ function Events() {
                       onChange={(event) => setDateFrom(event.target.value)}
                     />
                   </div>
-
                   <div className="field">
                     <label htmlFor="event-date-to">To</label>
                     <input
@@ -758,21 +795,40 @@ function Events() {
                 </div>
               </div>
 
-              {/* Displays form validation errors */}
+              {/* Lets users filter events by weekday */}
+              <div className="date-section">
+                <p className="date-section-title">Or pick a day of the week</p>
+                <div className="search-row">
+                  <div className="field">
+                    <label htmlFor="event-weekday">Day of week</label>
+                    <select
+                      id="event-weekday"
+                      className="input"
+                      value={weekday}
+                      onChange={(event) => setWeekday(event.target.value)}
+                    >
+                      <option value="">Any day</option>
+                      {WEEKDAYS.map((day) => (
+                        <option key={day} value={day}>
+                          {day}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              {/* Form validation errors */}
               {formError !== "" && (
                 <p className="form-error" role="alert">
                   {formError}
                 </p>
               )}
-
-              {/* Displays errors from the event search API */}
+              {/* Search errors */}
               {searchError !== "" && (
                 <p className="form-error" role="alert">
                   {searchError}
                 </p>
               )}
-
-              {/* Buttons to clear the form or search for events */}
               <div className="buttons">
                 <button
                   type="button"
@@ -781,7 +837,6 @@ function Events() {
                 >
                   Clear
                 </button>
-
                 <button
                   type="submit"
                   className="search-button"
@@ -793,9 +848,8 @@ function Events() {
             </form>
           </section>
         )}
-
-        {/* Displays search results or the initial message */}
         <div aria-live="polite">
+          {/* Shows the initial message or the event results */}
           {results === null ? (
             <section className="results-empty">
               <h2>Nothing searched yet</h2>
@@ -806,25 +860,49 @@ function Events() {
             </section>
           ) : (
             <div className="results">
-              {/* Reads a short summary of the search results */}
+              {/* Reads a short summary of the event results */}
               <ReadAloud summary={buildReadAloudSummary()} />
-
-              {/* Number of events found */}
               <div className="results-heading">
                 <div>
-                  <h2>{results.events.length} events found</h2>
-                  <p>
-                    {results.searchedSport} events near {results.searchedPlace}
-                    {buildDateRangeText() ? ` · ${buildDateRangeText()}` : ""}
-                  </p>
+                  {lookupInfo ? (
+                    <>
+                      <h2>
+                        {lookupInfo.kind === "venue"
+                          ? `Upcoming events at ${lookupInfo.venueName || "this venue"}`
+                          : "Selected events"}
+                      </h2>
+                      <p>
+                        {results.events.length} event
+                        {results.events.length === 1 ? "" : "s"}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <h2>{results.events.length} events found</h2>
+                      <p>
+                        {results.searchedSport} events near{" "}
+                        {results.searchedPlace}
+                        {results.searchedWeekday
+                          ? ` · ${results.searchedWeekday}s`
+                          : ""}
+                        {buildDateRangeText()
+                          ? ` · ${buildDateRangeText()}`
+                          : ""}
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
-
-              {/* Message displayed when no events match the search */}
               {results.events.length === 0 && (
                 <div className="empty-card">
                   <h3>No matching events</h3>
-                  <p>{buildEmptyMessage()}</p>
+                  <p>
+                    {lookupInfo
+                      ? lookupInfo.kind === "venue"
+                        ? "No upcoming events are currently published for this venue."
+                        : "These events couldn't be found — they may have been removed or already taken place."
+                      : buildEmptyMessage()}
+                  </p>
                 </div>
               )}
 
@@ -832,8 +910,6 @@ function Events() {
               {results.events.slice(0, visibleCount).map((event) => (
                 <EventCard key={event.id} event={event} />
               ))}
-
-              {/* Loads five more events when clicked */}
               {visibleCount < results.events.length && (
                 <button
                   type="button"
