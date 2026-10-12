@@ -1,11 +1,9 @@
 
-/* Main background for the search pages */
 .search-page {
   min-height: 100vh;
   background: linear-gradient(180deg, #eaf4f2 0%, #f6f8f7 45%, #eef5f4 100%);
 }
 
-/* Top navigation bar */
 .site-topbar {
   position: relative;
   background: linear-gradient(
@@ -42,7 +40,6 @@
   color: #b9c6d3;
 }
 
-/* Navigation links */
 .site-nav {
   display: flex;
   gap: 8px;
@@ -64,12 +61,11 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
-/* Highlights the current page in the navigation */
+/* Highlights the current navigation page. */
 .site-nav-link[aria-current="page"] {
   border-color: #ffbf47;
 }
 
-/* Main content area */
 .search-content {
   max-width: 1120px;
   margin: 0 auto;
@@ -78,7 +74,7 @@
   gap: 18px;
 }
 
-/* Banner image and text */
+/* Banner image for the search pages. */
 .search-banner {
   position: relative;
   height: 150px;
@@ -107,7 +103,7 @@
   font-size: 1.1rem;
 }
 
-/* Search form container */
+/* Search form container. */
 .search-card {
   padding: 22px;
   background: #fff;
@@ -124,7 +120,7 @@
   color: #0c1c2d;
 }
 
-/* Displays search fields in two columns */
+/* Displays the search fields in two columns. */
 .search-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -138,7 +134,7 @@
   border: none;
 }
 
-/* Positions suggestion lists below their input fields */
+/* Positions the suggestion list below the input. */
 .field {
   position: relative;
 }
@@ -164,14 +160,13 @@
   color: #1a2733;
 }
 
-/* Help text displayed below search fields */
+/* Help text shown below a search field. */
 .field-hint {
   margin: 4px 0 0 0;
   font-size: 0.78rem;
   color: #8a9699;
 }
 
-/* Common styling for search inputs */
 .input {
   width: 100%;
   height: 42px;
@@ -188,12 +183,12 @@
   border-color: #14507a;
 }
 
-/* Marks required fields */
+/* Marks required fields. */
 .required {
   color: #96231f;
 }
 
-/* Dropdown list for matching sports and suburbs */
+/* Dropdown suggestions for sports and suburbs. */
 .suggestions {
   position: absolute;
   top: calc(100% + 4px);
@@ -211,7 +206,7 @@
   box-shadow: 0 10px 24px rgba(12, 28, 45, 0.08);
 }
 
-/* Clickable options in the suggestion list */
+/* Clickable options in the suggestion list. */
 .suggestions button {
   width: 100%;
   padding: 10px 12px;
@@ -227,14 +222,14 @@
   background-color: #eef4f9;
 }
 
-/* Message shown when no suggestions match */
+/* Message shown when there are no matching suggestions. */
 .no-match {
   margin: 6px 0 0 0;
   color: #96231f;
   font-size: 0.8rem;
 }
 
-/* Accessibility facility checkboxes */
+/* Accessibility facility checkboxes. */
 .checks {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -261,7 +256,7 @@
   cursor: pointer;
 }
 
-/* Available distance choices */
+/* Distance filter options. */
 .distance-options {
   display: flex;
   gap: 8px;
@@ -281,7 +276,7 @@
   cursor: pointer;
 }
 
-/* Hides the radio button visually while keeping it accessible */
+/* Hides the radio input visually while keeping it accessible. */
 .distance-option input {
   position: absolute;
   opacity: 0;
@@ -290,13 +285,12 @@
   margin: 0;
 }
 
-/* Highlights the distance option when selected using a keyboard */
+/* Shows keyboard focus on the selected distance option. */
 .distance-option:has(input:focus-visible) {
   outline: 3px solid #2b8c69;
   outline-offset: 2px;
 }
 
-/* Shows the selected distance option */
 .selected-distance {
   color: #14507a;
   background-color: #e8f1f8;
@@ -309,7 +303,7 @@
   margin-left: 6px;
 }
 
-/* Displays form validation and search errors */
+/* Search errors and action buttons. */
 .form-error {
   margin: 1rem 0 0 0;
   padding: 10px 12px;
@@ -320,7 +314,6 @@
   border-radius: 6px;
 }
 
-/* Search form buttons */
 .buttons {
   display: flex;
   gap: 10px;
@@ -365,7 +358,7 @@
   background-color: #eef5fa;
 }
 
-/* Shows the selected filters after a search */
+/* Summary of the filters used in the search. */
 .search-summary-bar {
   display: flex;
   align-items: center;
@@ -401,7 +394,6 @@
   gap: 10px;
 }
 
-/* Button to update the current search filters */
 .edit-search-button {
   color: #fff;
   background-color: #14507a;
@@ -412,7 +404,9 @@
   background-color: #0f3d5e;
 }
 
-/* Message shown before a search is performed */
+/* Search results and empty states. */
+
+/* Message shown before the user searches. */
 .results-empty {
   padding: 2rem 22px;
   background: #fff;
@@ -434,7 +428,6 @@
   line-height: 1.6;
 }
 
-/* Heading and summary for the search results */
 .results-heading {
   display: flex;
   align-items: center;
@@ -458,7 +451,7 @@
   color: #63717a;
 }
 
-/* Displays the selected distance limit */
+/* Shows the selected distance limit. */
 .filter-badge {
   padding: 7px 12px;
   font-size: 0.8rem;
@@ -469,7 +462,7 @@
   white-space: nowrap;
 }
 
-/* Message shown when no results are found */
+/* Message shown when no results are found. */
 .empty-card {
   padding: 1.5rem;
   background-color: #fff;
@@ -486,7 +479,7 @@
   color: #66777a;
 }
 
-/* Button to display more venue or event results */
+/* Button to display more venues or events. */
 .view-more-button {
   display: block;
   width: 100%;
@@ -506,7 +499,7 @@
   background-color: #eef5fa;
 }
 
-/* Explains the different accessibility facility statuses */
+/* Guide to accessibility facility status colours. */
 .legend {
   display: flex;
   flex-wrap: wrap;
@@ -530,25 +523,25 @@
   border-radius: 3px;
 }
 
-/* Green indicates facilities within the selected distance */
+/* Green shows facilities within the selected distance. */
 .available-box {
   background-color: #e2f5ec;
   border: 1px solid #9bd6bb;
 }
 
-/* Red indicates unavailable facilities or facilities beyond the limit */
+/* Red shows unavailable facilities or those beyond the limit. */
 .problem-box {
   background-color: #fde9e8;
   border: 1px solid #e0aaa6;
 }
 
-/* Grey indicates facilities with no published information */
+/* Grey shows facilities with no published information. */
 .unknown-box {
   background-color: #ecefef;
   border: 1px dashed #a8b1b3;
 }
 
-/* Section for venues with missing accessibility information */
+/* Groups venues with missing accessibility information. */
 .missing-section {
   margin-top: 1.5rem;
   padding: 1.2rem;
@@ -557,7 +550,7 @@
   border-radius: 8px;
 }
 
-/* Button to show or hide venues with missing information */
+/* Button to expand or collapse venues with missing information. */
 .missing-toggle {
   width: 100%;
   margin: 0 0 10px 0;
@@ -592,7 +585,7 @@
   line-height: 1.5;
 }
 
-/* Event cards showing sport, venue and event details */
+/* Cards showing event and venue details. */
 .event-card {
   margin-top: 14px;
   padding: 18px 20px;
@@ -613,7 +606,7 @@
   flex-wrap: wrap;
 }
 
-/* Adds spacing below the sport label on event cards */
+/* Adds space below the sport label on event cards. */
 .event-top .chip {
   display: inline-block;
   margin-bottom: 6px;
@@ -640,7 +633,6 @@
   white-space: nowrap;
 }
 
-/* Venue name and address shown on event cards */
 .event-venue {
   margin-top: 12px;
   padding-top: 12px;
@@ -672,12 +664,11 @@
   line-height: 1.5;
 }
 
-/* Adds space above accessibility facilities on event cards */
+/* Adds space above accessibility facility tiles on event cards. */
 .event-card .amenity-grid {
   margin-top: 14px;
 }
 
-/* Buttons and links shown on event cards */
 .event-actions {
   display: flex;
   gap: 8px;
@@ -714,7 +705,7 @@
   background-color: #eef5fa;
 }
 
-/* Adjusts the layout for tablet screens */
+/* Adjusts the layout for smaller screens. */
 @media (max-width: 900px) {
   .search-row {
     grid-template-columns: 1fr;
@@ -731,7 +722,6 @@
   }
 }
 
-/* Adjusts spacing and buttons for mobile screens */
 @media (max-width: 640px) {
   .site-topbar-inner {
     flex-direction: column;
@@ -768,99 +758,108 @@
   }
 }
 
-/* Confirmation message shown after saving an event */
-.save-toast {
+/* Centred save confirmation popup that stays open until closed. */
+.save-toast-backdrop {
   position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
+  inset: 0;
   z-index: 1200;
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: min(480px, calc(100vw - 32px));
-  background: #16325c;
-  color: #fff;
-  padding: 14px 16px;
-  border-radius: 12px;
-  box-shadow: 0 14px 32px rgba(12, 28, 45, 0.35);
-  animation: save-toast-in 0.2s ease-out;
-}
-
-/* Green tick displayed in the save confirmation */
-.save-toast-icon {
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  margin-top: 1px;
-  border-radius: 999px;
-  background: #2b8c69;
-  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  padding: 16px;
+  background: rgba(12, 28, 45, 0.32);
+  animation: save-toast-backdrop-in 0.15s ease-out;
+}
+
+.save-toast {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(380px, 100%);
+  background: #fff;
+  color: #1a2733;
+  padding: 28px 24px 24px;
+  border-radius: 14px;
+  box-shadow: 0 20px 48px rgba(12, 28, 45, 0.3);
+  text-align: center;
+  animation: save-toast-in 0.2s ease-out;
+}
+
+.save-toast-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: #e6f4ed;
+  color: #2b8c69;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
   font-weight: 700;
 }
 
 .save-toast-text {
   margin: 0;
-  font-size: 0.85rem;
-  line-height: 1.4;
-  flex: 1;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #3f545e;
 }
 
-/* Link to the Saved Events page */
 .save-toast-link {
-  color: #8fd1ff;
+  color: #14507a;
   font-weight: 700;
   text-decoration: underline;
 }
 
 .save-toast-link:hover {
-  color: #c3e8ff;
+  color: #0c3a5c;
 }
 
-/* Button to close the save confirmation */
 .save-toast-close {
-  flex-shrink: 0;
+  position: absolute;
+  top: 10px;
+  right: 10px;
   appearance: none;
   -webkit-appearance: none;
   border: none;
   background: transparent;
-  color: #cfd9e0;
-  font-size: 1.1rem;
+  color: #8a9699;
+  font-size: 1.2rem;
   line-height: 1;
   cursor: pointer;
-  padding: 2px 4px;
+  padding: 4px 6px;
 }
 
 .save-toast-close:hover {
-  color: #fff;
+  color: #1a2733;
 }
 
-/* Makes the save confirmation slide into view */
-@keyframes save-toast-in {
+@keyframes save-toast-backdrop-in {
   from {
     opacity: 0;
-    transform: translate(-50%, 12px);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, 0);
   }
 }
 
-/* Turns off the animation for users who prefer less movement */
+@keyframes save-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .save-toast-backdrop,
   .save-toast {
     animation: none;
-  }
-}
-
-/* Adjusts the confirmation message position on mobile */
-@media (max-width: 480px) {
-  .save-toast {
-    bottom: 16px;
   }
 }
