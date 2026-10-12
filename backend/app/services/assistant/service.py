@@ -179,9 +179,11 @@ class AssistantService:
                 system=system,
                 messages=loop.messages,
                 tools=tools,
-                tool_choice={"type": "tool", "name": "final_answer"}
-                if capped
-                else {"type": "auto"},
+                # Never "auto": with earlier turns in the history (plain prose, no
+                # ids) the model copied them and ended the turn in text, so the
+                # third search of a conversation came back without cards or links.
+                # "any" makes every reply a tool call: a tool, or final_answer.
+                tool_choice={"type": "tool", "name": "final_answer"} if capped else {"type": "any"},
                 max_tokens=cfg.max_output_tokens,
             )
             loop.input_tokens += reply.input_tokens
