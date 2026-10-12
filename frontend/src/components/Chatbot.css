@@ -1,4 +1,5 @@
-/* Positions the chatbot at the bottom-right of the page */
+
+/* Positions the chatbot at the bottom-right of the screen */
 .chat-widget {
   position: fixed;
   right: 24px;
@@ -40,7 +41,7 @@
   transform: translateY(-1px) scale(0.98);
 }
 
-/* Highlights the button when using a keyboard */
+/* Highlights the button for keyboard users */
 .chat-fab:focus-visible {
   outline: 3px solid #2b8c69;
   outline-offset: 2px;
@@ -77,7 +78,7 @@
   }
 }
 
-/* Turns off the animation for users who prefer less movement */
+/* Disables movement when reduced motion is preferred */
 @media (prefers-reduced-motion: reduce) {
   .chat-fab-ring {
     animation: none;
@@ -85,7 +86,7 @@
   }
 }
 
-/* Greeting message shown near the chatbot button */
+/* Greeting message shown beside the chatbot button */
 .chat-greeting {
   position: relative;
   max-width: 240px;
@@ -104,7 +105,7 @@
   margin: 0;
 }
 
-/* Button to close the greeting message */
+/* Button to dismiss the greeting */
 .chat-greeting-close {
   position: absolute;
   top: 6px;
@@ -128,7 +129,7 @@
   background: #e3e9e7;
 }
 
-/* Makes the greeting message fade in */
+/* Fades the greeting into view */
 @keyframes chat-greeting-in {
   from {
     opacity: 0;
@@ -153,7 +154,7 @@
   overflow: hidden;
 }
 
-/* Header of the chatbot window */
+/* Header with the chatbot title and close button */
 .chat-panel-header {
   display: flex;
   align-items: center;
@@ -176,7 +177,6 @@
   margin-top: 2px;
 }
 
-/* Button to close the chatbot window */
 .chat-panel-close {
   appearance: none;
   -webkit-appearance: none;
@@ -198,7 +198,7 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
-/* Area where chat messages are displayed */
+/* Scrollable area for conversation messages */
 .chat-panel-messages {
   flex: 1;
   overflow-y: auto;
@@ -209,7 +209,7 @@
   background: #f6f8f7;
 }
 
-/* Aligns user messages to the right and bot messages to the left */
+/* Aligns chat messages according to the sender */
 .chat-bubble-row {
   display: flex;
 }
@@ -222,7 +222,7 @@
   justify-content: flex-start;
 }
 
-/* Common styling for chat messages */
+/* Shared styling for user and assistant messages */
 .chat-bubble {
   max-width: 80%;
   padding: 10px 14px;
@@ -232,7 +232,6 @@
   word-wrap: break-word;
 }
 
-/* Chatbot messages */
 .chat-bubble--bot {
   background: #fff;
   border: 1px solid #dde5e3;
@@ -240,14 +239,12 @@
   border-bottom-left-radius: 4px;
 }
 
-/* User messages */
 .chat-bubble--user {
   background: #14507a;
   color: #fff;
   border-bottom-right-radius: 4px;
 }
 
-/* Shows typing dots while waiting for a reply */
 .chat-bubble--typing {
   display: flex;
   align-items: center;
@@ -259,14 +256,14 @@
   margin: 0;
 }
 
-/* Highlights chatbot error messages */
+/* Highlights an error message */
 .chat-bubble--error {
   border-color: #e3b8b2;
   background: #fdf3f1;
   color: #7a2e22;
 }
 
-/* Venue and event cards shown in the chatbot */
+/* Venue and event cards displayed in chat results */
 .chat-result-cards {
   display: flex;
   flex-direction: column;
@@ -307,10 +304,17 @@
   color: #66777a;
 }
 
-/* Link to view the selected venue or event */
+/* Arranges event details, registration and publisher links */
+.chat-result-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  margin-top: 8px;
+}
+
 .chat-result-card-link {
   display: inline-block;
-  margin-top: 8px;
   font-size: 0.78rem;
   font-weight: 700;
   color: #14507a;
@@ -321,7 +325,12 @@
   text-decoration: underline;
 }
 
-/* Accessibility facilities shown in chatbot results */
+/* Shows additional information about an event venue */
+.chat-result-card-note {
+  font-style: italic;
+}
+
+/* Displays accessibility facilities on result cards */
 .chat-result-facilities {
   display: flex;
   flex-wrap: wrap;
@@ -346,23 +355,23 @@
   margin-left: 2px;
 }
 
-/* Green symbol for facilities at the venue or within the limit */
+/* Uses green for facilities at the venue or within the limit */
 .chat-result-facility--at_venue .chat-result-facility-symbol,
 .chat-result-facility--within_limit .chat-result-facility-symbol {
   color: #2b8c69;
 }
 
-/* Yellow symbol for facilities beyond the selected limit */
+/* Uses yellow for facilities beyond the selected limit */
 .chat-result-facility--beyond_limit .chat-result-facility-symbol {
   color: #b8860b;
 }
 
-/* Red symbol for facilities recorded as unavailable */
+/* Uses red for unavailable facilities */
 .chat-result-facility--not_available .chat-result-facility-symbol {
   color: #a6342a;
 }
 
-/* Links provided with the chatbot's response */
+/* General links included with the assistant response */
 .chat-message-links {
   display: flex;
   flex-wrap: wrap;
@@ -386,14 +395,14 @@
   background: #0c3a5c;
 }
 
-/* Data sources used in the chatbot's response */
+/* Shows the sources used by the assistant */
 .chat-message-sources {
   margin: 10px 0 0 0;
   font-size: 0.72rem;
   color: #8a9699;
 }
 
-/* Suggested questions shown below the chatbot response */
+/* Suggested questions displayed beneath a response */
 .chat-suggested-questions {
   display: flex;
   flex-direction: column;
@@ -426,7 +435,7 @@
   cursor: not-allowed;
 }
 
-/* Animated dots shown while the chatbot prepares a reply */
+/* Animated dots shown while waiting for an answer */
 .chat-typing-dot {
   width: 6px;
   height: 6px;
@@ -443,7 +452,6 @@
   animation-delay: 0.3s;
 }
 
-/* Makes the typing dots move up and down */
 @keyframes chat-typing-bounce {
   0%, 60%, 100% {
     transform: translateY(0);
@@ -455,7 +463,7 @@
   }
 }
 
-/* Message input area at the bottom of the chatbot */
+/* Message input area and send button */
 .chat-panel-input-row {
   display: flex;
   align-items: center;
@@ -477,7 +485,6 @@
   min-width: 0;
 }
 
-/* Highlights the input field when using a keyboard */
 .chat-panel-input-row input:focus-visible {
   outline: 2px solid #2b8c69;
   outline-offset: 1px;
@@ -502,7 +509,6 @@
   transition: opacity 0.15s ease;
 }
 
-/* Changes the appearance when the send button is disabled */
 .chat-panel-send:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -512,7 +518,7 @@
   background: #0c3a5c;
 }
 
-/* Adjusts chatbot spacing and width for mobile screens */
+/* Adjusts chatbot layout for smaller screens */
 @media (max-width: 480px) {
   .chat-widget {
     right: 16px;
@@ -542,7 +548,7 @@
   cursor: pointer;
 }
 
-/* Microphone button used for voice input */
+/* Microphone button for voice input */
 .chat-mic-button {
   appearance: none;
   -webkit-appearance: none;
@@ -564,13 +570,12 @@
   background: #eef3f2;
 }
 
-/* Highlights the microphone button when using a keyboard */
 .chat-mic-button:focus-visible {
   outline: 2px solid #2b8c69;
   outline-offset: 2px;
 }
 
-/* Changes the microphone button when it is listening */
+/* Highlights the microphone while listening */
 .chat-mic-button--active {
   background: #a6342a;
   border-color: #a6342a;
@@ -578,7 +583,7 @@
   animation: chat-mic-pulse 1.4s ease-in-out infinite;
 }
 
-/* Adds a pulsing effect while the microphone is active */
+/* Pulses the microphone button while listening */
 @keyframes chat-mic-pulse {
   0%, 100% {
     box-shadow: 0 0 0 0 rgba(166, 52, 42, 0.35);
@@ -588,14 +593,13 @@
   }
 }
 
-/* Turns off the microphone animation for users who prefer less movement */
 @media (prefers-reduced-motion: reduce) {
   .chat-mic-button--active {
     animation: none;
   }
 }
 
-/* Error message shown when voice input fails */
+/* Shows an error if voice input fails */
 .chat-voice-error {
   margin: 0;
   padding: 8px 16px;
@@ -607,7 +611,7 @@
   flex-shrink: 0;
 }
 
-/* Controls shown while the chatbot is reading an answer */
+/* Controls for spoken answers */
 .chat-speaking-bar {
   display: flex;
   align-items: center;
@@ -625,7 +629,7 @@
   font-weight: 600;
 }
 
-/* Buttons to pause, resume or stop the spoken answer */
+/* Pause, resume and stop buttons for spoken answers */
 .chat-speaking-bar button {
   appearance: none;
   -webkit-appearance: none;
@@ -644,6 +648,7 @@
   background: #eef5fa;
 }
 
+/* Reminder to verify important information from the assistant */
 .chat-disclaimer {
   margin: 0;
   padding: 6px 16px 10px;
