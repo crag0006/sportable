@@ -67,8 +67,7 @@ function SavedEvents() {
           <section className="results-empty">
             <h2>No saved events yet</h2>
             <p>
-              Find an event and select "Save" on its card to add it here.
-              Saved events are only kept for this visit.
+              Find an event and select "Save" on its card to add it here.              
             </p>
             <Link
               to="/events"

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import TopBar from "../components/TopBar";
 import "./Home.css";
 import { getSports, getSuburbs } from "../api/venues";
@@ -11,7 +11,7 @@ import {
   removeSavedEvent
 } from "../components/savedEvents";
 
-// Key used to remember the last event search
+// Remembers the last event search in this browser session
 const STORAGE_KEY = "sportable-last-event-search";
 
 // Matches API facility types with the names used in the app
@@ -22,18 +22,7 @@ const EVENT_FACILITY_TYPE_TO_KEY = {
   accessible_change_facility: "change"
 };
 
-// Days shown in the weekday filter
-const WEEKDAYS = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday"
-];
-
-// Restores the previous event search from session storage
+// Restores the previous event search if one was saved
 function getSavedSearch() {
   try {
     const saved = sessionStorage.getItem(STORAGE_KEY);
@@ -42,7 +31,7 @@ function getSavedSearch() {
   return null;
 }
 
-// Finds sports that match the entered text
+// Finds sports matching the text entered by the user
 function findSportMatches(list, typedText) {
   if (typedText.length === 0) return list;
   return list.filter((item) =>
@@ -50,7 +39,7 @@ function findSportMatches(list, typedText) {
   );
 }
 
-// Finds matching suburbs after three characters are entered
+// Shows matching suburbs after three characters are entered
 function findSuburbMatches(list, typedText) {
   if (typedText.length < 3) return [];
   return list.filter((item) =>
@@ -58,12 +47,12 @@ function findSuburbMatches(list, typedText) {
   );
 }
 
-// Creates a Google Maps directions link to the event venue
+// Creates walking directions to the event venue in Google Maps
 function buildMapsUrl(lat, lon) {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=walking`;
 }
 
-// Formats the published date, time or recurring schedule
+// Formats an event date or its recurring schedule for display
 function formatEventDateTime(event) {
   if (event.date_local) {
     const date = new Date(`${event.date_local}T${event.time_local || "00:00"}`);
@@ -83,8 +72,7 @@ function formatEventDateTime(event) {
       ? `${event.status_label} · ${event.recurrence.summary}`
       : event.recurrence.summary;
   }
-
-  // Shows the published weekday when an exact event time is unavailable
+  // Shows the published weekday when an exact time is unavailable
   if (event.weekday) {
     const label = `Every ${event.weekday}`;
     return event.activity_when ? `${label} · ${event.activity_when}` : label;
@@ -93,7 +81,7 @@ function formatEventDateTime(event) {
   return "Date to be confirmed";
 }
 
-// Checks the availability status of an accessibility facility
+// Finds the availability status of an accessibility facility
 export function getEventFacilityState(facility) {
   if (!facility) return "unknown";
   if (facility.display === "at_venue") return "at-venue";
@@ -105,7 +93,7 @@ export function getEventFacilityState(facility) {
   return "unknown";
 }
 
-// Creates the message shown for each facility status
+// Creates the message displayed for each facility status
 function getEventFacilityText(facility, state) {
   if (state === "at-venue") return "At the venue";
   if (state === "within") {
@@ -126,7 +114,7 @@ function getEventFacilityText(facility, state) {
   return "No published information — check with the venue";
 }
 
-// Returns a symbol for each facility status
+// Returns a symbol to show the facility status
 function getEventFacilityStatusSymbol(state) {
   if (state === "at-venue" || state === "within") return "✓";
   if (state === "beyond") return "!";
@@ -134,8 +122,8 @@ function getEventFacilityStatusSymbol(state) {
   return "?";
 }
 
-// Displays an event with venue details and accessibility facilities
-function EventCard({ event }) {
+// Displays an event card with venue details and accessibility information
+function EventCard({ event, onSaved }) {
   const venue = event.venue || {};
   const links = event.links || {};
   const access = event.access || {};
@@ -152,14 +140,14 @@ function EventCard({ event }) {
       ? `${event.home_team} v ${event.away_team}`
       : event.title || event.sport;
   const [isSaved, setIsSaved] = useState(() => isEventSaved(event.id));
-
-  // Saves or removes the selected event
+  // Saves an event or removes it from the saved list
   function handleToggleSave() {
     if (isSaved) {
       removeSavedEvent(event.id);
       setIsSaved(false);
       return;
     }
+    // Saves the event details needed for the saved list and calendar
     addSavedEvent({
       id: event.id,
       title: eventTitle,
@@ -167,25 +155,24 @@ function EventCard({ event }) {
       dateTimeLabel: formatEventDateTime(event),
       suburb: venue.suburb || venue.address || "",
       venueName: venue.name || "Venue to be confirmed",
-
-      // Keeps the original date and venue details for Google Calendar
+      // Keeps the original date and time for Google Calendar
       dateLocal: event.date_local || null,
       timeLocal: event.time_local || null,
       venueAddress: venue.address || "",
       venueHref: venue.href || null,
       facilities: facilities,
-
-      // Keeps the details needed for recurring events
+      // Keeps recurring schedule details when there is no specific date
       weekday: event.weekday || null,
       activityWhen: event.activity_when || null,
       description: event.description || "",
       externalLink: event.links?.external || null,
       registrationLink: event.links?.registration || null,
-
-      // Keeps calendar information provided by the API, when available
+      // Uses calendar information provided by the API, when available
       calendarBlock: event.calendar || null
     });
     setIsSaved(true);
+    // Shows the confirmation message after an event is saved
+    onSaved?.();
   }
   return (
     <article className="event-card">
@@ -305,7 +292,7 @@ function EventCard({ event }) {
   );
 }
 
-// Main event search page
+// Main sports event search page
 function Events() {
   const [sports, setSports] = useState([]);
   const [suburbs, setSuburbs] = useState([]);
@@ -315,12 +302,34 @@ function Events() {
     () => getSavedSearch()?.dateFrom ?? ""
   );
   const [dateTo, setDateTo] = useState(() => getSavedSearch()?.dateTo ?? "");
+  // Keeps any weekday filter received through a shared link
   const [weekday, setWeekday] = useState(() => getSavedSearch()?.weekday ?? "");
-
-  // Tracks events opened from a venue page or a direct event link
+  // Tracks event searches opened from venue or event links
   const [lookupInfo, setLookupInfo] = useState(null);
+  // Controls the message shown after an event is saved
+  const [savedToastVisible, setSavedToastVisible] = useState(false);
+  const savedToastTimeoutRef = useRef(null);
+  // Shows a save confirmation for six seconds
+  function showSavedToast() {
+    setSavedToastVisible(true);
+    if (savedToastTimeoutRef.current) {
+      clearTimeout(savedToastTimeoutRef.current);
+    }
+    savedToastTimeoutRef.current = window.setTimeout(() => {
+      setSavedToastVisible(false);
+    }, 6000);
+  }
+  useEffect(() => {
+    return () => {
+      if (savedToastTimeoutRef.current) {
+        clearTimeout(savedToastTimeoutRef.current);
+      }
+    };
+  }, []);
+  // Controls the sport and suburb suggestion lists
   const [showSports, setShowSports] = useState(false);
   const [showSuburbs, setShowSuburbs] = useState(false);
+  // Stores the event search results
   const [results, setResults] = useState(
     () => getSavedSearch()?.results ?? null
   );
@@ -331,8 +340,7 @@ function Events() {
   const [visibleCount, setVisibleCount] = useState(
     () => getSavedSearch()?.visibleCount ?? 5
   );
-
-  // Loads the available sports and suburbs when the page opens
+  // Loads sports and suburbs from the backend
   useEffect(() => {
     getSports()
       .then((data) => setSports(data))
@@ -352,19 +360,12 @@ function Events() {
         ])
       );
   }, []);
-
   // Searches for events using the selected filters
   async function runSearch({ sport, suburb, dateFrom, dateTo, weekday }) {
     setIsSearching(true);
     setSearchError("");
     try {
-      const data = await getEvents({
-        sport,
-        suburb,
-        dateFrom,
-        dateTo,
-        weekday
-      });
+      const data = await getEvents({ sport, suburb, dateFrom, dateTo, weekday });
       const newResults = {
         events: data.events || [],
         window: data.window,
@@ -383,7 +384,6 @@ function Events() {
       try {
         sessionStorage.setItem("sportable-last-results-page", "/events");
       } catch {
-        // Continues if session storage is unavailable
       }
       try {
         sessionStorage.setItem(
@@ -408,8 +408,7 @@ function Events() {
       setIsSearching(false);
     }
   }
-
-  // Gets events for a specific venue or list of event IDs
+  // Finds events for a specific venue or event IDs
   async function runLookup({ venueId, ids }) {
     setIsSearching(true);
     setSearchError("");
@@ -437,8 +436,7 @@ function Events() {
       setIsSearching(false);
     }
   }
-
-  // Checks the required fields before searching
+  // Checks the required fields before starting the search
   async function handleSearch(event) {
     event.preventDefault();
     if (sport === "" && suburb === "") {
@@ -462,8 +460,7 @@ function Events() {
     setShowSuburbs(false);
     await runSearch({ sport, suburb, dateFrom, dateTo, weekday });
   }
-
-  // Reads search details from the URL when the page opens
+  // Reads search filters from a shared link when the page opens
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const urlVenueId = params.get("venue_id") || "";
@@ -490,12 +487,9 @@ function Events() {
         weekday: urlWeekday
       });
     }
-
-    // Runs once when the page first opens
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Clears the filters and search results
+  // Clears the filters and previous search results
   function handleClear() {
     setSport("");
     setSuburb("");
@@ -515,8 +509,7 @@ function Events() {
   }
   const sportMatches = findSportMatches(sports, sport);
   const suburbMatches = findSuburbMatches(suburbs, suburb);
-
-  // Formats the selected date range
+  // Formats the selected date range for the results summary
   function buildDateRangeText() {
     if (!results) return "";
     if (results.searchedDateFrom && results.searchedDateTo) {
@@ -524,8 +517,7 @@ function Events() {
     }
     return "";
   }
-
-  // Creates a short description of the active filters
+  // Creates a short description of the current search
   function buildSummaryText() {
     if (!results) return "";
     let text = results.searchedSport + " near " + results.searchedPlace;
@@ -538,8 +530,7 @@ function Events() {
     }
     return text;
   }
-
-  // Creates a message when no events match the search
+  // Explains when no events match the selected filters
   function buildEmptyMessage() {
     if (!results) return "";
     let message = `No ${results.searchedSport} events found near ${results.searchedPlace}`;
@@ -554,8 +545,7 @@ function Events() {
       ". Try a wider date range, remove a filter, or try a nearby suburb.";
     return message;
   }
-
-  // Prepares a short summary of the results for Read Aloud
+  // Prepares a short spoken summary of the event results
   function buildReadAloudSummary() {
     if (!results) return [];
     const sentences = lookupInfo
@@ -583,10 +573,8 @@ function Events() {
     sentences.push(`Next up: ${firstEvent.sport} at ${firstVenueName}.`);
     return sentences;
   }
-
   return (
     <div className="search-page">
-      {/* Main navigation */}
       <TopBar
         links={[
           { to: "/", label: "Home" },
@@ -594,8 +582,30 @@ function Events() {
           { to: "/saved-events", label: "Saved events" }
         ]}
       />
+
+      {savedToastVisible && (
+        <div className="save-toast" role="status">
+          <span className="save-toast-icon" aria-hidden="true">
+            ✓
+          </span>
+          <p className="save-toast-text">
+            Event saved successfully.{" "}
+            <a href="/saved-events" className="save-toast-link">
+              Go to Saved events
+            </a>{" "}
+            — you can download the calendar for your reference there.
+          </p>
+          <button
+            type="button"
+            className="save-toast-close"
+            onClick={() => setSavedToastVisible(false)}
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
       <main className="search-content">
-        {/* Page heading and banner */}
         <div className="search-banner-wrap">
           <div className="page-kicker">Explore sports events</div>
           <div className="search-banner">
@@ -606,8 +616,7 @@ function Events() {
             </div>
           </div>
         </div>
-
-        {/* Summary for events opened from a venue or direct link */}
+        
         {results !== null && !showForm && lookupInfo && (
           <div className="search-summary-bar">
             <div>
@@ -631,8 +640,7 @@ function Events() {
             </div>
           </div>
         )}
-
-        {/* Summary of the current search filters */}
+        
         {results !== null && !showForm && !lookupInfo && (
           <div className="search-summary-bar">
             <div>
@@ -660,12 +668,10 @@ function Events() {
           </div>
         )}
 
-        {/* Search form with sport, location, date and weekday filters */}
         {showForm && (
           <section className="search-card">
             <h1 className="search-title">Search for an event</h1>
             <form onSubmit={handleSearch}>
-              {/* Sport and suburb search fields */}
               <div className="search-row">
                 <div className="field">
                   <label htmlFor="event-sport">
@@ -767,7 +773,6 @@ function Events() {
                   </p>
                 </div>
               </div>
-              {/* Optional date filters */}
               <div className="date-section">
                 <p className="date-section-title">Choose your dates</p>
                 <div className="search-row">
@@ -794,36 +799,11 @@ function Events() {
                   </div>
                 </div>
               </div>
-
-              {/* Lets users filter events by weekday */}
-              <div className="date-section">
-                <p className="date-section-title">Or pick a day of the week</p>
-                <div className="search-row">
-                  <div className="field">
-                    <label htmlFor="event-weekday">Day of week</label>
-                    <select
-                      id="event-weekday"
-                      className="input"
-                      value={weekday}
-                      onChange={(event) => setWeekday(event.target.value)}
-                    >
-                      <option value="">Any day</option>
-                      {WEEKDAYS.map((day) => (
-                        <option key={day} value={day}>
-                          {day}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-              {/* Form validation errors */}
               {formError !== "" && (
                 <p className="form-error" role="alert">
                   {formError}
                 </p>
               )}
-              {/* Search errors */}
               {searchError !== "" && (
                 <p className="form-error" role="alert">
                   {searchError}
@@ -849,7 +829,6 @@ function Events() {
           </section>
         )}
         <div aria-live="polite">
-          {/* Shows the initial message or the event results */}
           {results === null ? (
             <section className="results-empty">
               <h2>Nothing searched yet</h2>
@@ -860,7 +839,6 @@ function Events() {
             </section>
           ) : (
             <div className="results">
-              {/* Reads a short summary of the event results */}
               <ReadAloud summary={buildReadAloudSummary()} />
               <div className="results-heading">
                 <div>
@@ -885,9 +863,7 @@ function Events() {
                         {results.searchedWeekday
                           ? ` · ${results.searchedWeekday}s`
                           : ""}
-                        {buildDateRangeText()
-                          ? ` · ${buildDateRangeText()}`
-                          : ""}
+                        {buildDateRangeText() ? ` · ${buildDateRangeText()}` : ""}
                       </p>
                     </>
                   )}
@@ -905,10 +881,13 @@ function Events() {
                   </p>
                 </div>
               )}
-
-              {/* Displays matching event cards */}
+              // Displays event cards and lets each card show a save confirmation
               {results.events.slice(0, visibleCount).map((event) => (
-                <EventCard key={event.id} event={event} />
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  onSaved={showSavedToast}
+                />
               ))}
               {visibleCount < results.events.length && (
                 <button
@@ -926,5 +905,4 @@ function Events() {
     </div>
   );
 }
-
 export default Events;
