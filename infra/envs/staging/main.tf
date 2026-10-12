@@ -115,6 +115,22 @@ module "api" {
   # sportable-bedrock-bridge access key in the account that issued it.
   bedrock_bridge_ssm_prefix = "/sportable/staging/bedrock"
 
+  # Measured on staging, 12 Oct 2026, against the 31-question golden set:
+  # Titan v2 separates relevant chunks from noise at 0.58, not the 0.35 the
+  # module was first written with. 2048 output tokens is what the structured
+  # answer needs; 500 and 900 truncated it.
+  assistant_config = {
+    retrieval_top_k      = "4"
+    relevance_floor      = "0.58"
+    max_input_tokens     = "2000"
+    max_output_tokens    = "2048"
+    daily_invocation_cap = "2000"
+  }
+
+  # The public product's address. Every site calls this one API, so share and
+  # calendar links from staging and the iteration sites point here too.
+  public_base_url = "https://sportablemelbourne.me"
+
   depends_on = [module.app_config]
 }
 
@@ -187,6 +203,11 @@ module "observability" {
   function_timeout_seconds = module.api.function_timeout_seconds
   api_id                   = module.api.api_id
   db_instance_identifier   = module.database.instance_identifier
+
+  assistant_function_name   = module.api.assistant_function_name
+  assistant_timeout_seconds = module.api.assistant_timeout_seconds
+  # Three quarters of the 2000 daily cap.
+  assistant_daily_invocation_threshold = 1500
 }
 
 module "ingestion" {

@@ -239,3 +239,89 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage" {
 
   tags = { Name = "${var.name_prefix}-rds-free-storage" }
 }
+
+# ------------------------------------------------------------------------------
+# Access Assistant
+# ------------------------------------------------------------------------------
+# A separate function from the API, so its own alarms: the API's alarms are
+# keyed on the API's function name and see nothing that happens here.
+
+locals {
+  assistant_alarms = var.assistant_function_name == "" ? 0 : 1
+}
+
+# Same threshold-of-one reasoning as lambda_errors. A Bedrock throttle or a
+# timeout inside the tool loop is caught and answered as "not available", so
+# this fires on genuine crashes, not on a busy minute.
+resource "aws_cloudwatch_metric_alarm" "assistant_errors" {
+  count = local.assistant_alarms
+
+  alarm_name        = "${var.name_prefix}-assistant-errors"
+  alarm_description = "The assistant raised an unhandled exception. Check /aws/lambda/${var.assistant_function_name}."
+
+  namespace   = "AWS/Lambda"
+  metric_name = "Errors"
+  dimensions  = { FunctionName = var.assistant_function_name }
+
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [aws_sns_topic.alerts.arn]
+  ok_actions    = [aws_sns_topic.alerts.arn]
+
+  tags = { Name = "${var.name_prefix}-assistant-errors" }
+}
+
+# Maximum, not Average: a model call is slow by nature, so a healthy average
+# can hide individual answers that are being cut off at the timeout.
+resource "aws_cloudwatch_metric_alarm" "assistant_duration" {
+  count = local.assistant_alarms
+
+  alarm_name        = "${var.name_prefix}-assistant-duration"
+  alarm_description = "An assistant call approached the ${var.assistant_timeout_seconds}s timeout. Usually Bedrock throttling or a slow tool round."
+
+  namespace   = "AWS/Lambda"
+  metric_name = "Duration"
+  dimensions  = { FunctionName = var.assistant_function_name }
+
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = var.assistant_timeout_seconds * 1000 * 0.8
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [aws_sns_topic.alerts.arn]
+  ok_actions    = [aws_sns_topic.alerts.arn]
+
+  tags = { Name = "${var.name_prefix}-assistant-duration" }
+}
+
+# Cost, not health. Every invocation can be a paid model call, and the
+# endpoint is public. One-day period: the longest a standard alarm allows.
+resource "aws_cloudwatch_metric_alarm" "assistant_daily_invocations" {
+  count = local.assistant_alarms
+
+  alarm_name        = "${var.name_prefix}-assistant-daily-invocations"
+  alarm_description = "The assistant ran more than ${var.assistant_daily_invocation_threshold} times in a day. Check for a loop or abuse before the daily cap starts refusing."
+
+  namespace   = "AWS/Lambda"
+  metric_name = "Invocations"
+  dimensions  = { FunctionName = var.assistant_function_name }
+
+  statistic           = "Sum"
+  period              = 86400
+  evaluation_periods  = 1
+  threshold           = var.assistant_daily_invocation_threshold
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [aws_sns_topic.alerts.arn]
+  ok_actions    = [aws_sns_topic.alerts.arn]
+
+  tags = { Name = "${var.name_prefix}-assistant-daily-invocations" }
+}

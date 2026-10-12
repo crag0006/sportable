@@ -92,6 +92,8 @@ resource "aws_lambda_function" "assistant" {
       ENVIRONMENT  = "staging"
       LOG_LEVEL    = "INFO"
 
+      PUBLIC_BASE_URL = var.public_base_url
+
       # Model ids as configuration, not constants in code. Changing model is
       # then a pipeline run rather than a pull request, and the id that was
       # actually used is visible in the function configuration.
