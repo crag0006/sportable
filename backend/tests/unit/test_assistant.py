@@ -11,7 +11,12 @@ from collections.abc import Iterator
 from typing import Any
 
 import pytest
-from app.api.deps import get_chat_model, get_chunk_repository, get_embedding_model
+from app.api.deps import (
+    get_chat_model,
+    get_chunk_repository,
+    get_embedding_model,
+    get_usage_repository,
+)
 from app.gateways.protocols import ModelReply, ModelUnavailableError, ToolCall
 from app.main import app
 from app.repositories.protocols import ChunkRow
@@ -104,6 +109,37 @@ def scripted(client: TestClient) -> Iterator[ScriptedModel]:
     yield model
     for dep in (get_chat_model, get_embedding_model, get_chunk_repository):
         app.dependency_overrides.pop(dep, None)
+
+
+class CountingUsage:
+    """A usage repository that answers with a fixed day total, or None (no table)."""
+
+    total: int | None = 1
+
+    def record_call(self, day: Any) -> int | None:
+        return CountingUsage.total
+
+
+def test_daily_cap_answers_unavailable_without_a_model_call(
+    client: TestClient, scripted: ScriptedModel
+):
+    """Contract 8.7: past ``daily_invocation_cap`` the turn is refused before the model."""
+    app.dependency_overrides[get_usage_repository] = CountingUsage
+    try:
+        CountingUsage.total = 2001
+        body = ask(client, "Basketball near Preston?")
+        assert body["kind"] == "unavailable" and body["model_called"] is False
+        assert "daily limit" in body["answer"]
+        assert [link["kind"] for link in body["links"]] == ["search", "search"]
+        assert scripted.requests == []
+        CountingUsage.total = 2000
+        scripted.replies = [final("Within the cap.")]
+        assert ask(client, "Basketball near Preston?")["kind"] == "answer"
+        CountingUsage.total = None
+        scripted.replies = [final("Counter table absent, still answering.")]
+        assert ask(client, "Basketball near Preston?")["model_called"] is True
+    finally:
+        app.dependency_overrides.pop(get_usage_repository, None)
 
 
 def ask(client: TestClient, question: str, **body: Any) -> dict[str, Any]:
