@@ -310,6 +310,8 @@ def test_round_cap_forces_a_final_answer_and_marks_partial(
     body = ask(client, "basketball?")
     assert body["partial"] is True and body["answer"] == "Here is what I have."
     assert scripted.requests[-1]["tool_choice"] == {"type": "tool", "name": "final_answer"}
+    # Before the cap the model must still call a tool: plain text never ends a turn.
+    assert scripted.requests[0]["tool_choice"] == {"type": "any"}
     assert len(body["trace"]) == 3
 
 
