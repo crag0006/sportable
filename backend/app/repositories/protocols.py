@@ -381,6 +381,14 @@ class VenueRepository(Protocol):
         ...
 
 
+class UsageRepository(Protocol):
+    """The daily assistant counter behind ``daily_invocation_cap`` (contract 8.7)."""
+
+    def record_call(self, day: date) -> int | None:
+        """Count one turn on ``day`` and return the day's total; None when nothing counts."""
+        ...
+
+
 class EventRepository(Protocol):
     """Fixtures and weekly programmes (DS-09), each joined to its matched venue."""
 

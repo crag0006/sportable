@@ -18,6 +18,7 @@ from typing import Any
 
 from app.core.config import Settings
 from app.gateways.protocols import ChatModel, ModelReply, ModelUnavailableError, ToolCall
+from app.repositories.protocols import UsageRepository
 from app.schemas.assistant import AssistantRequest, AssistantResponse, LinkOut
 from app.services.assistant.builder import Call, build_response
 from app.services.assistant.prompt import CAPABILITY_MESSAGE, system_prompt
@@ -31,6 +32,10 @@ SEARCH_LINKS = [
 ]
 UNAVAILABLE_MESSAGE = (
     "The assistant is not available right now. The venue search and the events pages still work."
+)
+CAPPED_MESSAGE = (
+    "The assistant has reached its daily limit and is back tomorrow. "
+    "The venue search and the events pages still work."
 )
 # The gate: questions no tool can answer, refused before any model call (AC6.3.1).
 # Conservative on purpose; the model refuses the rest with the same sentence.
@@ -101,16 +106,14 @@ class AssistantService:
     tools: ToolRunner
     settings: Settings
     now: datetime
+    usage: UsageRepository
 
     def ask(self, request: AssistantRequest) -> AssistantResponse:
-        """One turn: gate, loop, build. Never raises for a model failure."""
+        """One turn: gate, daily cap, loop, build. Never raises for a model failure."""
         if _gate(request.question):
-            log.info(
-                json.dumps({"event": "ASSISTANT_REFUSED", "reason": "gate", "model_called": False})
-            )
-            return AssistantResponse(
-                kind="capability", answer=CAPABILITY_MESSAGE, links=SEARCH_LINKS, model_called=False
-            )
+            return self._refused("capability", CAPABILITY_MESSAGE, "gate")
+        if self._capped():
+            return self._refused("unavailable", CAPPED_MESSAGE, "daily_cap")
         loop = Loop(
             messages=[
                 *({"role": t.role, "content": t.content} for t in request.history),
@@ -141,6 +144,30 @@ class AssistantService:
         response = build_response(final, loop.calls, model_called=True, partial=partial)
         self._log(loop, response, started)
         return response
+
+    def _refused(self, kind: str, answer: str, reason: str) -> AssistantResponse:
+        """An answer given without the model: the capability sentence or the daily-limit one."""
+        log.info(
+            json.dumps({"event": "ASSISTANT_REFUSED", "reason": reason, "model_called": False})
+        )
+        return AssistantResponse(kind=kind, answer=answer, links=SEARCH_LINKS, model_called=False)
+
+    def _capped(self) -> bool:
+        """Count this turn against the Melbourne day; True once the day is over the cap (8.7).
+
+        A database without the counter table counts nothing and never caps, so a
+        deployment that runs ahead of migration 015 keeps answering; the
+        CloudWatch alarm on invocations is the backstop in that state.
+        """
+        cap = self.settings.assistant.daily_invocation_cap
+        calls = self.usage.record_call(self.now.date())
+        if calls is None:
+            log.warning(json.dumps({"event": "ASSISTANT_USAGE_UNCOUNTED"}))
+            return False
+        if calls > cap:
+            log.info(json.dumps({"event": "ASSISTANT_CAPPED", "calls": calls, "cap": cap}))
+            return True
+        return False
 
     def _run(self, loop: Loop, system: str, started: float) -> tuple[dict[str, Any], bool]:
         """The bounded loop; returns the final answer and whether a cap cut it short."""

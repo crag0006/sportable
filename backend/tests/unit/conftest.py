@@ -8,6 +8,7 @@ edge cases the Data team called out: a facility confirmed at the venue itself
 
 from collections.abc import Iterator
 from datetime import UTC, date, datetime, timedelta
+from typing import ClassVar
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -15,6 +16,7 @@ from app.api.deps import (
     get_event_repository,
     get_now,
     get_reference_repository,
+    get_usage_repository,
     get_venue_repository,
 )
 from app.main import app
@@ -530,11 +532,23 @@ def venues() -> list[VenueRow]:
     return VENUES
 
 
+class FakeUsageRepository:
+    """``UsageRepository`` counting in memory, reset by the client fixture."""
+
+    calls: ClassVar[dict[date, int]] = {}
+
+    def record_call(self, day: date) -> int | None:
+        FakeUsageRepository.calls[day] = FakeUsageRepository.calls.get(day, 0) + 1
+        return FakeUsageRepository.calls[day]
+
+
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     app.dependency_overrides[get_reference_repository] = FakeReferenceRepository
     app.dependency_overrides[get_venue_repository] = FakeVenueRepository
     app.dependency_overrides[get_event_repository] = FakeEventRepository
+    app.dependency_overrides[get_usage_repository] = FakeUsageRepository
+    FakeUsageRepository.calls = {}
     app.dependency_overrides[get_now] = lambda: NOW.astimezone(ZoneInfo("Australia/Melbourne"))
     try:
         yield TestClient(app)

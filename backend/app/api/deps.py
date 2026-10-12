@@ -17,11 +17,13 @@ from app.gateways.protocols import ChatModel, EmbeddingModel
 from app.repositories.postgres_chunks import PostgresChunkRepository
 from app.repositories.postgres_events import PostgresEventRepository
 from app.repositories.postgres_reference import PostgresReferenceRepository
+from app.repositories.postgres_usage import PostgresUsageRepository
 from app.repositories.postgres_venues import PostgresVenueRepository
 from app.repositories.protocols import (
     ChunkRepository,
     EventRepository,
     ReferenceRepository,
+    UsageRepository,
     VenueRepository,
 )
 from app.services.assistant.retrieval import Retrieval
@@ -110,7 +112,15 @@ def get_chunk_repository() -> ChunkRepository:
 
 ChatDep = Annotated[ChatModel, Depends(get_chat_model)]
 EmbedDep = Annotated[EmbeddingModel, Depends(get_embedding_model)]
+
+
+def get_usage_repository() -> UsageRepository:
+    """The daily assistant counter; overridden in tests."""
+    return PostgresUsageRepository()
+
+
 ChunkRepo = Annotated[ChunkRepository, Depends(get_chunk_repository)]
+UsageRepo = Annotated[UsageRepository, Depends(get_usage_repository)]
 
 
 def get_assistant_service(
@@ -124,13 +134,14 @@ def get_assistant_service(
     references: References,
     settings: SettingsDep,
     now: NowDep,
+    usage: UsageRepo,
 ) -> AssistantService:
     """The assistant over the model gateways, the retrieval index and the four services."""
     retrieval = Retrieval(
         chunks, embeddings, settings.bedrock_embedding_model_id, settings.assistant
     )
     runner = ToolRunner(venues, events, locations, references, reference, retrieval, settings, now)
-    return AssistantService(chat, runner, settings, now)
+    return AssistantService(chat, runner, settings, now, usage)
 
 
 Assistant = Annotated[AssistantService, Depends(get_assistant_service)]
