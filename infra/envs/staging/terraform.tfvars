@@ -8,6 +8,7 @@ allowed_ssh_cidrs = [
   "110.148.190.230/32", # charan, home
   "130.194.14.26/32",   # charan, Monash campus — added 1 Sep 2026 to load the database
   "124.190.8.232/32",   # charan — added 8 Oct 2026 to check the RAG index
+  "1.136.108.131/32",   # charan, hotspot — added 13 Oct 2026 to apply migration 015
 ]
 
 # SSH public key authorised on the bastion. Public keys are not secrets — the
