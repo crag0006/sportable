@@ -1,0 +1,43 @@
+# ==============================================================================
+# Deploy — iteration 1
+# ==============================================================================
+# Publishes release-iteration-1 to the Iteration 1 URL. The steps live in
+# deploy-iteration.yml; this file is the trigger, the branch and the freeze.
+#
+# FROZEN AT PR #48. 72365b1 (PR #50) is the first dev
+# commit after it and must never reach this branch.
+# ==============================================================================
+
+name: Deploy — iteration 1
+
+on:
+  push:
+    branches: [release-iteration-1]
+
+  # For re-publishing without an empty commit — after a cache problem, or to
+  # confirm the URL still serves after a DNS change. Run it on release-iteration-1.
+  workflow_dispatch:
+    inputs:
+      skip_smoke_test:
+        description: "Skip the smoke test — the deploy will NOT be verified"
+        type: boolean
+        default: false
+
+# One deploy of this iteration at a time. cancel-in-progress is false: a
+# cancelled upload can leave the bucket half old and half new.
+concurrency:
+  group: deploy-iteration-1
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deploy-iteration.yml
+    with:
+      iteration: "1"
+      not_after: "72365b10a1ba227220010bf983e384749a0604a3"
+      skip_smoke_test: ${{ inputs.skip_smoke_test == true }}
+    secrets: inherit
