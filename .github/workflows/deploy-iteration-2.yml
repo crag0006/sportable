@@ -1,0 +1,43 @@
+# ==============================================================================
+# Deploy — iteration 2
+# ==============================================================================
+# Publishes release-iteration-2 to the Iteration 2 URL. The steps live in
+# deploy-iteration.yml; this file is the trigger, the branch and the freeze.
+#
+# FROZEN AT PR #98. 9aeebff (PR #99) is the first dev
+# commit after it and must never reach this branch.
+# ==============================================================================
+
+name: Deploy — iteration 2
+
+on:
+  push:
+    branches: [release-iteration-2]
+
+  # For re-publishing without an empty commit — after a cache problem, or to
+  # confirm the URL still serves after a DNS change. Run it on release-iteration-2.
+  workflow_dispatch:
+    inputs:
+      skip_smoke_test:
+        description: "Skip the smoke test — the deploy will NOT be verified"
+        type: boolean
+        default: false
+
+# One deploy of this iteration at a time. cancel-in-progress is false: a
+# cancelled upload can leave the bucket half old and half new.
+concurrency:
+  group: deploy-iteration-2
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deploy-iteration.yml
+    with:
+      iteration: "2"
+      not_after: "9aeebff9140b717cb5826224562bd10f4e6e0745"
+      skip_smoke_test: ${{ inputs.skip_smoke_test == true }}
+    secrets: inherit
