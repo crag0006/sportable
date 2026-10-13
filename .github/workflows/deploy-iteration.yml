@@ -11,7 +11,7 @@
 #   with its own bucket, distribution and domain, and its OWN WORKFLOW:
 #
 #     deploy-iteration-1.yml  release-iteration-1  infra/envs/iteration-1  frozen at PR #48
-#     deploy-iteration-2.yml  release-iteration-2  infra/envs/iteration-2  frozen at PR #98
+#     deploy-iteration-2.yml  release-iteration-2  infra/envs/iteration-2  frozen at PR #96
 #
 #   Each of those is a few lines: its trigger, its branch, and the freeze point.
 #   This file holds the steps once, so the two cannot drift apart.

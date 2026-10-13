@@ -15,7 +15,8 @@
 #   for the reasoning and the risk that comes with it.
 #
 # Copied from iteration-1; only names, the state key and the domain differ.
-# The frontend is frozen at release-iteration-2 (dev just before PR #99).
+# The frontend is frozen at release-iteration-2 (dev at PR #96, before the
+# chatbot and Google Calendar arrived in PR #97).
 #
 # This calls the same module staging does. That is the whole point of the
 # modules/envs split — see docs/adr/ADR-001.

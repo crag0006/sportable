@@ -4,7 +4,7 @@
 # Publishes release-iteration-2 to the Iteration 2 URL. The steps live in
 # deploy-iteration.yml; this file is the trigger, the branch and the freeze.
 #
-# FROZEN AT PR #98. 9aeebff (PR #99) is the first dev
+# FROZEN AT PR #96. 095662b (PR #97, chatbot and Google Calendar) is the first dev
 # commit after it and must never reach this branch.
 # ==============================================================================
 
@@ -38,6 +38,6 @@ jobs:
     uses: ./.github/workflows/deploy-iteration.yml
     with:
       iteration: "2"
-      not_after: "9aeebff9140b717cb5826224562bd10f4e6e0745"
+      not_after: "095662b8b248f079ec36fb09ebc04c55d810b0d0"
       skip_smoke_test: ${{ inputs.skip_smoke_test == true }}
     secrets: inherit
