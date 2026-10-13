@@ -1,5 +1,5 @@
 # ==============================================================================
-# Deploy — iteration release
+# Deploy — iteration (shared job, called by deploy-iteration-N.yml)
 # ==============================================================================
 #
 # WHAT THIS IS FOR
@@ -8,11 +8,21 @@
 #   one bucket and one distribution, and every push to `dev` overwrites them.
 #
 #   So each iteration has its own environment under infra/envs/iteration-N/,
-#   with its own bucket, distribution and domain. This workflow deploys a
-#   release branch into the matching one.
+#   with its own bucket, distribution and domain, and its OWN WORKFLOW:
 #
-#     release-iteration-1  ->  infra/envs/iteration-1  ->  sportablemelbourne-iteration1.me
-#     release-iteration-2  ->  infra/envs/iteration-2  ->  ...
+#     deploy-iteration-1.yml  release-iteration-1  infra/envs/iteration-1  frozen at PR #48
+#     deploy-iteration-2.yml  release-iteration-2  infra/envs/iteration-2  frozen at PR #96
+#
+#   Each of those is a few lines: its trigger, its branch, and the freeze point.
+#   This file holds the steps once, so the two cannot drift apart.
+#
+# THE FREEZE GUARD
+#   On 13 Oct PR #131 merged dev into release-iteration-2 and the "frozen"
+#   Iteration 2 site was republished with Iteration 3 code. Nothing stopped it,
+#   because a release branch is an ordinary branch. Now each caller names the
+#   first dev commit that must NOT be in its release (`not_after`), and the
+#   deploy refuses before building if it is. Merging dev into a release branch
+#   is never right; fix the branch, do not move the guard.
 #
 # HOW IT DIFFERS FROM deploy-staging.yml
 #   FRONTEND ONLY. No terraform apply, no Lambda, no alias shift, no migrations.
@@ -24,30 +34,23 @@
 #   should be able to change.
 # ==============================================================================
 
-name: Deploy — iteration release
+name: Deploy — iteration (shared)
 
 on:
-  push:
-    branches: ["release-iteration-*"]
-
-  # For re-publishing a submitted iteration without an empty commit — after a
-  # cache problem, or to confirm the URL still serves after a DNS change.
-  workflow_dispatch:
+  workflow_call:
     inputs:
+      iteration:
+        description: "Iteration number: 1 deploys release-iteration-1 into infra/envs/iteration-1"
+        type: string
+        required: true
+      not_after:
+        description: "First dev commit that must NOT be in this release (the freeze guard)"
+        type: string
+        required: true
       skip_smoke_test:
         description: "Skip the smoke test — the deploy will NOT be verified"
         type: boolean
         default: false
-
-# One release at a time. cancel-in-progress is false for the same reason as the
-# staging deploy: a cancelled upload can leave a bucket half old and half new.
-concurrency:
-  group: deploy-release-${{ github.ref }}
-  cancel-in-progress: false
-
-permissions:
-  id-token: write
-  contents: read
 
 env:
   AWS_REGION: ap-southeast-2
@@ -61,21 +64,27 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      # Full history, so the freeze guard can ask whether a commit is an
+      # ancestor of this one.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-      # release-iteration-1 -> infra/envs/iteration-1
-      #
-      # Derived from the branch name rather than configured, so adding
-      # iteration 2 is a branch and a directory, with nothing to remember to
-      # change here. If the directory does not exist the step fails with that
-      # said plainly, rather than Terraform initialising an empty folder and
-      # reporting no outputs.
+      # The caller says which iteration this is; the branch must agree. That
+      # stops a manual run of "Deploy — iteration 1" from dev, or from
+      # release-iteration-2, publishing the wrong code to the iteration-1 URL.
       - name: Which iteration is this?
         id: env
         run: |
           set -euo pipefail
           branch="${GITHUB_REF_NAME}"
-          dir="infra/envs/${branch#release-}"
+          expected="release-iteration-${{ inputs.iteration }}"
+          dir="infra/envs/iteration-${{ inputs.iteration }}"
+
+          if [ "$branch" != "$expected" ]; then
+            echo "::error::This workflow deploys $expected only, not $branch."
+            exit 1
+          fi
 
           if [ ! -d "$dir" ]; then
             echo "::error::No environment at $dir for branch $branch. Create it before releasing."
@@ -84,6 +93,15 @@ jobs:
 
           echo "dir=$dir" >> "$GITHUB_OUTPUT"
           echo "Deploying $branch from $dir"
+
+      - name: Is the release still frozen?
+        run: |
+          set -euo pipefail
+          if git merge-base --is-ancestor "${{ inputs.not_after }}" HEAD; then
+            echo "::error::${GITHUB_REF_NAME} contains ${{ inputs.not_after }}, which is after the iteration ${{ inputs.iteration }} freeze. Was dev merged into it? Reset the branch; do not move the guard."
+            exit 1
+          fi
+          echo "Frozen: ${{ inputs.not_after }} is not in this release."
 
       - name: Assume the deploy role
         uses: aws-actions/configure-aws-credentials@v6
@@ -187,7 +205,7 @@ jobs:
       # that notices when the database is stopped and every search returns 500.
       #
       # Two ways to skip, both deliberate:
-      #   · Run the workflow manually and tick "Skip the smoke test"
+      #   · Run the iteration's workflow manually and tick "Skip the smoke test"
       #   · Set a repository VARIABLE (not a secret) SKIP_SMOKE_TEST to "true"
       #     — this is what takes effect on an ordinary push to a release branch
       #
@@ -195,7 +213,7 @@ jobs:
       # serves. Check the URL by hand afterwards.
       - name: Smoke test
         if: >-
-          github.event.inputs.skip_smoke_test != 'true' &&
+          inputs.skip_smoke_test != true &&
           vars.SKIP_SMOKE_TEST != 'true'
         env:
           BASIC_AUTH: ${{ secrets.ITERATION_BASIC_AUTH }}
@@ -287,7 +305,7 @@ jobs:
             echo "| Environment | \`${{ steps.env.outputs.dir }}\` |"
             echo "| Bucket | \`${{ steps.tf.outputs.site_bucket }}\` |"
             echo "| Commit | \`${{ github.sha }}\` |"
-            if [ "${{ github.event.inputs.skip_smoke_test }}" = "true" ] || [ "${{ vars.SKIP_SMOKE_TEST }}" = "true" ]; then
+            if [ "${{ inputs.skip_smoke_test }}" = "true" ] || [ "${{ vars.SKIP_SMOKE_TEST }}" = "true" ]; then
               echo "| Verified | **No — smoke test skipped** |"
             else
               echo "| Verified | Smoke test passed |"
